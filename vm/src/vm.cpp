@@ -3,7 +3,7 @@
 #include "debug.hpp"
 
 LitVm::LitVm() {
-
+	reset_stack();
 }
 
 LitVm::~LitVm() {
@@ -23,14 +23,33 @@ InterpretResult LitVm::interpret(LitChunk *cnk) {
 		instruction = READ_BYTE();
 
 #ifdef DEBUG_TRACE_EXECUTION
+		if (stack != stack_top) {
+			printf("     | ");
+
+			for (LitValue *slot = stack; slot < stack_top; slot++) {
+				printf("[ ");
+				lit_print_value(*slot);
+				printf(" ]");
+			}
+
+			printf("\n");
+		}
+
 		lit_disassemble_instruction(chunk, (int)(ip - chunk->get_code() - 1));
 #endif
 
 		switch (instruction) {
-			case OP_RETURN: return INTERPRET_OK;
+			case OP_RETURN: {
+				lit_print_value(pop());
+				printf("\n");
+				return INTERPRET_OK;
+			}
 			case OP_CONSTANT: {
-				LitValue constant = READ_CONSTANT();
+				push(READ_CONSTANT());
 				break;
+			}
+			case OP_NEGATE: {
+				push(-pop());
 			}
 		}
 	}

@@ -13,6 +13,7 @@ void *reallocate(void *previous, size_t old_size, size_t new_size);
 // Operation codes
 enum {
 	OP_CONSTANT,
+	OP_NEGATE,
 	OP_RETURN
 } LitOpCode;
 

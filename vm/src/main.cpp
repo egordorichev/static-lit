@@ -8,11 +8,12 @@ int main(int argc, char **argv) {
 	LitVm vm;
 	LitChunk chunk;
 
-	int constant = chunk.add_constant(1.2);
+	int constant = chunk.add_constant(10);
 
 	chunk.write(OP_CONSTANT, 0);
 	chunk.write(constant, 0);
-	chunk.write(OP_RETURN, 0);
+	chunk.write(OP_NEGATE, 1);
+	chunk.write(OP_RETURN, 1);
 
 	InterpretResult result = vm.interpret(&chunk);
 
