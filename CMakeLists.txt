@@ -4,7 +4,7 @@ project(lit)
 set(CMAKE_CXX_STANDARD 14)
 
 file(GLOB_RECURSE SOURCE_FILES vm/src/*.cpp)
-add_executable(lit ${SOURCE_FILES})
+add_executable(lit ${SOURCE_FILES} vm/include/lit_value.hpp vm/include/lit_value.hpp vm/include/lit_value.hpp vm/include/common.hpp vm/src/lit_value.cpp vm/src/common.cpp)
 
 include_directories(vm/include/)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -fPIC")

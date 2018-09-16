@@ -1,18 +1,17 @@
-#include <cstdio>
 #include "vm.hpp"
 #include "debug.hpp"
 
 LitVm::LitVm() {
-	reset_stack();
+  reset_stack();
 }
 
 LitVm::~LitVm() {
 
 }
 
-InterpretResult LitVm::interpret(LitChunk *cnk) {
-	chunk = cnk;
-	ip = cnk->get_code();
+InterpretResult LitVm::interpret(LitChunk* cnk) {
+  chunk = cnk;
+  ip = cnk->get_code();
 
 #define READ_BYTE() (*ip++)
 #define READ_CONSTANT() (chunk->get_constants()->get(READ_BYTE()))
@@ -23,25 +22,25 @@ InterpretResult LitVm::interpret(LitChunk *cnk) {
       push(a op b); \
     } while (false)
 
-	uint8_t instruction;
+  uint8_t instruction;
 
-	for (;;) {
-		instruction = READ_BYTE();
+  for (;;) {
+    instruction = READ_BYTE();
 
 #ifdef DEBUG_TRACE_EXECUTION
-		if (stack != stack_top) {
-			printf("     | ");
+    if (stack != stack_top) {
+      printf("     | ");
 
-			for (LitValue *slot = stack; slot < stack_top; slot++) {
-				printf("[ ");
-				lit_print_value(*slot);
-				printf(" ]");
-			}
+      for (LitValue* slot = stack; slot < stack_top; slot++) {
+        printf("[ ");
+        lit_print_value(*slot);
+        printf(" ]");
+      }
 
-			printf("\n");
-		}
+      printf("\n");
+    }
 
-		lit_disassemble_instruction(chunk, (int)(ip - chunk->get_code() - 1));
+    lit_disassemble_instruction(chunk, (int) (ip - chunk->get_code() - 1));
 #endif
 
 		switch (instruction) {
@@ -70,15 +69,15 @@ InterpretResult LitVm::interpret(LitChunk *cnk) {
 }
 
 void LitVm::reset_stack() {
-	stack_top = stack;
+  stack_top = stack;
 }
 
 void LitVm::push(LitValue value) {
-	*stack_top = value;
-	stack_top ++;
+  *stack_top = value;
+  stack_top++;
 }
 
 LitValue LitVm::pop() {
-	stack_top --;
-	return *stack_top;
+  stack_top--;
+  return *stack_top;
 }
