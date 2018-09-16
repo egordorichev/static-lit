@@ -15,6 +15,7 @@ void lit_init_chunk(LitChunk *chunk) {
 	chunk->count = 0;
 	chunk->capacity = 0;
 	chunk->code = nullptr;
+	lit_init_array(&chunk->constants);
 }
 
 void lit_write_chunk(LitChunk *chunk, uint8_t code) {
@@ -28,7 +29,14 @@ void lit_write_chunk(LitChunk *chunk, uint8_t code) {
 	chunk->count ++;
 }
 
+int lit_add_constant(LitChunk *chunk, LitValue value) {
+	lit_write_array(&chunk->constants, value);
+	return chunk->constants.count - 1;
+}
+
 void lit_free_chunk(LitChunk *chunk) {
 	FREE_ARRAY(uint8_t, chunk->code, chunk->capacity);
+
+	lit_free_array(&chunk->constants);
 	lit_init_chunk(chunk);
 }
