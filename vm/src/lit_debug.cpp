@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include "debug.hpp"
+#include "lit_debug.hpp"
 
 void lit_disassemble_chunk(LitChunk* chunk, const char* name) {
   std::cout << "== " << name << " ==\n";

@@ -3,7 +3,7 @@
 
 #include <cstdio>
 
-#include "config.hpp"
+#include "lit_config.hpp"
 
 #define LitValue LitNumber
 

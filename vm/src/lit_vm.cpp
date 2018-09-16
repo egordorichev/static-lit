@@ -1,5 +1,5 @@
-#include "vm.hpp"
-#include "debug.hpp"
+#include "lit_vm.hpp"
+#include "lit_debug.hpp"
 
 LitVm::LitVm() {
   reset_stack();
@@ -9,7 +9,7 @@ LitVm::~LitVm() {
 
 }
 
-InterpretResult LitVm::interpret(LitChunk* cnk) {
+InterpretResult LitVm::run_chunk(LitChunk* cnk) {
   chunk = cnk;
   ip = cnk->get_code();
 

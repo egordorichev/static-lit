@@ -12,20 +12,20 @@ typedef enum {
 } InterpretResult;
 
 class LitVm {
-private:
+	public:
+		LitVm();
+		~LitVm();
+
+		void reset_stack();
+		void push(LitValue value);
+		LitValue pop();
+
+		InterpretResult run_chunk(LitChunk* cnk);
+	private:
     LitChunk* chunk;
     uint8_t* ip;
     LitValue stack[STACK_MAX];
     LitValue* stack_top;
-
-public:
-    LitVm();
-    ~LitVm();
-
-    InterpretResult interpret(LitChunk* cnk);
-    void reset_stack();
-    void push(LitValue value);
-    LitValue pop();
 };
 
 #endif
