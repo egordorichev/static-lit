@@ -16,6 +16,12 @@ InterpretResult LitVm::interpret(LitChunk *cnk) {
 
 #define READ_BYTE() (*ip++)
 #define READ_CONSTANT() (chunk->get_constants()->get(READ_BYTE()))
+#define BINARY_OP(op) \
+    do { \
+      double b = pop(); \
+      double a = pop(); \
+      push(a op b); \
+    } while (false)
 
 	uint8_t instruction;
 
@@ -51,9 +57,14 @@ InterpretResult LitVm::interpret(LitChunk *cnk) {
 			case OP_NEGATE: {
 				push(-pop());
 			}
+			case OP_ADD: BINARY_OP(+); break;
+			case OP_SUBTRACT: BINARY_OP(-); break;
+			case OP_MULTIPLY: BINARY_OP(*); break;
+			case OP_DIVIDE: BINARY_OP(/); break;
 		}
 	}
 
+#undef BINARY_OP
 #undef READ_CONSTANT
 #undef READ_BYTE
 }

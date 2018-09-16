@@ -1,5 +1,5 @@
 #include "lit.hpp"
 
-void tsab_do_string(const char *string) {
+void lit_do_string(const char *string) {
 	// todo
 }

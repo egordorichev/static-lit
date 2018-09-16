@@ -4,6 +4,6 @@
 #include "config.hpp"
 #include "chunk.hpp"
 
-void tsab_do_string(const char *string);
+void lit_do_string(const char *string);
 
 #endif
