@@ -1,5 +1,7 @@
 #include "lit.hpp"
 
-void lit_do_string(const char *string) {
-	// todo
+InterpretResult LitState::execute(const char* string) {
+
+
+	return INTERPRET_OK;
 }
