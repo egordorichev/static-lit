@@ -38,3 +38,17 @@ InterpretResult LitVm::interpret(LitChunk *cnk) {
 #undef READ_CONSTANT
 #undef READ_BYTE
 }
+
+void LitVm::reset_stack() {
+	stack_top = stack;
+}
+
+void LitVm::push(LitValue value) {
+	*stack_top = value;
+	stack_top ++;
+}
+
+LitValue LitVm::pop() {
+	stack_top --;
+	return *stack_top;
+}

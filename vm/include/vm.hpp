@@ -3,6 +3,8 @@
 
 #include "chunk.hpp"
 
+#define STACK_MAX 256
+
 typedef enum {
 	INTERPRET_OK,
 	INTERPRET_COMPILE_ERROR,
@@ -15,9 +17,14 @@ class LitVm {
 		~LitVm();
 
 		InterpretResult interpret(LitChunk *cnk);
+		void reset_stack();
+		void push(LitValue value);
+		LitValue pop();
 	private:
 		LitChunk *chunk;
 		uint8_t *ip;
+		LitValue stack[STACK_MAX];
+		LitValue *stack_top;
 };
 
 #endif
