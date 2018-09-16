@@ -1,9 +1,9 @@
 #ifndef LIT_DEBUG_HPP
 #define LIT_DEBUG_HPP
 
-#include "chunk.hpp"
+#include "lit_chunk.hpp"
 
-void lit_disassemble_chunk(LitChunk *chunk, const char *name);
-int lit_disassemble_instruction(LitChunk *chunk, int i);
+void lit_disassemble_chunk(LitChunk* chunk, const char* name);
+int lit_disassemble_instruction(LitChunk* chunk, int i);
 
 #endif

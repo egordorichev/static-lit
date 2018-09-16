@@ -1,7 +1,7 @@
 #ifndef LIT_CONFIG_HPP
 #define LIT_CONFIG_HPP
 
-#include <stdint.h>
+#include <cstdint>
 #include <cstddef>
 
 // Language version

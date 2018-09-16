@@ -2,7 +2,7 @@
 #define LIT_HPP
 
 #include "config.hpp"
-#include "chunk.hpp"
+#include "lit_chunk.hpp"
 #include "vm.hpp"
 
 class LitState {
