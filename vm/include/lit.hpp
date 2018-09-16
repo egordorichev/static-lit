@@ -3,7 +3,11 @@
 
 #include "config.hpp"
 #include "chunk.hpp"
+#include "vm.hpp"
 
-void lit_do_string(const char *string);
+class LitState {
+	public:
+		InterpretResult execute(const char* string);
+};
 
 #endif
