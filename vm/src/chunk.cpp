@@ -11,32 +11,49 @@ void *reallocate(void *previous, size_t old_size, size_t new_size) {
 	return realloc(previous, new_size);
 }
 
-void lit_init_chunk(LitChunk *chunk) {
-	chunk->count = 0;
-	chunk->capacity = 0;
-	chunk->code = nullptr;
-	lit_init_array(&chunk->constants);
+LitChunk::LitChunk() {
+	count = 0;
+	capacity = 0;
+	code = nullptr;
 }
 
-void lit_write_chunk(LitChunk *chunk, uint8_t code) {
-	if (chunk->capacity < chunk->count + 1) {
-		int oldCapacity = chunk->capacity;
-		chunk->capacity = GROW_CAPACITY(oldCapacity);
-		chunk->code = GROW_ARRAY(chunk->code, uint8_t, oldCapacity, chunk->capacity);
+LitChunk::~LitChunk() {
+	FREE_ARRAY(uint8_t, code, capacity);
+
+	constants.free();
+	count = 0;
+	capacity = 0;
+	code = nullptr;
+}
+
+void LitChunk::write(uint8_t cd) {
+	if (capacity < count + 1) {
+		int old_cpacity = capacity;
+		capacity = GROW_CAPACITY(old_cpacity);
+		code = GROW_ARRAY(cd, uint8_t, old_cpacity, capacity);
 	}
 
-	chunk->code[chunk->count] = code;
-	chunk->count ++;
+	code[count] = cd;
+	count ++;
 }
 
-int lit_add_constant(LitChunk *chunk, LitValue value) {
-	lit_write_array(&chunk->constants, value);
-	return chunk->constants.count - 1;
+int LitChunk::add_constant(LitValue value) {
+	constants.write(value);
+	return constants.get_count() - 1;
 }
 
-void lit_free_chunk(LitChunk *chunk) {
-	FREE_ARRAY(uint8_t, chunk->code, chunk->capacity);
+int LitChunk::get_count() {
+	return count;
+}
 
-	lit_free_array(&chunk->constants);
-	lit_init_chunk(chunk);
+int LitChunk::get_capacity() {
+	return capacity;
+}
+
+uint8_t *LitChunk::get_code() {
+	return code;
+}
+
+LitValueArray *LitChunk::get_constants() {
+	return &constants;
 }

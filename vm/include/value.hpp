@@ -5,14 +5,23 @@
 
 #define LitValue LitNumber
 
-typedef struct {
-	int count;
-	int capacity;
-	LitValue *values;
-} LitValueArray;
+class LitValueArray {
+	public:
+		LitValueArray();
+		~LitValueArray();
 
-void lit_init_array(LitValueArray *array);
-void lit_write_array(LitValueArray *array, LitValue value);
-void lit_free_array(LitValueArray *array);
+		void write(LitValue value);
+		void free();
+
+		int get_count() { return count; }
+		int get_capacity() { return capacity; }
+		LitValue get(int i) { return values[i]; }
+	private:
+		int count;
+		int capacity;
+		LitValue *values;
+};
+
+void lit_print_value(LitValue value);
 
 #endif

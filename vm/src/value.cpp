@@ -1,23 +1,36 @@
+#include <cstdio>
 #include "value.hpp"
 #include "chunk.hpp"
 
-void lit_init_array(LitValueArray *array) {
-	array->count = 0;
-	array->capacity = 0;
-	array->values = nullptr;
+LitValueArray::LitValueArray() {
+	count = 0;
+	capacity = 0;
+	values = nullptr;
 }
 
-void lit_write_array(LitValueArray *array, LitValue value) {
-	if (array->capacity < array->count + 1) {
-		int oldCapacity = array->capacity;
-		array->capacity = GROW_CAPACITY(oldCapacity);
-		array->values = GROW_ARRAY(array->values, LitValue, oldCapacity, array->capacity);
+LitValueArray::~LitValueArray() {
+	free();
+}
+
+void LitValueArray::free() {
+	FREE_ARRAY(LitValue, values, capacity);
+
+	count = 0;
+	capacity = 0;
+	values = nullptr;
+}
+
+void LitValueArray::write(LitValue value) {
+	if (capacity < count + 1) {
+		int oldCapacity = capacity;
+		capacity = GROW_CAPACITY(oldCapacity);
+		values = GROW_ARRAY(values, LitValue, oldCapacity, capacity);
 	}
 
-	array->values[array->count] = value;
-	array->count ++;
+	values[count] = value;
+	count ++;
 }
 
-void lit_free_array(LitValueArray *array) {
-	
+void lit_print_value(LitValue value) {
+	printf("%g", value);
 }
