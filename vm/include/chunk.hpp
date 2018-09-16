@@ -21,16 +21,18 @@ class LitChunk {
 		LitChunk();
 		~LitChunk();
 
-		void write(uint8_t cd);
+		void write(uint8_t cd, int line);
 		int add_constant(LitValue value);
 
-		int get_count();
-		int get_capacity();
-		uint8_t *get_code();
-		LitValueArray *get_constants();
+		int get_line(int i) { return lines[i]; }
+		int get_count() { return count; }
+		int get_capacity() { return capacity; }
+		uint8_t *get_code() { return code; }
+		LitValueArray *get_constants() { return &constants; }
 	private:
 		int count;
 		int capacity;
+		int *lines;
 		uint8_t *code;
 		LitValueArray constants;
 };

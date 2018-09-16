@@ -26,6 +26,12 @@ int lit_disassemble_instruction(LitChunk *chunk, int i) {
 	printf("%04d ", i);
 	uint8_t instruction = chunk->get_code()[i];
 
+	if (i > 0 && chunk->get_line(i) == chunk->get_line(i - 1)) {
+		printf("   | ");
+	} else {
+		printf("%4d ", chunk->get_line(i));
+	}
+
 	switch (instruction) {
 		case OP_RETURN: return simple_instruction("OP_RETURN", i);
 		case OP_CONSTANT: return constant_instruction("OP_CONSTANT", chunk, i);

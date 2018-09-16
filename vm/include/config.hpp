@@ -12,4 +12,7 @@
 // Defines what types will be used for variables
 #define LitNumber double
 
+// Trace op codes when running
+#define DEBUG_TRACE_EXECUTION
+
 #endif
