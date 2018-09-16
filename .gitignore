@@ -39,3 +39,6 @@ Makefile
 .idea*
 cmake-build-debug*
 cmake_install*
+lit
+lit.cbp
+.idea/
