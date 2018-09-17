@@ -1,6 +1,7 @@
 #include "lit_lexer.hpp"
 
 #include <cstring>
+#include <cstdio>
 
 LitLexer::LitLexer() {
 
@@ -133,6 +134,7 @@ LitTokenType LitLexer::parse_identifier_type() {
 }
 
 LitToken LitLexer::next_token() {
+	skip_whitespace();
 	start = current;
 
 	if (is_at_end()) {
@@ -171,7 +173,6 @@ LitToken LitLexer::next_token() {
 		case '{': return make_token(TOKEN_LEFT_BRACE);
 		case '}': return make_token(TOKEN_RIGHT_BRACE);
 		case ';': return make_token(TOKEN_SEMICOLON);
-		case ':': return make_token(TOKEN_COLON);
 		case ',': return make_token(TOKEN_COMMA);
 		case '.': return make_token(TOKEN_DOT);
 		case '-': return make_token(TOKEN_MINUS);

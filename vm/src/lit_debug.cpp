@@ -21,6 +21,8 @@ static int constant_instruction(const char* name, LitChunk* chunk, int offset) {
   printf("%-16s %4d '", name, constant);
   lit_print_value(chunk->get_constants()->get(constant));
   printf("'\n");
+
+  return offset + 2;
 }
 
 int lit_disassemble_instruction(LitChunk* chunk, int i) {
@@ -41,6 +43,13 @@ int lit_disassemble_instruction(LitChunk* chunk, int i) {
 		case OP_SUBTRACT: return simple_instruction("OP_SUBTRACT", i);
 		case OP_DIVIDE: return simple_instruction("OP_DIVIDE", i);
 		case OP_MULTIPLY: return simple_instruction("OP_MULTIPLY", i);
+		case OP_NIL: return simple_instruction("OP_NIL", i);
+		case OP_TRUE: return simple_instruction("OP_TRUE", i);
+		case OP_FALSE: return simple_instruction("OP_FALSE", i);
+		case OP_NOT: return simple_instruction("OP_NOT", i);
+		case OP_EQUAL: return simple_instruction("OP_EQUAL", i);
+		case OP_GREATER: return simple_instruction("OP_GREATER", i);
+		case OP_LESS: return simple_instruction("OP_LESS", i);
 		default: printf("Unknown opcode %d\n", instruction); return i + 1;
 	}
 }

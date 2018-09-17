@@ -12,24 +12,31 @@ void* reallocate(void* previous, size_t old_size, size_t new_size);
 
 // Operation codes
 enum LitOpCode {
-    OP_CONSTANT,
-    OP_NEGATE,
-    OP_ADD,
-    OP_SUBTRACT,
-    OP_MULTIPLY,
-    OP_DIVIDE,
-    OP_RETURN
+  OP_CONSTANT,
+  OP_NEGATE,
+  OP_ADD,
+  OP_SUBTRACT,
+  OP_MULTIPLY,
+  OP_DIVIDE,
+  OP_RETURN,
+	OP_NOT,
+	OP_NIL,
+	OP_TRUE,
+	OP_FALSE,
+	OP_EQUAL,
+	OP_GREATER,
+	OP_LESS
 };
 
 class LitChunk {
-private:
+	private:
     int count;
     int capacity;
     int* lines;
     uint8_t* code;
     List<LitValue> constants;
 
-public:
+	public:
     LitChunk();
     ~LitChunk();
 

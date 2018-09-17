@@ -19,6 +19,8 @@ class LitVm {
 		void reset_stack();
 		void push(LitValue value);
 		LitValue pop();
+		LitValue peek(int depth);
+		void runtime_error(const char* format, ...);
 
 		InterpretResult run_chunk(LitChunk* cnk);
 	private:
