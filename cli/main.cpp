@@ -4,7 +4,7 @@
 
 int main(int argc, char **argv) {
 	LitContext context;
-	context.execute("\"Hello, world!\" + 10");
+	context.execute("\"Hello, world!\" + \" Hi\"");
 
 	return 0;
 }

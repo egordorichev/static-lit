@@ -1,6 +1,11 @@
 #include <cstdarg>
+#include <string>
+#include <cstring>
+
 #include "lit_vm.hpp"
 #include "lit_debug.hpp"
+#include "lit_object.hpp"
+#include "lit_value.hpp"
 
 static LitVm *active;
 
@@ -88,7 +93,34 @@ InterpretResult LitVm::run_chunk(LitChunk* cnk) {
 				push(MAKE_NUMBER_VALUE(-AS_NUMBER(pop())));
 				break;
 			}
-			case OP_ADD: BINARY_OP(MAKE_NUMBER_VALUE, +); break;
+			case OP_ADD: {
+				LitValue bv = pop();
+				LitValue av = pop();
+
+				if ((IS_STRING(av) || IS_NUMBER(av)) || (IS_STRING(bv) || IS_NUMBER(bv))) {
+					char* a = lit_to_string(av);
+					char* b = lit_to_string(bv);
+
+					int al = strlen(a);
+					int bl = strlen(b);
+					int len = al + bl;
+
+					char* chars = ALLOCATE(char, len + 1);
+
+					memcpy(chars, a, al);
+					memcpy(chars + al, b, bl);
+					chars[len] = '\0';
+
+					push(MAKE_OBJECT_VALUE(lit_take_string(chars, len)));
+				} else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
+					push(MAKE_NUMBER_VALUE(AS_NUMBER(pop()) + AS_NUMBER(pop())));
+				} else {
+					runtime_error("Operands must be two numbers or two strings.");
+					return INTERPRET_RUNTIME_ERROR;
+				}
+
+				break;
+			}
 			case OP_SUBTRACT: BINARY_OP(MAKE_NUMBER_VALUE, -); break;
 			case OP_MULTIPLY: BINARY_OP(MAKE_NUMBER_VALUE, *); break;
 			case OP_DIVIDE: BINARY_OP(MAKE_NUMBER_VALUE, /); break;
