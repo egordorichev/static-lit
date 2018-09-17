@@ -5,11 +5,11 @@
 #include "lit_context.hpp"
 
 void execute_file(const std::string& file_path);
-std::string execute_in_repl(const std::string& code);
-
-LitContext repl_context;
+void execute_in_repl(LitContext& context, const std::string& code);
 
 int main(int argc, char** argv) {
+  LitContext repl_context;
+
   if (argc == 2 && std::string(argv[1]).find('.') != std::string::npos) {
     std::string file_path = std::string(argv[1]);
 
@@ -30,7 +30,7 @@ int main(int argc, char** argv) {
         break;
       }
 
-      printf("%s\n", execute_in_repl(input).c_str());
+      execute_in_repl(repl_context, input);
     }
   } else {
     printf("Usage: lit [path]\n");
@@ -54,6 +54,6 @@ void execute_file(const std::string& file_path) {
   context.execute(code.c_str());
 }
 
-std::string execute_in_repl(const std::string& code) {
-  repl_context.execute(code.c_str());
+void execute_in_repl(LitContext& context, const std::string& code) {
+  context.execute(code.c_str());
 }
