@@ -11,6 +11,11 @@ typedef struct {
 
 class LitTable {
 	public:
+		int count;
+		int capacity_mask;
+		Entry* entries;
+
+	public:
 	  LitTable();
 	  ~LitTable();
 
@@ -21,10 +26,6 @@ class LitTable {
 	  LitString* find(const char* chars, int length, uint32_t hash);
 	  void remove_white();
 	  void gray();
-
-	  int count;
-	  int capacity_mask;
-	  Entry* entries;
 };
 
 #endif

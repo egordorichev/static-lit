@@ -27,6 +27,15 @@ typedef struct {
 } LitParseRule;
 
 class LitCompiler {
+	private:
+		int depth;
+		LitChunk *chunk;
+		LitLexer *lexer;
+		LitToken current;
+		LitToken previous;
+		bool had_error;
+		bool panic_mode;
+
 	public:
 		void set_lexer(LitLexer *lexer) { this->lexer = lexer; };
 		bool compile(LitChunk *cnk);
@@ -52,14 +61,6 @@ class LitCompiler {
 
 		int get_depth() { return depth; }
 		bool check(LitTokenType type) { return current.type == type;	}
-	private:
-		int depth;
-		LitChunk *chunk;
-		LitLexer *lexer;
-		LitToken current;
-		LitToken previous;
-		bool had_error;
-		bool panic_mode;
 };
 
 void parse_grouping(bool can_assign);

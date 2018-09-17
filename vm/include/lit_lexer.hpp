@@ -37,6 +37,11 @@ struct LitToken {
 };
 
 class LitLexer {
+	private:
+		const char* start;
+		const char* current;
+		int line;
+
 	public:
 		LitLexer();
 
@@ -45,6 +50,7 @@ class LitLexer {
 		LitToken make_token(LitTokenType type);
 		LitToken make_error_token(const char* error);
 		bool is_at_end() { return *current == '\0'; }
+
 	private:
 		char advance();
 		bool match(char next);
@@ -54,10 +60,6 @@ class LitLexer {
 
 		char peek();
 		char peek_next();
-
-		const char* start;
-		const char* current;
-		int line;
 };
 
 #endif
