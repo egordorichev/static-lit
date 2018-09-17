@@ -58,6 +58,8 @@ int lit_disassemble_instruction(LitChunk* chunk, int i) {
 		case OP_EQUAL: return simple_instruction("OP_EQUAL", i);
 		case OP_GREATER: return simple_instruction("OP_GREATER", i);
 		case OP_LESS: return simple_instruction("OP_LESS", i);
+		case OP_AND: return simple_instruction("OP_AND", i);
+		case OP_OR: return simple_instruction("OP_OR", i);
 		case OP_PRINT: return simple_instruction("OP_PRINT", i);
 		case OP_POP: return simple_instruction("OP_POP", i);
 		case OP_JUMP: return jump_instruction("OP_JUMP", 1, chunk, i);

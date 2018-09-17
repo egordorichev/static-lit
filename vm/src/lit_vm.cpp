@@ -139,7 +139,31 @@ InterpretResult LitVm::run_chunk(LitChunk* cnk) {
 			case OP_NOT: push(MAKE_BOOL_VALUE(is_false(pop()))); break;
 			case OP_EQUAL: push(MAKE_BOOL_VALUE(lit_values_are_equal(pop(), pop())));	break;
 			case OP_GREATER: BINARY_OP(MAKE_BOOL_VALUE, >); break;
-			case OP_LESS: BINARY_OP(MAKE_BOOL_VALUE, <); break;
+      case OP_LESS: BINARY_OP(MAKE_BOOL_VALUE, <); break;
+      case OP_AND: {
+        LitValue right = pop();
+        LitValue left = pop();
+
+        if (IS_BOOL(left) && IS_BOOL(right)) {
+          push(MAKE_BOOL_VALUE(AS_BOOL(left) && AS_BOOL(right)));
+        } else {
+          runtime_error("Operands must be two booleans.");
+        }
+
+        break;
+      }
+      case OP_OR: {
+        LitValue right = pop();
+        LitValue left = pop();
+
+        if (IS_BOOL(left) && IS_BOOL(right)) {
+          push(MAKE_BOOL_VALUE(AS_BOOL(left) || AS_BOOL(right)));
+        } else {
+          runtime_error("Operands must be two booleans.");
+        }
+
+        break;
+      }
 			case OP_POP: pop(); break;
 			case OP_JUMP_IF_FALSE: {
 				uint16_t offset = READ_SHORT();

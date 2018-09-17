@@ -34,6 +34,8 @@ static void init_rules() {
 	rules[TOKEN_GREATER_EQUAL] = { nullptr, parse_binary, PREC_COMPARISON };
 	rules[TOKEN_LESS] = { nullptr, parse_binary, PREC_COMPARISON };
 	rules[TOKEN_LESS_EQUAL] = { nullptr, parse_binary, PREC_COMPARISON };
+	rules[TOKEN_AND] = { nullptr, parse_binary, PREC_AND };
+	rules[TOKEN_OR] = { nullptr, parse_binary, PREC_OR };
 	rules[TOKEN_NUMBER] = { parse_number, nullptr, PREC_NONE };
 	rules[TOKEN_NIL] = { parse_literal, nullptr, PREC_NONE };
 	rules[TOKEN_TRUE] = { parse_literal, nullptr, PREC_NONE };
@@ -218,6 +220,8 @@ void parse_binary(bool can_assign) {
     case TOKEN_MINUS: compiler->emit_byte(OP_SUBTRACT); break;
     case TOKEN_STAR: compiler->emit_byte(OP_MULTIPLY); break;
     case TOKEN_SLASH: compiler->emit_byte(OP_DIVIDE); break;
+		case TOKEN_AND: compiler->emit_byte(OP_AND); break;
+		case TOKEN_OR: compiler->emit_byte(OP_OR); break;
     default: UNREACHABLE();
   }
 }
@@ -413,9 +417,13 @@ void parse_statement() {
 	}
 }
 
+void parse_variable(bool can_assign) {
+}
+
 bool LitCompiler::match(LitTokenType token) {
 	if (compiler->check(token)) {
 		advance();
+
 		return true;
 	}
 
