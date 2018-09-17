@@ -189,8 +189,7 @@ void parse_unary(bool can_assign) {
     case TOKEN_BANG:
       compiler->emit_byte(OP_NOT);
       break;
-    default:
-    UNREACHABLE();
+    default: UNREACHABLE();
   }
 }
 
@@ -220,8 +219,8 @@ void parse_binary(bool can_assign) {
     case TOKEN_MINUS: compiler->emit_byte(OP_SUBTRACT); break;
     case TOKEN_STAR: compiler->emit_byte(OP_MULTIPLY); break;
     case TOKEN_SLASH: compiler->emit_byte(OP_DIVIDE); break;
-		case TOKEN_AND: compiler->emit_byte(OP_AND); break;
-		case TOKEN_OR: compiler->emit_byte(OP_OR); break;
+    case TOKEN_AND: compiler->emit_byte(OP_AND); break;
+    case TOKEN_OR: compiler->emit_byte(OP_OR); break;
     default: UNREACHABLE();
   }
 }

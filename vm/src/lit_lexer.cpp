@@ -190,7 +190,9 @@ LitToken LitLexer::next_token() {
     case '=': return make_token(match('=') ? TOKEN_EQUAL_EQUAL : TOKEN_EQUAL);
     case '<': return make_token(match('=') ? TOKEN_LESS_EQUAL : TOKEN_LESS);
     case '>': return make_token(match('=') ? TOKEN_GREATER_EQUAL : TOKEN_GREATER);
-    case '/':  return make_token(TOKEN_SLASH);
+    case '/': return make_token(TOKEN_SLASH);
+    case '&': return make_token(match('&') ? TOKEN_AND  : TOKEN_AMPERSAND);
+    case '|': return make_token(match('|') ? TOKEN_OR : TOKEN_BAR);
     case '"': {
 	    while (peek() != '"' && !is_at_end()) {
 		    if (peek() == '\n') line++;
