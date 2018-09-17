@@ -2,29 +2,33 @@
 #include "lit_common.hpp"
 #include "lit_object.hpp"
 
-void lit_print_value(LitValue value) {
-  switch (value.type) {
-    case VAL_BOOL:
-      printf(AS_BOOL(value) ? "true" : "false");
-      break;
-    case VAL_NIL:
-      printf("nil");
-      break;
-    case VAL_NUMBER:
-      printf("%g", AS_NUMBER(value));
-      break;
-    case VAL_OBJECT: {
-      switch (OBJECT_TYPE(value)) {
-        case OBJ_STRING:
-          printf("%s", AS_CSTRING(value));
-          break;
-      }
+#include <string>
+#include <sstream>
 
-      break;
-    }
-    default:
-    UNREACHABLE();
-  }
+char* dts(double value) {
+	std::stringstream ss;
+	ss << value;
+	return (char*) ss.str().c_str();
+}
+
+char* lit_to_string(LitValue value) {
+	switch (value.type) {
+		case VAL_BOOL: AS_BOOL(value) ? "true" : "false";
+		case VAL_NIL: return (char*) "nil";
+		case VAL_NUMBER: return dts(AS_NUMBER(value));
+		case VAL_OBJECT: {
+			switch (OBJECT_TYPE(value)) {
+				case OBJ_STRING: return AS_CSTRING(value);
+				default: UNREACHABLE();
+			}
+
+		}
+		default: UNREACHABLE();
+	}
+}
+
+void lit_print_value(LitValue value) {
+  printf("%s", lit_to_string(value));
 }
 
 bool lit_values_are_equal(LitValue a, LitValue b) {

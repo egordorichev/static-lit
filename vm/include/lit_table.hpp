@@ -10,28 +10,21 @@ typedef struct {
 } Entry;
 
 class LitTable {
-public:
-  LitTable();
+	public:
+	  LitTable();
+	  ~LitTable();
 
-  ~LitTable();
+	  bool get(LitString* key, LitValue* value);
+	  bool set(LitString* key, LitValue value);
+	  bool remove(LitString* key);
+	  bool add_all(LitTable* table);
+	  LitString* find(const char* chars, int length, uint32_t hash);
+	  void remove_white();
+	  void gray();
 
-  bool get(LitString* key, LitValue* value);
-
-  bool set(LitString* key, LitValue value);
-
-  bool remove(LitString* key);
-
-  bool add_all(LitTable* table);
-
-  LitString* find(const char* chars, int length, uint32_t hash);
-
-  void remove_white();
-
-  void gray();
-
-  int count;
-  int capacity_mask;
-  Entry* entries;
+	  int count;
+	  int capacity_mask;
+	  Entry* entries;
 };
 
 #endif

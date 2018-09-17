@@ -42,6 +42,7 @@ struct LitValue {
 #define OBJECT_TYPE(value) (AS_OBJECT(value)->type)
 #define AS_CSTRING(value) (((LitString*) AS_OBJECT(value))->chars)
 
+char *lit_to_string(LitValue value);
 void lit_print_value(LitValue value);
 
 bool lit_values_are_equal(LitValue a, LitValue b);

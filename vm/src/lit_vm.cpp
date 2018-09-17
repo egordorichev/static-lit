@@ -1,6 +1,11 @@
 #include <cstdarg>
+#include <string>
+#include <cstring>
+
 #include "lit_vm.hpp"
 #include "lit_debug.hpp"
+#include "lit_object.hpp"
+#include "lit_value.hpp"
 
 static LitVm* active;
 
@@ -36,7 +41,8 @@ InterpretResult LitVm::run_chunk(LitChunk* cnk) {
 
 #define READ_BYTE() (*ip++)
 #define READ_CONSTANT() (chunk->get_constants()->get(READ_BYTE()))
-#define BINARY_OP(type, op) \
+#define READ_SHORT() (ip += 2, (uint16_t)((ip[-2] << 8) | ip[-1]))
+  #define BINARY_OP(type, op) \
     if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
       runtime_error("Operands must be numbers."); \
       return INTERPRET_RUNTIME_ERROR; \
@@ -68,65 +74,86 @@ InterpretResult LitVm::run_chunk(LitChunk* cnk) {
     lit_disassemble_instruction(chunk, (int) (ip - chunk->get_code() - 1));
 #endif
 
-    switch (instruction) {
-      case OP_RETURN: {
-        printf("Return: ");
-        lit_print_value(pop());
-        printf("\n");
-        return INTERPRET_OK;
-      }
-      case OP_CONSTANT: {
-        push(READ_CONSTANT());
-        break;
-      }
-      case OP_NEGATE: {
-        if (!IS_NUMBER(peek(0))) {
-          runtime_error("Operand must be a number.");
-          return INTERPRET_RUNTIME_ERROR;
-        }
+		switch (instruction) {
+			case OP_RETURN: {
+				//printf("Return: ");
+				//lit_print_value(pop());
+				//printf("\n");
+				return INTERPRET_OK;
+			}
+			case OP_CONSTANT: {
+				push(READ_CONSTANT());
+				break;
+			}
+			case OP_NEGATE: {
+				if (!IS_NUMBER(peek(0))) {
+					runtime_error("Operand must be a number.");
+					return INTERPRET_RUNTIME_ERROR;
+				}
 
-        push(MAKE_NUMBER_VALUE(-AS_NUMBER(pop())));
-        break;
-      }
-      case OP_ADD:
-      BINARY_OP(MAKE_NUMBER_VALUE, +);
-        break;
-      case OP_SUBTRACT:
-      BINARY_OP(MAKE_NUMBER_VALUE, -);
-        break;
-      case OP_MULTIPLY:
-      BINARY_OP(MAKE_NUMBER_VALUE, *);
-        break;
-      case OP_DIVIDE:
-      BINARY_OP(MAKE_NUMBER_VALUE, /);
-        break;
-      case OP_NIL:
-        push(NIL_VAL);
-        break;
-      case OP_TRUE:
-        push(MAKE_BOOL_VALUE(true));
-        break;
-      case OP_FALSE:
-        push(MAKE_BOOL_VALUE(false));
-        break;
-      case OP_NOT:
-        push(MAKE_BOOL_VALUE(is_false(pop())));
-        break;
-      case OP_EQUAL:
-        push(MAKE_BOOL_VALUE(lit_values_are_equal(pop(), pop())));
-        break;
-      case OP_GREATER:
-      BINARY_OP(MAKE_BOOL_VALUE, >);
-        break;
-      case OP_LESS:
-      BINARY_OP(MAKE_BOOL_VALUE, <);
-        break;
-    }
-  }
+				push(MAKE_NUMBER_VALUE(-AS_NUMBER(pop())));
+				break;
+			}
+			case OP_ADD: {
+				LitValue bv = pop();
+				LitValue av = pop();
+
+				if ((IS_STRING(av) || IS_NUMBER(av)) || (IS_STRING(bv) || IS_NUMBER(bv))) {
+					char* a = lit_to_string(av);
+					char* b = lit_to_string(bv);
+
+					int al = strlen(a);
+					int bl = strlen(b);
+					int len = al + bl;
+
+					char* chars = ALLOCATE(char, len + 1);
+
+					memcpy(chars, a, al);
+					memcpy(chars + al, b, bl);
+					chars[len] = '\0';
+
+					push(MAKE_OBJECT_VALUE(lit_take_string(chars, len)));
+				} else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
+					push(MAKE_NUMBER_VALUE(AS_NUMBER(pop()) + AS_NUMBER(pop())));
+				} else {
+					runtime_error("Operands must be two numbers or two strings.");
+					return INTERPRET_RUNTIME_ERROR;
+				}
+
+				break;
+			}
+			case OP_PRINT: {
+				printf("%s\n", lit_to_string(pop()));
+				break;
+			}
+			case OP_SUBTRACT: BINARY_OP(MAKE_NUMBER_VALUE, -); break;
+			case OP_MULTIPLY: BINARY_OP(MAKE_NUMBER_VALUE, *); break;
+			case OP_DIVIDE: BINARY_OP(MAKE_NUMBER_VALUE, /); break;
+			case OP_NIL: push(NIL_VAL); break;
+			case OP_TRUE: push(MAKE_BOOL_VALUE(true)); break;
+			case OP_FALSE: push(MAKE_BOOL_VALUE(false)); break;
+			case OP_NOT: push(MAKE_BOOL_VALUE(is_false(pop()))); break;
+			case OP_EQUAL: push(MAKE_BOOL_VALUE(lit_values_are_equal(pop(), pop())));	break;
+			case OP_GREATER: BINARY_OP(MAKE_BOOL_VALUE, >); break;
+			case OP_LESS: BINARY_OP(MAKE_BOOL_VALUE, <); break;
+			case OP_POP: pop(); break;
+			case OP_JUMP_IF_FALSE: {
+				uint16_t offset = READ_SHORT();
+
+				if (is_false(peek(0))) {
+					ip += offset;
+				}
+
+				break;
+			}
+			case OP_JUMP: ip += READ_SHORT(); break;
+		}
+	}
 
 #undef BINARY_OP
 #undef READ_CONSTANT
 #undef READ_BYTE
+#undef READ_SHORT
 }
 
 void LitVm::reset_stack() {
@@ -139,6 +166,10 @@ void LitVm::push(LitValue value) {
 }
 
 LitValue LitVm::pop() {
+	if (stack_top == stack) {
+		runtime_error("Trying to pop below 0.");
+	}
+
   stack_top--;
   return *stack_top;
 }

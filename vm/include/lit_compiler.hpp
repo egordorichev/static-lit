@@ -27,66 +27,50 @@ typedef struct {
 } LitParseRule;
 
 class LitCompiler {
-public:
-  void set_lexer(LitLexer* lexer) { this->lexer = lexer; };
+	public:
+		void set_lexer(LitLexer *lexer) { this->lexer = lexer; };
+		bool compile(LitChunk *cnk);
 
-  bool compile(LitChunk* cnk);
+		LitChunk *get_chunk() { return chunk; }
+		LitLexer *get_lexer() { return lexer; }
+		LitToken get_current() { return current; }
+		LitToken get_previous() { return previous; }
 
-  LitChunk* get_chunk() { return chunk; }
+		void advance();
+		void error_at_current(const char* message);
+		void error(const char* message);
+		void error_at(LitToken* token, const char* message);
+		void consume(LitTokenType type, const char* message);
+		bool match(LitTokenType token);
+		void emit_byte(uint8_t byte);
+		void emit_bytes(uint8_t a, uint8_t b);
+		void emit_constant(LitValue value);
+		uint8_t make_constant(LitValue value);
 
-  LitLexer* get_lexer() { return lexer; }
+		void begin_scope() { depth ++; }
+		void end_scope() { depth --; }
 
-  LitToken get_current() { return current; }
-
-  LitToken get_previous() { return previous; }
-
-  void advance();
-
-  void error_at_current(const char* message);
-
-  void error(const char* message);
-
-  void error_at(LitToken* token, const char* message);
-
-  void consume(LitTokenType type, const char* message);
-
-  bool match(LitTokenType token);
-
-  void emit_byte(uint8_t byte);
-
-  void emit_bytes(uint8_t a, uint8_t b);
-
-  void emit_constant(LitValue value);
-
-  uint8_t make_constant(LitValue value);
-
-private:
-  LitChunk* chunk;
-  LitLexer* lexer;
-  LitToken current;
-  LitToken previous;
-  bool had_error;
-  bool panic_mode;
+		int get_depth() { return depth; }
+		bool check(LitTokenType type) { return current.type == type;	}
+	private:
+		int depth;
+		LitChunk *chunk;
+		LitLexer *lexer;
+		LitToken current;
+		LitToken previous;
+		bool had_error;
+		bool panic_mode;
 };
 
 void parse_grouping(bool can_assign);
-
 void parse_unary(bool can_assign);
-
 void parse_binary(bool can_assign);
-
 void parse_number(bool can_assign);
-
 void parse_literal(bool can_assign);
-
 void parse_string(bool can_assign);
-
 void parse_precedence(LitPrecedence precedence);
-
 void parse_expression();
-
 void parse_declaration();
-
 void parse_statement();
 
 #endif
