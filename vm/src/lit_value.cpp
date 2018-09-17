@@ -8,7 +8,7 @@ const char* lit_to_string(LitValue value) {
 	switch (value.type) {
 		case VAL_BOOL: return (char*) (AS_BOOL(value) ? "true" : "false");
 		case VAL_NIL: return (char*) "nil";
-		case VAL_NUMBER: return std::to_string(AS_NUMBER(value)).c_str();
+		case VAL_NUMBER: return (std::to_string(AS_NUMBER(value)) + '\0').c_str();
 		case VAL_OBJECT: {
 			switch (OBJECT_TYPE(value)) {
 				case OBJ_STRING: return AS_CSTRING(value);
