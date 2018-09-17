@@ -8,6 +8,8 @@ InterpretResult LitContext::execute(const char *string) {
 	lexer.setup(string);
 	LitChunk chunk;
 
+	vm.set_chunk(&chunk);
+
 	if (!compiler.compile(&chunk)) {
 		return INTERPRET_COMPILE_ERROR;
 	}

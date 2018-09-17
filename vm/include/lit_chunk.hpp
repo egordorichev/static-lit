@@ -22,7 +22,11 @@ enum LitOpCode {
 	OP_FALSE,
 	OP_EQUAL,
 	OP_GREATER,
-	OP_LESS
+	OP_LESS,
+	OP_PRINT,
+	OP_POP,
+	OP_JUMP_IF_FALSE,
+	OP_JUMP
 };
 
 class LitChunk {

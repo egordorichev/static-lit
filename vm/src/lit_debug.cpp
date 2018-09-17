@@ -25,6 +25,14 @@ static int constant_instruction(const char* name, LitChunk* chunk, int offset) {
   return offset + 2;
 }
 
+static int jump_instruction(const char* name, int sign, LitChunk* chunk, int offset) {
+	uint16_t jump = (uint16_t)(chunk->get_code()[offset + 1] << 8);
+	jump |= chunk->get_code()[offset + 2];
+	printf("%-16s %4d -> %d\n", name, offset, offset + 3 + sign * jump);
+
+	return offset + 3;
+}
+
 int lit_disassemble_instruction(LitChunk* chunk, int i) {
   printf("%04d ", i);
   uint8_t instruction = chunk->get_code()[i];
@@ -50,6 +58,10 @@ int lit_disassemble_instruction(LitChunk* chunk, int i) {
 		case OP_EQUAL: return simple_instruction("OP_EQUAL", i);
 		case OP_GREATER: return simple_instruction("OP_GREATER", i);
 		case OP_LESS: return simple_instruction("OP_LESS", i);
+		case OP_PRINT: return simple_instruction("OP_PRINT", i);
+		case OP_POP: return simple_instruction("OP_POP", i);
+		case OP_JUMP: return jump_instruction("OP_JUMP", 1, chunk, i);
+		case OP_JUMP_IF_FALSE: return jump_instruction("OP_JUMP_IF_FALSE", 1, chunk, i);
 		default: printf("Unknown opcode %d\n", instruction); return i + 1;
 	}
 }

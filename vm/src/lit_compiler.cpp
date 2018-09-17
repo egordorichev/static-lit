@@ -1,3 +1,4 @@
+#include <lit_vm.hpp>
 #include "lit_object.hpp"
 #include "lit_compiler.hpp"
 #include "lit_common.hpp"
@@ -36,6 +37,12 @@ static void init_rules() {
 	rules[TOKEN_TRUE] = { parse_literal, nullptr, PREC_NONE };
 	rules[TOKEN_FALSE] = { parse_literal, nullptr, PREC_NONE };
 	rules[TOKEN_STRING] = { parse_string, nullptr, PREC_NONE };
+	rules[TOKEN_PRINT] = { nullptr, nullptr, PREC_NONE };
+}
+
+void parse_print() {
+	parse_expression();
+	compiler->emit_byte(OP_PRINT);
 }
 
 void LitCompiler::advance() {
@@ -199,17 +206,77 @@ void parse_expression() {
 	parse_precedence(PREC_ASSIGNMENT);
 }
 
+static int emit_jump(uint8_t instruction) {
+	compiler->emit_byte(instruction);
+	compiler->emit_byte(0xff);
+	compiler->emit_byte(0xff);
+
+	return lit_get_active_vm()->get_chunk()->get_count() - 2;
+}
+
+static void patch_jump(int offset) {
+	LitChunk* chunk = lit_get_active_vm()->get_chunk();
+
+	int jump = chunk->get_count() - offset - 2;
+
+	if (jump > UINT16_MAX) {
+		compiler->error("Too much code to jump over.");
+	}
+
+	chunk->get_code()[offset] = (jump >> 8) & 0xff;
+	chunk->get_code()[offset + 1] = jump & 0xff;
+}
+
+void parse_if() {
+	compiler->consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
+	parse_expression();
+	compiler->consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
+
+	int elseJump = emit_jump(OP_JUMP_IF_FALSE);
+
+	compiler->emit_byte(OP_POP);
+	parse_statement();
+	int endJump = emit_jump(OP_JUMP);
+
+	patch_jump(elseJump);
+	compiler->emit_byte(OP_POP);
+
+	if (compiler->match(TOKEN_ELSE)) {
+		parse_statement();
+	}
+
+	patch_jump(endJump);
+}
+
 void parse_declaration() {
 	parse_statement();
 }
 
+void parse_block() {
+	while (!compiler->check(TOKEN_RIGHT_BRACE) && !compiler->check(TOKEN_EOF)) {
+		parse_declaration();
+	}
+
+	compiler->consume(TOKEN_RIGHT_BRACE, "Expect '}' after block.");
+}
+
 void parse_statement() {
-	parse_expression();
-	// emitByte(OP_POP);
+	if (compiler->match(TOKEN_IF)) {
+		parse_if();
+	} else if (compiler->match(TOKEN_PRINT)) {
+		parse_print();
+	} else if (compiler->match(TOKEN_LEFT_BRACE)) {
+		compiler->begin_scope();
+		parse_block();
+		compiler->end_scope();
+	} else {
+		parse_expression();
+		compiler->emit_byte(OP_POP);
+	}
 }
 
 bool LitCompiler::match(LitTokenType token) {
-	if (current.type == token) {
+	if (compiler->check(token)) {
 		advance();
 		return true;
 	}
@@ -226,8 +293,13 @@ bool LitCompiler::compile(LitChunk *cnk) {
 	panic_mode = false;
 
 	advance();
-	parse_expression();
-	consume(TOKEN_EOF, "Expect end of expression.");
+
+	if (!match(TOKEN_EOF)) {
+		do {
+			parse_declaration();
+		} while (!match(TOKEN_EOF));
+	}
+
 	emit_byte(OP_RETURN);
 
 #ifdef DEBUG_PRINT_CODE

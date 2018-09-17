@@ -5,16 +5,16 @@
 #include <string>
 #include <sstream>
 
-char* dts(double value){
+char* dts(double value) {
 	std::stringstream ss;
 	ss << value;
-	return (char *) ss.str().c_str();
+	return (char*) ss.str().c_str();
 }
 
-char *lit_to_string(LitValue value) {
+char* lit_to_string(LitValue value) {
 	switch (value.type) {
 		case VAL_BOOL: AS_BOOL(value) ? "true" : "false";
-		case VAL_NIL: return (char *) "nil";
+		case VAL_NIL: return (char*) "nil";
 		case VAL_NUMBER: return dts(AS_NUMBER(value));
 		case VAL_OBJECT: {
 			switch (OBJECT_TYPE(value)) {

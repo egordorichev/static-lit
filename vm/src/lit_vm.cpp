@@ -41,7 +41,8 @@ InterpretResult LitVm::run_chunk(LitChunk* cnk) {
 
 #define READ_BYTE() (*ip++)
 #define READ_CONSTANT() (chunk->get_constants()->get(READ_BYTE()))
-#define BINARY_OP(type, op) \
+#define READ_SHORT() (ip += 2, (uint16_t)((ip[-2] << 8) | ip[-1]))
+  #define BINARY_OP(type, op) \
     if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
       runtime_error("Operands must be numbers."); \
       return INTERPRET_RUNTIME_ERROR; \
@@ -75,9 +76,9 @@ InterpretResult LitVm::run_chunk(LitChunk* cnk) {
 
 		switch (instruction) {
 			case OP_RETURN: {
-				printf("Return: ");
-				lit_print_value(pop());
-				printf("\n");
+				//printf("Return: ");
+				//lit_print_value(pop());
+				//printf("\n");
 				return INTERPRET_OK;
 			}
 			case OP_CONSTANT: {
@@ -121,6 +122,10 @@ InterpretResult LitVm::run_chunk(LitChunk* cnk) {
 
 				break;
 			}
+			case OP_PRINT: {
+				printf("%s\n", lit_to_string(pop()));
+				break;
+			}
 			case OP_SUBTRACT: BINARY_OP(MAKE_NUMBER_VALUE, -); break;
 			case OP_MULTIPLY: BINARY_OP(MAKE_NUMBER_VALUE, *); break;
 			case OP_DIVIDE: BINARY_OP(MAKE_NUMBER_VALUE, /); break;
@@ -131,12 +136,24 @@ InterpretResult LitVm::run_chunk(LitChunk* cnk) {
 			case OP_EQUAL: push(MAKE_BOOL_VALUE(lit_values_are_equal(pop(), pop())));	break;
 			case OP_GREATER: BINARY_OP(MAKE_BOOL_VALUE, >); break;
 			case OP_LESS: BINARY_OP(MAKE_BOOL_VALUE, <); break;
+			case OP_POP: pop(); break;
+			case OP_JUMP_IF_FALSE: {
+				uint16_t offset = READ_SHORT();
+
+				if (is_false(peek(0))) {
+					ip += offset;
+				}
+
+				break;
+			}
+			case OP_JUMP: ip += READ_SHORT(); break;
 		}
 	}
 
 #undef BINARY_OP
 #undef READ_CONSTANT
 #undef READ_BYTE
+#undef READ_SHORT
 }
 
 void LitVm::reset_stack() {
@@ -149,6 +166,10 @@ void LitVm::push(LitValue value) {
 }
 
 LitValue LitVm::pop() {
+	if (stack_top == stack) {
+		runtime_error("Trying to pop below 0.");
+	}
+
   stack_top--;
   return *stack_top;
 }

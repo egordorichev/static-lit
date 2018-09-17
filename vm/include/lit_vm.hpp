@@ -22,7 +22,9 @@ class LitVm {
 		LitValue pop();
 		LitValue peek(int depth);
 		void runtime_error(const char* format, ...);
+		LitChunk* get_chunk() { return chunk; }
 
+		void set_chunk(LitChunk* cnk) { chunk = cnk; }
 		InterpretResult run_chunk(LitChunk* cnk);
 
 		size_t bytes_allocated;

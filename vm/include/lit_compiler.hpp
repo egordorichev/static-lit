@@ -46,7 +46,14 @@ class LitCompiler {
 		void emit_bytes(uint8_t a, uint8_t b);
 		void emit_constant(LitValue value);
 		uint8_t make_constant(LitValue value);
+
+		void begin_scope() { depth ++; }
+		void end_scope() { depth --; }
+
+		int get_depth() { return depth; }
+		bool check(LitTokenType type) { return current.type == type;	}
 	private:
+		int depth;
 		LitChunk *chunk;
 		LitLexer *lexer;
 		LitToken current;
