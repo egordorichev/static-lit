@@ -3,238 +3,274 @@
 #include "lit_common.hpp"
 
 #ifdef DEBUG_PRINT_CODE
+
 #include "lit_debug.hpp"
+
 #endif
 
-static LitCompiler *compiler;
+static LitCompiler* compiler;
 
 static LitParseRule rules[TOKEN_EOF + 1];
 bool inited_rules = false;
 
 static void init_rules() {
-	if (inited_rules) {
-		return;
-	}
+  if (inited_rules) {
+    return;
+  }
 
-	inited_rules = true;
+  inited_rules = true;
 
-	rules[TOKEN_LEFT_PAREN] = { parse_grouping, nullptr, PREC_CALL };
-	rules[TOKEN_MINUS] = { parse_unary, parse_binary, PREC_TERM };
-	rules[TOKEN_PLUS] = { nullptr, parse_binary, PREC_TERM };
-	rules[TOKEN_SLASH] = { nullptr, parse_binary, PREC_FACTOR };
-	rules[TOKEN_STAR] = { nullptr, parse_binary, PREC_FACTOR };
-	rules[TOKEN_BANG] = { parse_unary, nullptr, PREC_NONE };
-	rules[TOKEN_BANG_EQUAL] = { nullptr, parse_binary, PREC_EQUALITY };
-	rules[TOKEN_EQUAL] = { nullptr, parse_binary, PREC_NONE };
-	rules[TOKEN_EQUAL_EQUAL] = { nullptr, parse_binary, PREC_EQUALITY };
-	rules[TOKEN_GREATER] = { nullptr, parse_binary, PREC_COMPARISON };
-	rules[TOKEN_GREATER_EQUAL] = { nullptr, parse_binary, PREC_COMPARISON };
-	rules[TOKEN_LESS] = { nullptr, parse_binary, PREC_COMPARISON };
-	rules[TOKEN_LESS_EQUAL] = { nullptr, parse_binary, PREC_COMPARISON };
-	rules[TOKEN_NUMBER] = { parse_number, nullptr, PREC_NONE };
-	rules[TOKEN_NIL] = { parse_literal, nullptr, PREC_NONE };
-	rules[TOKEN_TRUE] = { parse_literal, nullptr, PREC_NONE };
-	rules[TOKEN_FALSE] = { parse_literal, nullptr, PREC_NONE };
-	rules[TOKEN_STRING] = { parse_string, nullptr, PREC_NONE };
+  rules[TOKEN_LEFT_PAREN] = {parse_grouping, nullptr, PREC_CALL};
+  rules[TOKEN_MINUS] = {parse_unary, parse_binary, PREC_TERM};
+  rules[TOKEN_PLUS] = {nullptr, parse_binary, PREC_TERM};
+  rules[TOKEN_SLASH] = {nullptr, parse_binary, PREC_FACTOR};
+  rules[TOKEN_STAR] = {nullptr, parse_binary, PREC_FACTOR};
+  rules[TOKEN_BANG] = {parse_unary, nullptr, PREC_NONE};
+  rules[TOKEN_BANG_EQUAL] = {nullptr, parse_binary, PREC_EQUALITY};
+  rules[TOKEN_EQUAL] = {nullptr, parse_binary, PREC_NONE};
+  rules[TOKEN_EQUAL_EQUAL] = {nullptr, parse_binary, PREC_EQUALITY};
+  rules[TOKEN_GREATER] = {nullptr, parse_binary, PREC_COMPARISON};
+  rules[TOKEN_GREATER_EQUAL] = {nullptr, parse_binary, PREC_COMPARISON};
+  rules[TOKEN_LESS] = {nullptr, parse_binary, PREC_COMPARISON};
+  rules[TOKEN_LESS_EQUAL] = {nullptr, parse_binary, PREC_COMPARISON};
+  rules[TOKEN_NUMBER] = {parse_number, nullptr, PREC_NONE};
+  rules[TOKEN_NIL] = {parse_literal, nullptr, PREC_NONE};
+  rules[TOKEN_TRUE] = {parse_literal, nullptr, PREC_NONE};
+  rules[TOKEN_FALSE] = {parse_literal, nullptr, PREC_NONE};
+  rules[TOKEN_STRING] = {parse_string, nullptr, PREC_NONE};
 }
 
 void LitCompiler::advance() {
-	previous = current;
+  previous = current;
 
-	for (;;) {
-		current = lexer->next_token();
+  for (;;) {
+    current = lexer->next_token();
 
-		if (current.type != TOKEN_ERROR) {
-			break;
-		}
+    if (current.type != TOKEN_ERROR) {
+      break;
+    }
 
-		error_at_current(current.start);
-	}
+    error_at_current(current.start);
+  }
 }
 
-void LitCompiler::error_at_current(const char *message) {
-	error_at(&current, message);
+void LitCompiler::error_at_current(const char* message) {
+  error_at(&current, message);
 }
 
-void LitCompiler::error(const char *message) {
-	error_at(&previous, message);
+void LitCompiler::error(const char* message) {
+  error_at(&previous, message);
 }
 
-void LitCompiler::error_at(LitToken *token, const char *message) {
-	if (panic_mode) {
-		return;
-	}
+void LitCompiler::error_at(LitToken* token, const char* message) {
+  if (panic_mode) {
+    return;
+  }
 
-	panic_mode = true;
+  panic_mode = true;
 
-	fprintf(stderr, "[line %d] Error", token->line);
+  fprintf(stderr, "[line %d] Error", token->line);
 
-	if (token->type == TOKEN_EOF) {
-		fprintf(stderr, " at end");
-	} else if (token->type != TOKEN_ERROR) {
-		fprintf(stderr, " at '%.*s'", token->length, token->start);
-	}
+  if (token->type == TOKEN_EOF) {
+    fprintf(stderr, " at end");
+  } else if (token->type != TOKEN_ERROR) {
+    fprintf(stderr, " at '%.*s'", token->length, token->start);
+  }
 
-	fprintf(stderr, ": %s\n", message);
+  fprintf(stderr, ": %s\n", message);
 
-	had_error = true;
+  had_error = true;
 }
 
 void LitCompiler::consume(LitTokenType type, const char* message) {
-	if (current.type == type) {
-		advance();
-		return;
-	}
+  if (current.type == type) {
+    advance();
+    return;
+  }
 
-	error_at_current(message);
+  error_at_current(message);
 }
 
 void LitCompiler::emit_byte(uint8_t byte) {
-	chunk->write(byte, previous.line);
+  chunk->write(byte, previous.line);
 }
 
 void LitCompiler::emit_bytes(uint8_t a, uint8_t b) {
-	chunk->write(a, previous.line);
-	chunk->write(b, previous.line);
+  chunk->write(a, previous.line);
+  chunk->write(b, previous.line);
 }
 
 void LitCompiler::emit_constant(LitValue value) {
-	emit_bytes(OP_CONSTANT, make_constant(value));
+  emit_bytes(OP_CONSTANT, make_constant(value));
 }
 
 uint8_t LitCompiler::make_constant(LitValue value) {
-	int constant = chunk->add_constant(value);
+  int constant = chunk->add_constant(value);
 
-	if (constant > UINT8_MAX) {
-		error("Too many constants in one chunk.");
-		return 0;
-	}
+  if (constant > UINT8_MAX) {
+    error("Too many constants in one chunk.");
+    return 0;
+  }
 
-	return (uint8_t) constant;
+  return (uint8_t) constant;
 }
 
 void parse_grouping(bool can_assign) {
-	parse_expression();
-	compiler->consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
+  parse_expression();
+  compiler->consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
 }
 
 void parse_unary(bool can_assign) {
-	LitTokenType type = compiler->get_previous().type;
-	parse_precedence(PREC_UNARY);
+  LitTokenType type = compiler->get_previous().type;
+  parse_precedence(PREC_UNARY);
 
-	switch (type) {
-		case TOKEN_MINUS: compiler->emit_byte(OP_NEGATE); break;
-		case TOKEN_BANG: compiler->emit_byte(OP_NOT); break;
-		default: UNREACHABLE();
-	}
+  switch (type) {
+    case TOKEN_MINUS:
+      compiler->emit_byte(OP_NEGATE);
+      break;
+    case TOKEN_BANG:
+      compiler->emit_byte(OP_NOT);
+      break;
+    default:
+    UNREACHABLE();
+  }
 }
 
 void parse_number(bool can_assign) {
-	double value = strtod(compiler->get_previous().start, nullptr);
-	compiler->emit_constant(MAKE_NUMBER_VALUE(value));
+  double value = strtod(compiler->get_previous().start, nullptr);
+  compiler->emit_constant(MAKE_NUMBER_VALUE(value));
 }
 
 static LitParseRule* get_rule(LitTokenType type) {
-	return &rules[type];
+  return &rules[type];
 }
 
 void parse_binary(bool can_assign) {
-	LitTokenType type = compiler->get_previous().type;
+  LitTokenType type = compiler->get_previous().type;
 
-	LitParseRule* rule = get_rule(type);
-	parse_precedence((LitPrecedence) (rule->precedence + 1));
+  LitParseRule* rule = get_rule(type);
+  parse_precedence((LitPrecedence) (rule->precedence + 1));
 
-	switch (type) {
-		case TOKEN_BANG_EQUAL: compiler->emit_bytes(OP_EQUAL, OP_NOT); break;
-		case TOKEN_EQUAL_EQUAL: compiler->emit_byte(OP_EQUAL); break;
-		case TOKEN_GREATER: compiler->emit_byte(OP_GREATER); break;
-		case TOKEN_GREATER_EQUAL: compiler->emit_bytes(OP_LESS, OP_NOT); break;
-		case TOKEN_LESS: compiler->emit_byte(OP_LESS); break;
-		case TOKEN_LESS_EQUAL: compiler->emit_bytes(OP_GREATER, OP_NOT); break;
-		case TOKEN_PLUS: compiler->emit_byte(OP_ADD); break;
-		case TOKEN_MINUS: compiler->emit_byte(OP_SUBTRACT); break;
-		case TOKEN_STAR: compiler->emit_byte(OP_MULTIPLY); break;
-		case TOKEN_SLASH: compiler->emit_byte(OP_DIVIDE); break;
-		default: UNREACHABLE();
-	}
+  switch (type) {
+    case TOKEN_BANG_EQUAL:
+      compiler->emit_bytes(OP_EQUAL, OP_NOT);
+      break;
+    case TOKEN_EQUAL_EQUAL:
+      compiler->emit_byte(OP_EQUAL);
+      break;
+    case TOKEN_GREATER:
+      compiler->emit_byte(OP_GREATER);
+      break;
+    case TOKEN_GREATER_EQUAL:
+      compiler->emit_bytes(OP_LESS, OP_NOT);
+      break;
+    case TOKEN_LESS:
+      compiler->emit_byte(OP_LESS);
+      break;
+    case TOKEN_LESS_EQUAL:
+      compiler->emit_bytes(OP_GREATER, OP_NOT);
+      break;
+    case TOKEN_PLUS:
+      compiler->emit_byte(OP_ADD);
+      break;
+    case TOKEN_MINUS:
+      compiler->emit_byte(OP_SUBTRACT);
+      break;
+    case TOKEN_STAR:
+      compiler->emit_byte(OP_MULTIPLY);
+      break;
+    case TOKEN_SLASH:
+      compiler->emit_byte(OP_DIVIDE);
+      break;
+    default:
+    UNREACHABLE();
+  }
 }
 
 void parse_literal(bool can_assign) {
-	switch (compiler->get_previous().type) {
-		case TOKEN_FALSE: compiler->emit_byte(OP_FALSE); break;
-		case TOKEN_NIL: compiler->emit_byte(OP_NIL); break;
-		case TOKEN_TRUE: compiler->emit_byte(OP_TRUE); break;
-		default: UNREACHABLE();
-	}
+  switch (compiler->get_previous().type) {
+    case TOKEN_FALSE:
+      compiler->emit_byte(OP_FALSE);
+      break;
+    case TOKEN_NIL:
+      compiler->emit_byte(OP_NIL);
+      break;
+    case TOKEN_TRUE:
+      compiler->emit_byte(OP_TRUE);
+      break;
+    default:
+    UNREACHABLE();
+  }
 }
 
 void parse_string(bool can_assign) {
-	compiler->emit_constant(MAKE_OBJECT_VALUE(lit_copy_string(compiler->get_previous().start + 1, compiler->get_previous().length - 2)));
+  compiler->emit_constant(
+    MAKE_OBJECT_VALUE(lit_copy_string(compiler->get_previous().start + 1, compiler->get_previous().length - 2)));
 }
 
 void parse_precedence(LitPrecedence precedence) {
-	compiler->advance();
-	LitParseFn prefixRule = get_rule(compiler->get_previous().type)->prefix;
+  compiler->advance();
+  LitParseFn prefixRule = get_rule(compiler->get_previous().type)->prefix;
 
-	if (prefixRule == NULL) {
-		compiler->error("Expect expression.");
-		return;
-	}
+  if (prefixRule == NULL) {
+    compiler->error("Expect expression.");
+    return;
+  }
 
-	bool can_assign = precedence <= PREC_ASSIGNMENT;
-	prefixRule(can_assign);
+  bool can_assign = precedence <= PREC_ASSIGNMENT;
+  prefixRule(can_assign);
 
-	while (precedence <= get_rule(compiler->get_current().type)->precedence) {
-		compiler->advance();
-		get_rule(compiler->get_previous().type)->infix(can_assign);
-	}
+  while(precedence <= get_rule(compiler->get_current().type)->precedence) {
+    compiler->advance();
+    get_rule(compiler->get_previous().type)->infix(can_assign);
+  }
 
-	if (can_assign && compiler->match(TOKEN_EQUAL)) {
-		compiler->error("Invalid assignment target.");
-		parse_expression();
-	}
+  if (can_assign && compiler->match(TOKEN_EQUAL)) {
+    compiler->error("Invalid assignment target.");
+    parse_expression();
+  }
 }
 
 void parse_expression() {
-	parse_precedence(PREC_ASSIGNMENT);
+  parse_precedence(PREC_ASSIGNMENT);
 }
 
 void parse_declaration() {
-	parse_statement();
+  parse_statement();
 }
 
 void parse_statement() {
-	parse_expression();
-	// emitByte(OP_POP);
+  parse_expression();
+  // emitByte(OP_POP);
 }
 
 bool LitCompiler::match(LitTokenType token) {
-	if (current.type == token) {
-		advance();
-		return true;
-	}
+  if (current.type == token) {
+    advance();
+    return true;
+  }
 
-	return false;
+  return false;
 }
 
-bool LitCompiler::compile(LitChunk *cnk) {
-	init_rules();
+bool LitCompiler::compile(LitChunk* cnk) {
+  init_rules();
 
-	compiler = this;
-	chunk = cnk;
-	had_error = false;
-	panic_mode = false;
+  compiler = this;
+  chunk = cnk;
+  had_error = false;
+  panic_mode = false;
 
-	advance();
-	parse_expression();
-	consume(TOKEN_EOF, "Expect end of expression.");
-	emit_byte(OP_RETURN);
+  advance();
+  parse_expression();
+  consume(TOKEN_EOF, "Expect end of expression.");
+  emit_byte(OP_RETURN);
 
 #ifdef DEBUG_PRINT_CODE
-	if (!had_error) {
-		lit_disassemble_chunk(compiler->get_chunk(), "code");
-	}
+  if (!had_error) {
+    lit_disassemble_chunk(compiler->get_chunk(), "code");
+  }
 #endif
 
-	return !had_error;
+  return !had_error;
 }

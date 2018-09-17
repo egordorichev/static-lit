@@ -14,8 +14,11 @@
 void* reallocate(void* previous, size_t old_size, size_t new_size);
 
 void gray_object(LitObject* object);
+
 void gray_value(LitValue value);
+
 void collect_garbage();
+
 void free_objects();
 
 #endif

@@ -2,35 +2,35 @@
 #include "lit_vm.hpp"
 #include "lit_debug.hpp"
 
-static LitVm *active;
+static LitVm* active;
 
 LitVm::LitVm() {
   reset_stack();
-	active = this;
+  active = this;
 
-	objects = nullptr;
-	bytes_allocated = 0;
-	next_gc = 1024 * 1024;
-	gray_count = 0;
-	gray_capacity = 0;
-	gray_stack = nullptr;
+  objects = nullptr;
+  bytes_allocated = 0;
+  next_gc = 1024 * 1024;
+  gray_count = 0;
+  gray_capacity = 0;
+  gray_stack = nullptr;
 }
 
 LitVm::~LitVm() {
-	active = this;
-	free_objects();
+  active = this;
+  free_objects();
 }
 
 static bool is_false(LitValue value) {
-	return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value)) || (IS_NUMBER(value) && AS_NUMBER(value) == 0);
+  return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value)) || (IS_NUMBER(value) && AS_NUMBER(value) == 0);
 }
 
-LitVm *lit_get_active_vm() {
-	return active;
+LitVm* lit_get_active_vm() {
+  return active;
 }
 
 InterpretResult LitVm::run_chunk(LitChunk* cnk) {
-	active = this;
+  active = this;
   chunk = cnk;
   ip = cnk->get_code();
 
@@ -68,39 +68,61 @@ InterpretResult LitVm::run_chunk(LitChunk* cnk) {
     lit_disassemble_instruction(chunk, (int) (ip - chunk->get_code() - 1));
 #endif
 
-		switch (instruction) {
-			case OP_RETURN: {
-				printf("Return: ");
-				lit_print_value(pop());
-				printf("\n");
-				return INTERPRET_OK;
-			}
-			case OP_CONSTANT: {
-				push(READ_CONSTANT());
-				break;
-			}
-			case OP_NEGATE: {
-				if (!IS_NUMBER(peek(0))) {
-					runtime_error("Operand must be a number.");
-					return INTERPRET_RUNTIME_ERROR;
-				}
+    switch (instruction) {
+      case OP_RETURN: {
+        printf("Return: ");
+        lit_print_value(pop());
+        printf("\n");
+        return INTERPRET_OK;
+      }
+      case OP_CONSTANT: {
+        push(READ_CONSTANT());
+        break;
+      }
+      case OP_NEGATE: {
+        if (!IS_NUMBER(peek(0))) {
+          runtime_error("Operand must be a number.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
 
-				push(MAKE_NUMBER_VALUE(-AS_NUMBER(pop())));
-				break;
-			}
-			case OP_ADD: BINARY_OP(MAKE_NUMBER_VALUE, +); break;
-			case OP_SUBTRACT: BINARY_OP(MAKE_NUMBER_VALUE, -); break;
-			case OP_MULTIPLY: BINARY_OP(MAKE_NUMBER_VALUE, *); break;
-			case OP_DIVIDE: BINARY_OP(MAKE_NUMBER_VALUE, /); break;
-			case OP_NIL: push(NIL_VAL); break;
-			case OP_TRUE: push(MAKE_BOOL_VALUE(true)); break;
-			case OP_FALSE: push(MAKE_BOOL_VALUE(false)); break;
-			case OP_NOT: push(MAKE_BOOL_VALUE(is_false(pop()))); break;
-			case OP_EQUAL: push(MAKE_BOOL_VALUE(lit_values_are_equal(pop(), pop())));	break;
-			case OP_GREATER: BINARY_OP(MAKE_BOOL_VALUE, >); break;
-			case OP_LESS: BINARY_OP(MAKE_BOOL_VALUE, <); break;
-		}
-	}
+        push(MAKE_NUMBER_VALUE(-AS_NUMBER(pop())));
+        break;
+      }
+      case OP_ADD:
+      BINARY_OP(MAKE_NUMBER_VALUE, +);
+        break;
+      case OP_SUBTRACT:
+      BINARY_OP(MAKE_NUMBER_VALUE, -);
+        break;
+      case OP_MULTIPLY:
+      BINARY_OP(MAKE_NUMBER_VALUE, *);
+        break;
+      case OP_DIVIDE:
+      BINARY_OP(MAKE_NUMBER_VALUE, /);
+        break;
+      case OP_NIL:
+        push(NIL_VAL);
+        break;
+      case OP_TRUE:
+        push(MAKE_BOOL_VALUE(true));
+        break;
+      case OP_FALSE:
+        push(MAKE_BOOL_VALUE(false));
+        break;
+      case OP_NOT:
+        push(MAKE_BOOL_VALUE(is_false(pop())));
+        break;
+      case OP_EQUAL:
+        push(MAKE_BOOL_VALUE(lit_values_are_equal(pop(), pop())));
+        break;
+      case OP_GREATER:
+      BINARY_OP(MAKE_BOOL_VALUE, >);
+        break;
+      case OP_LESS:
+      BINARY_OP(MAKE_BOOL_VALUE, <);
+        break;
+    }
+  }
 
 #undef BINARY_OP
 #undef READ_CONSTANT
@@ -122,18 +144,18 @@ LitValue LitVm::pop() {
 }
 
 LitValue LitVm::peek(int depth) {
-	return stack_top[-1 - depth];
+  return stack_top[-1 - depth];
 }
 
 void LitVm::runtime_error(const char* format, ...) {
-	va_list args;
-	va_start(args, format);
-	vfprintf(stderr, format, args);
-	va_end(args);
-	fputs("\n", stderr);
+  va_list args;
+  va_start(args, format);
+  vfprintf(stderr, format, args);
+  va_end(args);
+  fputs("\n", stderr);
 
-	size_t instruction = ip - chunk->get_code();
-	fprintf(stderr, "[line %d] in script\n", chunk->get_line(instruction));
+  size_t instruction = ip - chunk->get_code();
+  fprintf(stderr, "[line %d] in script\n", chunk->get_line(instruction));
 
-	reset_stack();
+  reset_stack();
 }
