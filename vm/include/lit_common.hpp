@@ -6,4 +6,6 @@
 
 #define UNREACHABLE() printf("Unreachable!\n"); assert(false);
 
+#define DEBUG true
+
 #endif

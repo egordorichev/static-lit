@@ -76,15 +76,31 @@ void LitCompiler::error_at(LitToken* token, const char* message) {
 
   panic_mode = true;
 
+#ifndef DEBUG
   fprintf(stderr, "[line %d] Error", token->line);
+#else
+  printf("[line %d] Error", token->line);
+#endif
 
   if (token->type == TOKEN_EOF) {
+#ifndef DEBUG
     fprintf(stderr, " at end");
+#else
+    printf(" at end");
+#endif
   } else if (token->type != TOKEN_ERROR) {
+#ifndef DEBUG
     fprintf(stderr, " at '%.*s'", token->length, token->start);
+#else
+    printf(" at '%.*s'", token->length, token->start);
+#endif
   }
 
+#ifndef DEBUG
   fprintf(stderr, ": %s\n", message);
+#else
+  printf(": %s\n", message);
+#endif
 
   had_error = true;
 }
