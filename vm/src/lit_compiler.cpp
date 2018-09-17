@@ -7,53 +7,11 @@
 
 static LitCompiler *compiler;
 
-static LitParseRule rules[] = {
-	{ parse_grouping, NULL,    PREC_CALL },       // TOKEN_LEFT_PAREN
-	{ NULL,     NULL,    PREC_NONE },       // TOKEN_RIGHT_PAREN
-	{ NULL,     NULL,    PREC_NONE },       // TOKEN_LEFT_BRACE [big]
-	{ NULL,     NULL,    PREC_NONE },       // TOKEN_RIGHT_BRACE
-	{ NULL,     NULL,    PREC_NONE },       // TOKEN_COMMA
-	{ NULL,     NULL,     PREC_CALL },       // TOKEN_DOT
-	{ parse_unary,    parse_binary,  PREC_TERM },       // TOKEN_MINUS
-	{ NULL,     parse_binary,  PREC_TERM },       // TOKEN_PLUS
-	{ NULL,     NULL,    PREC_NONE },       // TOKEN_SEMICOLON
-	{ NULL,     parse_binary,  PREC_FACTOR },     // TOKEN_SLASH
-	{ NULL,     parse_binary,  PREC_FACTOR },     // TOKEN_STAR
-	{ parse_unary,    NULL,    PREC_NONE },       // TOKEN_BANG
-	{ NULL,     parse_binary,  PREC_EQUALITY },   // TOKEN_BANG_EQUAL
-	{ NULL,     NULL,    PREC_NONE },       // TOKEN_EQUAL
-	{ NULL,     parse_binary,  PREC_EQUALITY },   // TOKEN_EQUAL_EQUAL
-	{ NULL,     parse_binary,  PREC_COMPARISON }, // TOKEN_GREATER
-	{ NULL,     parse_binary,  PREC_COMPARISON }, // TOKEN_GREATER_EQUAL
-	{ NULL,     parse_binary,  PREC_COMPARISON }, // TOKEN_LESS
-	{ NULL,     parse_binary,  PREC_COMPARISON }, // TOKEN_LESS_EQUAL
-	{ NULL, NULL,    PREC_NONE },       // TOKEN_IDENTIFIER
-	{ NULL,   NULL,    PREC_NONE },       // TOKEN_STRING
-	{ parse_number,   NULL,    PREC_NONE },       // TOKEN_NUMBER
-	{ NULL,     NULL,    PREC_AND },        // TOKEN_AND
-	{ NULL,     NULL,    PREC_NONE },       // TOKEN_CLASS
-	{ NULL,     NULL,    PREC_NONE },       // TOKEN_ELSE
-	{ NULL,  NULL,    PREC_NONE },       // TOKEN_FALSE
-	{ NULL,     NULL,    PREC_NONE },       // TOKEN_FUN
-	{ NULL,     NULL,    PREC_NONE },       // TOKEN_FOR
-	{ NULL,     NULL,    PREC_NONE },       // TOKEN_IF
-	{ parse_literal,  NULL,    PREC_NONE },       // TOKEN_NIL
-	{ NULL,     NULL,     PREC_OR },         // TOKEN_OR
-	{ NULL,     NULL,    PREC_NONE },       // TOKEN_PRINT
-	{ NULL,     NULL,    PREC_NONE },       // TOKEN_RETURN
-	{ NULL,   NULL,    PREC_NONE },       // TOKEN_SUPER
-	{ NULL,    NULL,    PREC_NONE },       // TOKEN_THIS
-	{ parse_literal,  NULL,    PREC_NONE },       // TOKEN_TRUE
-	{ NULL,     NULL,    PREC_NONE },       // TOKEN_VAR
-	{ NULL,     NULL,    PREC_NONE },       // TOKEN_WHILE
-	{ NULL,     NULL,    PREC_NONE },       // TOKEN_ERROR
-	{ NULL,     NULL,    PREC_NONE },       // TOKEN_EOF
-}
-;
+static LitParseRule rules[TOKEN_EOF + 1];
 bool inited_rules = false;
 
 static void init_rules() {
-	if (true) {
+	if (inited_rules) {
 		return;
 	}
 
@@ -72,38 +30,11 @@ static void init_rules() {
 	rules[TOKEN_GREATER_EQUAL] = { nullptr, parse_binary, PREC_COMPARISON };
 	rules[TOKEN_LESS] = { nullptr, parse_binary, PREC_COMPARISON };
 	rules[TOKEN_LESS_EQUAL] = { nullptr, parse_binary, PREC_COMPARISON };
-	rules[TOKEN_NIL] = { parse_literal, nullptr, PREC_NONE };
 	rules[TOKEN_NUMBER] = { parse_number, nullptr, PREC_NONE };
+	rules[TOKEN_NIL] = { parse_literal, nullptr, PREC_NONE };
+	rules[TOKEN_TRUE] = { parse_literal, nullptr, PREC_NONE };
+	rules[TOKEN_FALSE] = { parse_literal, nullptr, PREC_NONE };
 }
-
-/*
-	{ nullptr,     nullptr,    PREC_NONE },       // TOKEN_RIGHT_PAREN
-	{ nullptr,     nullptr,    PREC_NONE },       // TOKEN_LEFT_BRACE
-	{ nullptr,     nullptr,    PREC_NONE },       // TOKEN_RIGHT_BRACE
-	{ nullptr,     nullptr,    PREC_NONE },       // TOKEN_COMMA
-	{ nullptr,     nullptr,    PREC_CALL },       // TOKEN_DOT
-	{ nullptr,     nullptr,    PREC_NONE },       // TOKEN_SEMICOLON
-	{ nullptr,     nullptr,    PREC_NONE },       // TOKEN_IDENTIFIER
-	{ nullptr,     nullptr,    PREC_NONE },       // TOKEN_STRING
-	{ nullptr,     nullptr,    PREC_AND },        // TOKEN_AND
-	{ nullptr,     nullptr,    PREC_NONE },       // TOKEN_CLASS
-	{ nullptr,     nullptr,    PREC_NONE },       // TOKEN_ELSE
-	{ parse_literal,  nullptr,    PREC_NONE },       // TOKEN_FALSE
-	{ nullptr,     nullptr,    PREC_NONE },       // TOKEN_FUN
-	{ nullptr,     nullptr,    PREC_NONE },       // TOKEN_FOR
-	{ nullptr,     nullptr,    PREC_NONE },       // TOKEN_IF
-	{ nullptr,     nullptr,    PREC_OR },         // TOKEN_OR
-	{ nullptr,     nullptr,    PREC_NONE },       // TOKEN_PRINT
-	{ nullptr,     nullptr,    PREC_NONE },       // TOKEN_RETURN
-	{ nullptr,     nullptr,    PREC_NONE },       // TOKEN_SUPER
-	{ nullptr,     nullptr,    PREC_NONE },       // TOKEN_THIS
-	{ parse_literal,     nullptr,    PREC_NONE },       // TOKEN_TRUE
-	{ nullptr,     nullptr,    PREC_NONE },       // TOKEN_VAR
-	{ nullptr,     nullptr,    PREC_NONE },       // TOKEN_WHILE
-	{ nullptr,     nullptr,    PREC_NONE },       // TOKEN_ERROR
-	{ nullptr,     nullptr,    PREC_NONE },       // TOKEN_EOF
-};
-*/
 
 void LitCompiler::advance() {
 	previous = current;
@@ -143,6 +74,8 @@ void LitCompiler::error_at(LitToken *token, const char *message) {
 	}
 
 	fprintf(stderr, ": %s\n", message);
+	printf("Token type: %i\n", token->type);
+
 	had_error = true;
 }
 
@@ -156,13 +89,12 @@ void LitCompiler::consume(LitTokenType type, const char* message) {
 }
 
 void LitCompiler::emit_byte(uint8_t byte) {
-	printf("Write %i\n", byte);
 	chunk->write(byte, previous.line);
 }
 
 void LitCompiler::emit_bytes(uint8_t a, uint8_t b) {
-	emit_byte(a);
-	emit_byte(b);
+	chunk->write(a, previous.line);
+	chunk->write(b, previous.line);
 }
 
 void LitCompiler::emit_constant(LitValue value) {
@@ -188,7 +120,6 @@ void parse_grouping(bool can_assign) {
 void parse_unary(bool can_assign) {
 	LitTokenType type = compiler->get_previous().type;
 	parse_precedence(PREC_UNARY);
-	parse_expression();
 
 	switch (type) {
 		case TOKEN_MINUS: compiler->emit_byte(OP_NEGATE); break;
@@ -253,11 +184,10 @@ void parse_precedence(LitPrecedence precedence) {
 		get_rule(compiler->get_previous().type)->infix(can_assign);
 	}
 
-	/*
 	if (can_assign && compiler->match(TOKEN_EQUAL)) {
 		compiler->error("Invalid assignment target.");
 		parse_expression();
-	}*/
+	}
 }
 
 void parse_expression() {

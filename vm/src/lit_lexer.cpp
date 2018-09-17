@@ -91,7 +91,8 @@ static bool is_alpha(char c) {
 }
 
 LitTokenType LitLexer::check_keyword(int start, int length, const char* rest, LitTokenType type) {
-	if ((intptr_t) current - start == (start + length) && memcmp((char *) (start + start), rest, length) == 0) {
+	// FIXME: this is super slow!
+	if (strcmp(current - start, rest) >= 0) {
 		return type;
 	}
 

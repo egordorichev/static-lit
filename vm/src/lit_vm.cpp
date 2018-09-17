@@ -54,6 +54,7 @@ InterpretResult LitVm::run_chunk(LitChunk* cnk) {
 
 		switch (instruction) {
 			case OP_RETURN: {
+				printf("Return: ");
 				lit_print_value(pop());
 				printf("\n");
 				return INTERPRET_OK;
@@ -69,6 +70,7 @@ InterpretResult LitVm::run_chunk(LitChunk* cnk) {
 				}
 
 				push(MAKE_NUMBER_VALUE(-AS_NUMBER(pop())));
+				break;
 			}
 			case OP_ADD: BINARY_OP(MAKE_NUMBER_VALUE, +); break;
 			case OP_SUBTRACT: BINARY_OP(MAKE_NUMBER_VALUE, -); break;

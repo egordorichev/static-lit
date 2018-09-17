@@ -4,7 +4,7 @@
 
 int main(int argc, char **argv) {
 	LitContext context;
-	context.execute("1 + 3");
+	context.execute("!(5 - 4 > 3 * 2 == !nil)");
 
 	return 0;
 }

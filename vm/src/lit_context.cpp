@@ -12,5 +12,7 @@ InterpretResult LitContext::execute(const char *string) {
 		return INTERPRET_COMPILE_ERROR;
 	}
 
+	vm.run_chunk(&chunk);
+
 	return INTERPRET_OK;
 }
