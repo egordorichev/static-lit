@@ -40,11 +40,10 @@ class LitLexer {
 	public:
 		LitLexer();
 
-		void setup(const char *source);
+		void setup(const char* source);
 		LitToken next_token();
 		LitToken make_token(LitTokenType type);
-		LitToken make_error_token(const char *error);
-
+		LitToken make_error_token(const char* error);
 		bool is_at_end() { return *current == '\0'; }
 	private:
 		char advance();
@@ -52,6 +51,7 @@ class LitLexer {
 		void skip_whitespace();
 		LitTokenType parse_identifier_type();
 		LitTokenType check_keyword(int start, int length, const char* rest, LitTokenType type);
+
 		char peek();
 		char peek_next();
 

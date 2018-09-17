@@ -28,7 +28,7 @@ void LitChunk::write(uint8_t cd, int line) {
     code = GROW_ARRAY(code, uint8_t, old_capacity, capacity);
     lines = GROW_ARRAY(lines, int, old_capacity, capacity);
   }
-  
+
   code[count] = cd;
   lines[count] = line;
   count++;

@@ -7,9 +7,9 @@
 #define STACK_MAX 256
 
 typedef enum {
-    INTERPRET_OK,
-    INTERPRET_COMPILE_ERROR,
-    INTERPRET_RUNTIME_ERROR
+  INTERPRET_OK,
+  INTERPRET_COMPILE_ERROR,
+  INTERPRET_RUNTIME_ERROR
 } InterpretResult;
 
 class LitVm {
@@ -41,6 +41,6 @@ class LitVm {
     LitValue* stack_top;
 };
 
-LitVm *lit_get_active_vm();
+LitVm* lit_get_active_vm();
 
 #endif

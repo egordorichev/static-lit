@@ -7,12 +7,14 @@
 
 class LitContext {
 	public:
-		LitContext();
-		InterpretResult execute(const char* string);
+	  LitContext();
+
+	  InterpretResult execute(const char* string);
+
 	private:
-		LitLexer lexer;
-		LitCompiler compiler;
-		LitVm vm;
+	  LitLexer lexer;
+	  LitCompiler compiler;
+	  LitVm vm;
 };
 
 #endif

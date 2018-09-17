@@ -9,20 +9,20 @@ typedef struct _LitObject LitObject;
 typedef struct _LitString LitString;
 
 enum LitValueType {
-	VAL_BOOL,
-	VAL_NIL,
-	VAL_NUMBER,
-	VAL_OBJECT
+  VAL_BOOL,
+  VAL_NIL,
+  VAL_NUMBER,
+  VAL_OBJECT
 };
 
 struct LitValue {
-	LitValueType type;
+  LitValueType type;
 
-	union {
-		bool boolean;
-		LitNumber number;
-		LitObject *object;
-	} as;
+  union {
+    bool boolean;
+    LitNumber number;
+    LitObject* object;
+  } as;
 };
 
 #define MAKE_BOOL_VALUE(value) ((LitValue){ VAL_BOOL, { .boolean = value } })
@@ -44,6 +44,7 @@ struct LitValue {
 
 char *lit_to_string(LitValue value);
 void lit_print_value(LitValue value);
+
 bool lit_values_are_equal(LitValue a, LitValue b);
 
 #endif

@@ -32,14 +32,18 @@ void lit_print_value(LitValue value) {
 }
 
 bool lit_values_are_equal(LitValue a, LitValue b) {
-	if (a.type != b.type) {
-		return false;
-	}
+  if (a.type != b.type) {
+    return false;
+  }
 
-	switch (a.type) {
-		case VAL_BOOL: return AS_BOOL(a) == AS_BOOL(b);
-		case VAL_NIL: return true;
-		case VAL_NUMBER: return AS_NUMBER(a) == AS_NUMBER(b);
-		default: UNREACHABLE();
-	}
+  switch (a.type) {
+    case VAL_BOOL:
+      return AS_BOOL(a) == AS_BOOL(b);
+    case VAL_NIL:
+      return true;
+    case VAL_NUMBER:
+      return AS_NUMBER(a) == AS_NUMBER(b);
+    default:
+    UNREACHABLE();
+  }
 }

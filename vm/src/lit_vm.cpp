@@ -7,35 +7,35 @@
 #include "lit_object.hpp"
 #include "lit_value.hpp"
 
-static LitVm *active;
+static LitVm* active;
 
 LitVm::LitVm() {
   reset_stack();
-	active = this;
+  active = this;
 
-	objects = nullptr;
-	bytes_allocated = 0;
-	next_gc = 1024 * 1024;
-	gray_count = 0;
-	gray_capacity = 0;
-	gray_stack = nullptr;
+  objects = nullptr;
+  bytes_allocated = 0;
+  next_gc = 1024 * 1024;
+  gray_count = 0;
+  gray_capacity = 0;
+  gray_stack = nullptr;
 }
 
 LitVm::~LitVm() {
-	active = this;
-	free_objects();
+  active = this;
+  free_objects();
 }
 
 static bool is_false(LitValue value) {
-	return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value)) || (IS_NUMBER(value) && AS_NUMBER(value) == 0);
+  return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value)) || (IS_NUMBER(value) && AS_NUMBER(value) == 0);
 }
 
-LitVm *lit_get_active_vm() {
-	return active;
+LitVm* lit_get_active_vm() {
+  return active;
 }
 
 InterpretResult LitVm::run_chunk(LitChunk* cnk) {
-	active = this;
+  active = this;
   chunk = cnk;
   ip = cnk->get_code();
 
@@ -175,18 +175,18 @@ LitValue LitVm::pop() {
 }
 
 LitValue LitVm::peek(int depth) {
-	return stack_top[-1 - depth];
+  return stack_top[-1 - depth];
 }
 
 void LitVm::runtime_error(const char* format, ...) {
-	va_list args;
-	va_start(args, format);
-	vfprintf(stderr, format, args);
-	va_end(args);
-	fputs("\n", stderr);
+  va_list args;
+  va_start(args, format);
+  vfprintf(stderr, format, args);
+  va_end(args);
+  fputs("\n", stderr);
 
-	size_t instruction = ip - chunk->get_code();
-	fprintf(stderr, "[line %d] in script\n", chunk->get_line(instruction));
+  size_t instruction = ip - chunk->get_code();
+  fprintf(stderr, "[line %d] in script\n", chunk->get_line(instruction));
 
-	reset_stack();
+  reset_stack();
 }
