@@ -27,7 +27,8 @@ LitVm::~LitVm() {
 }
 
 static bool is_false(LitValue value) {
-  return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value)) || (IS_NUMBER(value) && AS_NUMBER(value) == 0);
+  return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value))
+    || (IS_NUMBER(value) && AS_NUMBER(value) == 0);
 }
 
 LitVm* lit_get_active_vm() {

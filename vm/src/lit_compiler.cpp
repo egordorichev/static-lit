@@ -159,54 +159,26 @@ void parse_binary(bool can_assign) {
   parse_precedence((LitPrecedence) (rule->precedence + 1));
 
   switch (type) {
-    case TOKEN_BANG_EQUAL:
-      compiler->emit_bytes(OP_EQUAL, OP_NOT);
-      break;
-    case TOKEN_EQUAL_EQUAL:
-      compiler->emit_byte(OP_EQUAL);
-      break;
-    case TOKEN_GREATER:
-      compiler->emit_byte(OP_GREATER);
-      break;
-    case TOKEN_GREATER_EQUAL:
-      compiler->emit_bytes(OP_LESS, OP_NOT);
-      break;
-    case TOKEN_LESS:
-      compiler->emit_byte(OP_LESS);
-      break;
-    case TOKEN_LESS_EQUAL:
-      compiler->emit_bytes(OP_GREATER, OP_NOT);
-      break;
-    case TOKEN_PLUS:
-      compiler->emit_byte(OP_ADD);
-      break;
-    case TOKEN_MINUS:
-      compiler->emit_byte(OP_SUBTRACT);
-      break;
-    case TOKEN_STAR:
-      compiler->emit_byte(OP_MULTIPLY);
-      break;
-    case TOKEN_SLASH:
-      compiler->emit_byte(OP_DIVIDE);
-      break;
-    default:
-    UNREACHABLE();
+    case TOKEN_BANG_EQUAL: compiler->emit_bytes(OP_EQUAL, OP_NOT); break;
+    case TOKEN_EQUAL_EQUAL: compiler->emit_byte(OP_EQUAL); break;
+    case TOKEN_GREATER:compiler->emit_byte(OP_GREATER); break;
+    case TOKEN_GREATER_EQUAL: compiler->emit_bytes(OP_LESS, OP_NOT); break;
+    case TOKEN_LESS: compiler->emit_byte(OP_LESS); break;
+    case TOKEN_LESS_EQUAL: compiler->emit_bytes(OP_GREATER, OP_NOT); break;
+    case TOKEN_PLUS: compiler->emit_byte(OP_ADD); break;
+    case TOKEN_MINUS: compiler->emit_byte(OP_SUBTRACT); break;
+    case TOKEN_STAR: compiler->emit_byte(OP_MULTIPLY); break;
+    case TOKEN_SLASH: compiler->emit_byte(OP_DIVIDE); break;
+    default: UNREACHABLE();
   }
 }
 
 void parse_literal(bool can_assign) {
   switch (compiler->get_previous().type) {
-    case TOKEN_FALSE:
-      compiler->emit_byte(OP_FALSE);
-      break;
-    case TOKEN_NIL:
-      compiler->emit_byte(OP_NIL);
-      break;
-    case TOKEN_TRUE:
-      compiler->emit_byte(OP_TRUE);
-      break;
-    default:
-    UNREACHABLE();
+    case TOKEN_FALSE: compiler->emit_byte(OP_FALSE); break;
+    case TOKEN_NIL: compiler->emit_byte(OP_NIL); break;
+    case TOKEN_TRUE: compiler->emit_byte(OP_TRUE); break;
+    default: UNREACHABLE();
   }
 }
 
