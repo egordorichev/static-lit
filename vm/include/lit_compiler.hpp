@@ -60,6 +60,7 @@ void parse_unary(bool can_assign);
 void parse_binary(bool can_assign);
 void parse_number(bool can_assign);
 void parse_literal(bool can_assign);
+void parse_string(bool can_assign);
 void parse_precedence(LitPrecedence precedence);
 void parse_expression();
 void parse_declaration();

@@ -2,19 +2,35 @@
 #include "lit_vm.hpp"
 #include "lit_debug.hpp"
 
+static LitVm *active;
+
 LitVm::LitVm() {
   reset_stack();
+	active = this;
+
+	objects = nullptr;
+	bytes_allocated = 0;
+	next_gc = 1024 * 1024;
+	gray_count = 0;
+	gray_capacity = 0;
+	gray_stack = nullptr;
 }
 
 LitVm::~LitVm() {
-
+	active = this;
+	free_objects();
 }
 
 static bool is_false(LitValue value) {
 	return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value)) || (IS_NUMBER(value) && AS_NUMBER(value) == 0);
 }
 
+LitVm *lit_get_active_vm() {
+	return active;
+}
+
 InterpretResult LitVm::run_chunk(LitChunk* cnk) {
+	active = this;
   chunk = cnk;
   ip = cnk->get_code();
 

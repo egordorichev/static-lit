@@ -1,3 +1,4 @@
+#include "lit_object.hpp"
 #include "lit_compiler.hpp"
 #include "lit_common.hpp"
 
@@ -34,6 +35,7 @@ static void init_rules() {
 	rules[TOKEN_NIL] = { parse_literal, nullptr, PREC_NONE };
 	rules[TOKEN_TRUE] = { parse_literal, nullptr, PREC_NONE };
 	rules[TOKEN_FALSE] = { parse_literal, nullptr, PREC_NONE };
+	rules[TOKEN_STRING] = { parse_string, nullptr, PREC_NONE };
 }
 
 void LitCompiler::advance() {
@@ -74,7 +76,6 @@ void LitCompiler::error_at(LitToken *token, const char *message) {
 	}
 
 	fprintf(stderr, ": %s\n", message);
-	printf("Token type: %i\n", token->type);
 
 	had_error = true;
 }
@@ -165,6 +166,10 @@ void parse_literal(bool can_assign) {
 		case TOKEN_TRUE: compiler->emit_byte(OP_TRUE); break;
 		default: UNREACHABLE();
 	}
+}
+
+void parse_string(bool can_assign) {
+	compiler->emit_constant(MAKE_OBJECT_VALUE(lit_copy_string(compiler->get_previous().start + 1, compiler->get_previous().length - 2)));
 }
 
 void parse_precedence(LitPrecedence precedence) {

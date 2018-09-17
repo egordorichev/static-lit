@@ -1,11 +1,19 @@
 #include "lit_value.hpp"
 #include "lit_common.hpp"
+#include "lit_object.hpp"
 
 void lit_print_value(LitValue value) {
   switch (value.type) {
     case VAL_BOOL: printf(AS_BOOL(value) ? "true" : "false"); break;
     case VAL_NIL: printf("nil"); break;
     case VAL_NUMBER: printf("%g", AS_NUMBER(value)); break;
+    case VAL_OBJECT: {
+	    switch (OBJECT_TYPE(value)) {
+		    case OBJ_STRING: printf("%s", AS_CSTRING(value)); break;
+	    }
+
+	    break;
+    }
     default: UNREACHABLE();
   }
 }

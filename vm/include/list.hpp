@@ -1,6 +1,8 @@
 #ifndef LIST_HPP
 #define LIST_HPP
 
+#include "lit_gc.hpp"
+
 template<class T>
 class List {
 public:

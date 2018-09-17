@@ -10,7 +10,7 @@ List<T>::List() {
 
 template<typename T>
 List<T>::~List() {
-  free();
+  FREE_ARRAY(T, values, capacity);
 }
 
 template<typename T>
