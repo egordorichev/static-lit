@@ -103,8 +103,8 @@ InterpretResult LitVm::run_chunk(LitChunk* cnk) {
 				if (IS_NUMBER(av) && IS_NUMBER(bv)) {
 					push(MAKE_NUMBER_VALUE(AS_NUMBER(av) + AS_NUMBER(bv)));
 				} else if ((IS_STRING(av) || IS_NUMBER(av)) || (IS_STRING(bv) || IS_NUMBER(bv))) {
-					char* a = lit_to_string(av);
-					char* b = lit_to_string(bv);
+					const char* a = lit_to_string(av);
+					const char* b = lit_to_string(bv);
 
 					int al = strlen(a);
 					int bl = strlen(b);
