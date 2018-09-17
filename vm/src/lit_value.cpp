@@ -13,7 +13,7 @@ char* dts(double value) {
 
 char* lit_to_string(LitValue value) {
 	switch (value.type) {
-		case VAL_BOOL: AS_BOOL(value) ? "true" : "false";
+		case VAL_BOOL: return (char *) (AS_BOOL(value) ? "true" : "false");
 		case VAL_NIL: return (char*) "nil";
 		case VAL_NUMBER: return dts(AS_NUMBER(value));
 		case VAL_OBJECT: {
@@ -21,7 +21,6 @@ char* lit_to_string(LitValue value) {
 				case OBJ_STRING: return AS_CSTRING(value);
 				default: UNREACHABLE();
 			}
-
 		}
 		default: UNREACHABLE();
 	}

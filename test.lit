@@ -1,1 +1,1 @@
-print true ///
+print 10 + 20 > 10 + 21
