@@ -43,7 +43,8 @@ InterpretResult LitVm::run_chunk(LitChunk* cnk) {
 #define READ_BYTE() (*ip++)
 #define READ_CONSTANT() (chunk->get_constants()->get(READ_BYTE()))
 #define READ_SHORT() (ip += 2, (uint16_t)((ip[-2] << 8) | ip[-1]))
-  #define BINARY_OP(type, op) \
+#define READ_STRING() AS_STRING(READ_CONSTANT())
+#define BINARY_OP(type, op) \
     if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
       runtime_error("Operands must be numbers."); \
       return INTERPRET_RUNTIME_ERROR; \
@@ -150,6 +151,12 @@ InterpretResult LitVm::run_chunk(LitChunk* cnk) {
 				break;
 			}
 			case OP_JUMP: ip += READ_SHORT(); break;
+			case OP_DEFINE_GLOBAL: {
+				LitString* name = READ_STRING();
+				globals.set(name, peek(0));
+				pop();
+				break;
+			}
 		}
 	}
 
@@ -157,6 +164,7 @@ InterpretResult LitVm::run_chunk(LitChunk* cnk) {
 #undef READ_CONSTANT
 #undef READ_BYTE
 #undef READ_SHORT
+#undef READ_STRING
 }
 
 void LitVm::reset_stack() {
@@ -169,9 +177,9 @@ void LitVm::push(LitValue value) {
 }
 
 LitValue LitVm::pop() {
-	if (stack_top == stack) {
-		runtime_error("Trying to pop below 0.");
-	}
+  if (stack_top == stack) {
+    runtime_error("Trying to pop below 0.");
+  }
 
   stack_top--;
   return *stack_top;
@@ -183,13 +191,23 @@ LitValue LitVm::peek(int depth) {
 
 void LitVm::runtime_error(const char* format, ...) {
   va_list args;
+
   va_start(args, format);
+#ifndef DEBUG
   vfprintf(stderr, format, args);
+#else
+  vprintf(format, args);
+#endif
   va_end(args);
   fputs("\n", stderr);
 
   size_t instruction = ip - chunk->get_code();
+
+#ifndef DEBUG
   fprintf(stderr, "[line %d] in script\n", chunk->get_line(instruction));
+#else
+  printf("[line %d] in script\n", chunk->get_line(instruction));
+#endif
 
   reset_stack();
 }

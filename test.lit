@@ -1,1 +1,2 @@
-print 10 + 20 > 10 + 21
+var i = 10
+print i

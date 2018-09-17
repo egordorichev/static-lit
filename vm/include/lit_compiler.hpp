@@ -26,10 +26,38 @@ typedef struct {
   LitPrecedence precedence;
 } LitParseRule;
 
+typedef struct {
+		LitToken name;
+		int depth;
+		bool is_upvalue;
+} LitLocal;
+
+typedef struct {
+		uint8_t index;
+		bool is_local;
+} LitUpvalue;
+
 class LitCompiler {
+	private:
+		int depth;
+		int local_count;
+		LitChunk *chunk;
+		LitLexer *lexer;
+		LitToken current;
+		LitToken previous;
+		bool had_error;
+		bool panic_mode;
+		LitLocal locals[UINT8_COUNT];
+		LitUpvalue upvalues[UINT8_COUNT];
+
 	public:
 		void set_lexer(LitLexer *lexer) { this->lexer = lexer; };
 		bool compile(LitChunk *cnk);
+		void add_local() { local_count ++; }
+		int get_local_count() { return local_count; }
+		LitLocal* get_local(int i) { return &locals[i]; }
+		LitUpvalue* get_upvalue(int i) { return &upvalues[i]; }
+		void define_local(int i, int w) { locals[i].depth = w; }
 
 		LitChunk *get_chunk() { return chunk; }
 		LitLexer *get_lexer() { return lexer; }
@@ -52,14 +80,6 @@ class LitCompiler {
 
 		int get_depth() { return depth; }
 		bool check(LitTokenType type) { return current.type == type;	}
-	private:
-		int depth;
-		LitChunk *chunk;
-		LitLexer *lexer;
-		LitToken current;
-		LitToken previous;
-		bool had_error;
-		bool panic_mode;
 };
 
 void parse_grouping(bool can_assign);
@@ -68,6 +88,7 @@ void parse_binary(bool can_assign);
 void parse_number(bool can_assign);
 void parse_literal(bool can_assign);
 void parse_string(bool can_assign);
+void parse_variable(bool can_assign);
 void parse_precedence(LitPrecedence precedence);
 void parse_expression();
 void parse_declaration();

@@ -35,6 +35,7 @@ LitString* lit_copy_string(const char* chars, int length);
 LitString* lit_take_string(const char* chars, int length);
 
 #define IS_STRING(value) lit_is_object_type(value, OBJ_STRING)
+#define AS_STRING(value) ((LitString*) AS_OBJECT(value))
 
 static inline bool lit_is_object_type(LitValue value, LitObjectType type) {
   return IS_OBJECT(value) && AS_OBJECT(value)->type == type;

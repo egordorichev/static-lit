@@ -1,13 +1,13 @@
-#include <lit_vm.hpp>
+#include "lit_vm.hpp"
 #include "lit_object.hpp"
 #include "lit_compiler.hpp"
 #include "lit_common.hpp"
 
 #ifdef DEBUG_PRINT_CODE
-
 #include "lit_debug.hpp"
-
 #endif
+
+#include <cstring>
 
 static LitCompiler* compiler;
 
@@ -40,6 +40,39 @@ static void init_rules() {
 	rules[TOKEN_FALSE] = { parse_literal, nullptr, PREC_NONE };
 	rules[TOKEN_STRING] = { parse_string, nullptr, PREC_NONE };
 	rules[TOKEN_PRINT] = { nullptr, nullptr, PREC_NONE };
+	rules[TOKEN_IDENTIFIER] = { parse_variable, NULL, PREC_NONE };
+}
+
+static uint8_t make_identifier_constant(LitToken name) {
+	return compiler->make_constant(MAKE_OBJECT_VALUE(lit_copy_string(name.start, name.length)));
+}
+
+static void namedVariable(LitToken name, bool canAssign) {
+	/*uint8_t getOp, setOp;
+	int arg = resolve_local(compiler->get_current(), &name, false);
+
+	if (arg != -1) {
+		getOp = OP_GET_LOCAL;
+		setOp = OP_SET_LOCAL;
+	} else if ((arg = resolve_upvalue(compiler->get_current(), &name)) != -1) {
+		getOp = OP_GET_UPVALUE;
+		setOp = OP_SET_UPVALUE;
+	} else {
+		arg = make_identifier_constant(name);
+		getOp = OP_GET_GLOBAL;
+		setOp = OP_SET_GLOBAL;
+	}
+
+	if (canAssign && compiler->match(TOKEN_EQUAL)) {
+		parse_expression();
+		compiler->emit_bytes(setOp, (uint8_t) arg);
+	} else {
+		compiler->emit_bytes(getOp, (uint8_t) arg);
+	}*/
+}
+
+void variable(bool canAssign) {
+	namedVariable(compiler->get_previous(), canAssign);
 }
 
 void parse_print() {
@@ -76,15 +109,31 @@ void LitCompiler::error_at(LitToken* token, const char* message) {
 
   panic_mode = true;
 
+#ifndef DEBUG
   fprintf(stderr, "[line %d] Error", token->line);
+#else
+  printf("[line %d] Error", token->line);
+#endif
 
   if (token->type == TOKEN_EOF) {
+#ifndef DEBUG
     fprintf(stderr, " at end");
+#else
+    printf(" at end");
+#endif
   } else if (token->type != TOKEN_ERROR) {
+#ifndef DEBUG
     fprintf(stderr, " at '%.*s'", token->length, token->start);
+#else
+    printf(" at '%.*s'", token->length, token->start);
+#endif
   }
 
+#ifndef DEBUG
   fprintf(stderr, ": %s\n", message);
+#else
+  printf(": %s\n", message);
+#endif
 
   had_error = true;
 }
@@ -191,7 +240,7 @@ void parse_precedence(LitPrecedence precedence) {
   compiler->advance();
   LitParseFn prefixRule = get_rule(compiler->get_previous().type)->prefix;
 
-  if (prefixRule == NULL) {
+  if (prefixRule == nullptr) {
     compiler->error("Expect expression.");
     return;
   }
@@ -256,8 +305,87 @@ void parse_if() {
 	patch_jump(endJump);
 }
 
+static void addLocal(LitToken name) {
+	if (compiler->get_local_count() == UINT8_COUNT) {
+		compiler->error("Too many local variables in function.");
+		return;
+	}
+
+	LitLocal* local = compiler->get_local(compiler->get_local_count());
+	local->name = name;
+
+	local->depth = -1;
+	local->is_upvalue = false;
+	compiler->add_local();
+}
+
+static bool are_identifiers_equal(LitToken* a, LitToken* b) {
+	if (a->length != b->length) {
+		return false;
+	}
+
+	return memcmp(a->start, b->start, a->length) == 0;
+}
+
+static void declare_variable() {
+	if (compiler->get_depth() == 0) {
+		return;
+	}
+
+	LitToken name = compiler->get_previous();
+
+	for (int i = compiler->get_local_count() - 1; i >= 0; i--) {
+		LitLocal* local = compiler->get_local(i);
+
+		if (local->depth != -1 && local->depth < compiler->get_depth()) {
+			break;
+		}
+
+		if (are_identifiers_equal(&name, &local->name)) {
+			compiler->error("Variable with this name already declared in this scope.");
+		}
+	}
+
+	addLocal(name);
+}
+
+static uint8_t parse_variable(const char* error) {
+	compiler->consume(TOKEN_IDENTIFIER, error);
+
+	if (compiler->get_depth() == 0) {
+		return make_identifier_constant(compiler->get_previous());
+	}
+
+	declare_variable();
+	return 0;
+}
+
+static void define_variable(uint8_t global) {
+	if (compiler->get_depth() == 0) {
+		compiler->emit_bytes(OP_DEFINE_GLOBAL, global);
+	} else {
+		compiler->define_local(compiler->get_local_count() - 1, compiler->get_depth());
+	}
+}
+
+void parse_var_declaration() {
+	uint8_t global = parse_variable("Expect variable name.");
+
+	if (compiler->match(TOKEN_EQUAL)) {
+		parse_expression();
+	} else {
+		compiler->emit_byte(OP_NIL);
+	}
+
+	define_variable(global);
+}
+
 void parse_declaration() {
-  parse_statement();
+	if (compiler->match(TOKEN_VAR)) {
+		parse_var_declaration();
+	} else {
+		parse_statement();
+	}
 }
 
 void parse_block() {
@@ -273,6 +401,8 @@ void parse_statement() {
 		parse_if();
 	} else if (compiler->match(TOKEN_PRINT)) {
 		parse_print();
+	} else if (compiler->match(TOKEN_WHILE)) {
+
 	} else if (compiler->match(TOKEN_LEFT_BRACE)) {
 		compiler->begin_scope();
 		parse_block();

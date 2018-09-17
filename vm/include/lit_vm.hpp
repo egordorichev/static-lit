@@ -13,20 +13,14 @@ typedef enum {
 } InterpretResult;
 
 class LitVm {
+	private:
+		LitChunk* chunk;
+		uint8_t* ip;
+		LitValue stack[STACK_MAX];
+		LitValue* stack_top;
+		LitTable globals;
+
 	public:
-		LitVm();
-		~LitVm();
-
-		void reset_stack();
-		void push(LitValue value);
-		LitValue pop();
-		LitValue peek(int depth);
-		void runtime_error(const char* format, ...);
-		LitChunk* get_chunk() { return chunk; }
-
-		void set_chunk(LitChunk* cnk) { chunk = cnk; }
-		InterpretResult run_chunk(LitChunk* cnk);
-
 		size_t bytes_allocated;
 		size_t next_gc;
 		LitObject *objects;
@@ -34,11 +28,21 @@ class LitVm {
 		int gray_capacity;
 		LitObject** gray_stack;
 		LitTable strings;
-	private:
-    LitChunk* chunk;
-    uint8_t* ip;
-    LitValue stack[STACK_MAX];
-    LitValue* stack_top;
+
+  public:
+		LitVm();
+		~LitVm();
+
+		void reset_stack();
+		void push(LitValue value);
+		LitValue pop();
+		LitValue peek(int depth);
+		LitChunk* get_chunk() { return chunk; }
+
+		void set_chunk(LitChunk* cnk) { chunk = cnk; }
+		InterpretResult run_chunk(LitChunk* cnk);
+
+		void runtime_error(const char* format, ...);
 };
 
 LitVm* lit_get_active_vm();

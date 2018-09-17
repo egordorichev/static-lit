@@ -6,15 +6,15 @@
 #include "lit_vm.hpp"
 
 class LitContext {
+	private:
+		LitLexer lexer;
+		LitCompiler compiler;
+		LitVm vm;
+
 	public:
 	  LitContext();
 
 	  InterpretResult execute(const char* string);
-
-	private:
-	  LitLexer lexer;
-	  LitCompiler compiler;
-	  LitVm vm;
 };
 
 #endif
