@@ -34,8 +34,8 @@ static void init_rules() {
 	rules[TOKEN_GREATER_EQUAL] = { nullptr, parse_binary, PREC_COMPARISON };
 	rules[TOKEN_LESS] = { nullptr, parse_binary, PREC_COMPARISON };
 	rules[TOKEN_LESS_EQUAL] = { nullptr, parse_binary, PREC_COMPARISON };
-	rules[TOKEN_AND] = { nullptr, parse_binary, PREC_AND };
-	rules[TOKEN_OR] = { nullptr, parse_binary, PREC_OR };
+	rules[TOKEN_AND] = { nullptr, parse_and, PREC_AND };
+	rules[TOKEN_OR] = { nullptr, parse_or, PREC_OR };
 	rules[TOKEN_NUMBER] = { parse_number, nullptr, PREC_NONE };
 	rules[TOKEN_NIL] = { parse_literal, nullptr, PREC_NONE };
 	rules[TOKEN_TRUE] = { parse_literal, nullptr, PREC_NONE };
@@ -219,8 +219,6 @@ void parse_binary(bool can_assign) {
     case TOKEN_MINUS: compiler->emit_byte(OP_SUBTRACT); break;
     case TOKEN_STAR: compiler->emit_byte(OP_MULTIPLY); break;
     case TOKEN_SLASH: compiler->emit_byte(OP_DIVIDE); break;
-    case TOKEN_AND: compiler->emit_byte(OP_AND); break;
-    case TOKEN_OR: compiler->emit_byte(OP_OR); break;
     default: UNREACHABLE();
   }
 }
@@ -306,6 +304,25 @@ void parse_if() {
 	}
 
 	patch_jump(endJump);
+}
+
+void parse_or(bool can_assign) {
+	int else_jump = emit_jump(OP_JUMP_IF_FALSE);
+	int end_jump = emit_jump(OP_JUMP);
+
+	patch_jump(else_jump);
+	compiler->emit_byte(OP_POP);
+	parse_precedence(PREC_OR);
+	patch_jump(end_jump);
+}
+
+void parse_and(bool can_assign) {
+	int end_jump = emit_jump(OP_JUMP_IF_FALSE);
+
+	compiler->emit_byte(OP_POP);
+	parse_precedence(PREC_AND);
+
+	patch_jump(end_jump);
 }
 
 static void addLocal(LitToken name) {

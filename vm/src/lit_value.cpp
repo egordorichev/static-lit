@@ -1,14 +1,21 @@
 #include <string>
+#include <sstream>
 
 #include "lit_value.hpp"
 #include "lit_common.hpp"
 #include "lit_object.hpp"
 
+char* dts(double value) {
+	std::stringstream ss;
+	ss << value;
+	return (char*) ss.str().c_str();
+}
+
 const char* lit_to_string(LitValue value) {
 	switch (value.type) {
 		case VAL_BOOL: return (char*) (AS_BOOL(value) ? "true" : "false");
 		case VAL_NIL: return (char*) "nil";
-		case VAL_NUMBER: return (std::to_string(AS_NUMBER(value)) + '\0').c_str();
+		case VAL_NUMBER: return dts(AS_NUMBER(value));
 		case VAL_OBJECT: {
 			switch (OBJECT_TYPE(value)) {
 				case OBJ_STRING: return AS_CSTRING(value);

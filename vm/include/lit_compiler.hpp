@@ -89,6 +89,8 @@ void parse_number(bool can_assign);
 void parse_literal(bool can_assign);
 void parse_string(bool can_assign);
 void parse_variable(bool can_assign);
+void parse_or(bool can_assign);
+void parse_and(bool can_assign);
 void parse_precedence(LitPrecedence precedence);
 void parse_expression();
 void parse_declaration();

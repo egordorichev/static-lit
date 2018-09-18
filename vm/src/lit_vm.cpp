@@ -26,10 +26,19 @@ LitVm::~LitVm() {
   free_objects();
 }
 
+static bool can_be_cast_to_bool(LitValue value) {
+	return IS_NIL(value) || IS_BOOL(value) || IS_NUMBER(value);
+}
+
 static bool is_false(LitValue value) {
   return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value))
     || (IS_NUMBER(value) && AS_NUMBER(value) == 0);
 }
+
+static bool is_true(LitValue value) {
+	return !is_false(value);
+}
+
 
 LitVm* lit_get_active_vm() {
   return active;
@@ -144,8 +153,8 @@ InterpretResult LitVm::run_chunk(LitChunk* cnk) {
         LitValue right = pop();
         LitValue left = pop();
 
-        if (IS_BOOL(left) && IS_BOOL(right)) {
-          push(MAKE_BOOL_VALUE(AS_BOOL(left) && AS_BOOL(right)));
+        if (can_be_cast_to_bool(left) && can_be_cast_to_bool(right)) {
+          push(MAKE_BOOL_VALUE(is_true(left) && is_true(right)));
         } else {
           runtime_error("Operands must be two booleans.");
         }
