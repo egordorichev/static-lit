@@ -3,10 +3,21 @@
 #include "lit_value.h"
 #include "lit_memory.h"
 
+static char output[21];
 
-char output[21];
 char *lit_to_string(LitValue value) {
-	snprintf(output, 21, "%g", value);
-	output[20] = '\0';
-	return output;
+	if (IS_BOOL(value)) {
+		return AS_BOOL(value) ? "true" : "false";
+	} else if (IS_NUMBER(value)) {
+		snprintf(output, 21, "%g", AS_NUMBER(value));
+		output[20] = '\0';
+
+		return output;
+	} else if (IS_NIL(value)) {
+		return "nil";
+	} else if (IS_OBJECT(value)) {
+		// TODO
+	}
+
+	UNREACHABLE()
 }

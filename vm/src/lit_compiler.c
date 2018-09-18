@@ -116,7 +116,7 @@ static inline LitParseRule* get_parse_rule(LitTokenType type) {
 }
 
 static void parse_number(LitCompiler* compiler) {
-	emit_constant(compiler, strtod(compiler->lexer.previous.start, NULL));
+	emit_constant(compiler, MAKE_NUMBER_VALUE(strtod(compiler->lexer.previous.start, NULL)));
 }
 
 static void parse_grouping(LitCompiler* compiler) {

@@ -19,6 +19,7 @@ void lit_free_vm(LitVm* vm);
 
 void lit_push(LitVm* vm, LitValue value);
 LitValue lit_pop(LitVm* vm);
+LitValue lit_peek(LitVm* vm, int depth);
 
 LitInterpretResult lit_execute(LitVm* vm, const char* code);
 LitInterpretResult lit_interpret(LitVm* vm, LitChunk* chunk);
