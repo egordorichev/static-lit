@@ -1,24 +1,6 @@
 #include "lit_compiler.h"
 #include "lit_vm.h"
 
-/*
- * Lexer implementation
- */
-
-void lit_init_lexer(LitLexer* lexer, const char* code) {
-	lexer->start = code;
-	lexer->current = code;
-	lexer->line = 1;
-}
-
-void lit_free_lexer(LitLexer* lexer) {
-
-}
-
-/*
- * Compiler implementation
- */
-
 void lit_init_compiler(LitCompiler* compiler) {
 
 }
