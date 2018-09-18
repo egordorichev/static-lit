@@ -4,7 +4,7 @@ LitContext::LitContext() {
   compiler.set_lexer(&lexer);
 }
 
-InterpretResult LitContext::execute(const char* string) {
+LitInterpretResult LitContext::execute(const char* string) {
   lexer.setup(string);
   LitChunk chunk;
   vm.set_chunk(&chunk);
@@ -13,7 +13,5 @@ InterpretResult LitContext::execute(const char* string) {
 		return INTERPRET_COMPILE_ERROR;
 	}
 
-  vm.run_chunk(&chunk);
-
-  return INTERPRET_OK;
+  return vm.run_chunk(&chunk);
 }

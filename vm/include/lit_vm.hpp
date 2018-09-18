@@ -10,7 +10,7 @@ typedef enum {
   INTERPRET_OK,
   INTERPRET_COMPILE_ERROR,
   INTERPRET_RUNTIME_ERROR
-} InterpretResult;
+} LitInterpretResult;
 
 class LitVm {
 	private:
@@ -40,7 +40,7 @@ class LitVm {
 		LitChunk* get_chunk() { return chunk; }
 
 		void set_chunk(LitChunk* cnk) { chunk = cnk; }
-		InterpretResult run_chunk(LitChunk* cnk);
+		LitInterpretResult run_chunk(LitChunk* cnk);
 
 		void runtime_error(const char* format, ...);
 };

@@ -1,59 +1,93 @@
 #include <iostream>
 #include <string>
 #include <fstream>
+#include <cstring>
 
 #include "lit_context.hpp"
 
-void execute_file(const std::string& file_path);
-void execute_in_repl(LitContext& context, const std::string& code);
+void show_repl() {
+	LitContext context;
+
+	char line[1024];
+
+	for (;;) {
+		printf("> ");
+
+		if (!fgets(line, sizeof(line), stdin)) {
+			printf("\n");
+			break;
+		}
+
+		context.execute(line);
+	}
+}
+
+static char* read_file(const char* path) {
+	FILE* file = fopen(path, "rb");
+
+	if (file == nullptr) {
+		fprintf(stderr, "Could not open file \"%s\".\n", path);
+		exit(74);
+	}
+
+	fseek(file, 0L, SEEK_END);
+	size_t fileSize = ftell(file);
+	rewind(file);
+
+	char* buffer = (char*) malloc(fileSize + 1);
+
+	if (buffer == nullptr) {
+		fprintf(stderr, "Not enough memory to read \"%s\".\n", path);
+		exit(74);
+	}
+
+	size_t bytesRead = fread(buffer, sizeof(char), fileSize, file);
+
+	if (bytesRead < fileSize) {
+		fprintf(stderr, "Could not read file \"%s\".\n", path);
+		exit(74);
+	}
+
+	buffer[bytesRead] = '\0';
+	fclose(file);
+
+	return buffer;
+}
 
 int main(int argc, char** argv) {
-  LitContext repl_context;
-
-  if (argc == 2 && std::string(argv[1]).find('.') != std::string::npos) {
-    std::string file_path = std::string(argv[1]);
-
-    if (file_path.size() > 3 && file_path.rfind(".lit") != std::string::npos) {
-      execute_file(file_path);
-    } else {
-      printf("Error: %s is not a Lit file\n", file_path.c_str());
-    }
-  } else if (argc == 1) {
-    for(;;) {
-      std::string input;
-
-      printf("> ");
-
-      std::cin >> input;
-
-      if (input == ".exit") {
-        break;
-      }
-
-      execute_in_repl(repl_context, input);
-    }
+  if (argc == 1) {
+  	show_repl();
   } else {
-    printf("Usage: lit [path]\n");
+	  for (int i = 1; i < argc; i++) {
+		  char* arg = argv[i];
+
+		  if (arg[0] == '-') {
+			  if (strcmp(arg, "-e") == 0 || strcmp(arg, "--exec") == 0) {
+				  if (i == argc - 1) {
+					  printf("Usage: lit -e [code]");
+				  } else {
+					  i++;
+
+					  LitContext context;
+					  LitInterpretResult result = context.execute(argv[i]);
+					  return result == INTERPRET_OK ? 0 : -2;
+				  }
+			  } else if (strcmp(arg, "-h") == 0 || strcmp(arg, "--help") == 0) {
+				  printf("lit - simple and fast scripting language\n");
+					printf("\tlit [file]\tRun the file\n");
+				  printf("\t-e --exec [code string]\tExecutes a string of code\n");
+				  printf("\t-h --help\tShows this hint\n");
+			  } else {
+			  	printf("Unknown option %s! Run with -h for help.", arg);
+			  	return -1;
+			  }
+		  } else {
+			  LitContext context;
+			  LitInterpretResult result = context.execute(read_file(arg));
+			  return result == INTERPRET_OK ? 0 : -2;
+		  }
+	  }
   }
 
   return 0;
-}
-
-void execute_file(const std::string& file_path) {
-  LitContext context;
-  std::ifstream file_stream(file_path);
-
-  if (!file_stream.good()) {
-    printf("File %s doesn't exist or can't be read\n", file_path.c_str());
-
-    return;
-  }
-
-  std::string code((std::istreambuf_iterator<char>(file_stream)), std::istreambuf_iterator<char>());
-
-  context.execute(code.c_str());
-}
-
-void execute_in_repl(LitContext& context, const std::string& code) {
-  context.execute(code.c_str());
 }

@@ -26,7 +26,7 @@ static void resize(LitTable* table, int capacity_mask) {
 
   for (int i = 0; i <= capacity_mask; i++) {
     entries[i].key = nullptr;
-    entries[i].value = NIL_VAL;
+    entries[i].value = NIL_VALUE;
   }
 
   table->count = 0;
@@ -110,7 +110,7 @@ bool LitTable::remove(LitString* key) {
   }
 
   entry->key = nullptr;
-  entry->value = NIL_VAL;
+  entry->value = NIL_VALUE;
   count--;
 
   for (;;) {
@@ -125,7 +125,7 @@ bool LitTable::remove(LitString* key) {
     LitValue temp_value = entry->value;
 
     entry->key = nullptr;
-    entry->value = NIL_VAL;
+    entry->value = NIL_VALUE;
     count--;
 
     this->set(temp_key, temp_value);

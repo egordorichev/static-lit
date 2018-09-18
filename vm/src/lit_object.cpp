@@ -41,7 +41,7 @@ LitString* lit_alloc_string(char* chars, int length, uint32_t hash) {
   LitVm* vm = lit_get_active_vm();
 
   vm->push(MAKE_OBJECT_VALUE(string));
-  vm->strings.set(string, NIL_VAL);
+  vm->strings.set(string, NIL_VALUE);
   vm->pop();
 
   return string;

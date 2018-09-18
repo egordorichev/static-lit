@@ -14,7 +14,7 @@ class LitContext {
 	public:
 	  LitContext();
 
-	  InterpretResult execute(const char* string);
+	  LitInterpretResult execute(const char* string);
 };
 
 #endif

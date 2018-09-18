@@ -1,44 +1,33 @@
 #include <string>
-#include <sstream>
+#include <cinttypes>
 
 #include "lit_value.hpp"
 #include "lit_common.hpp"
 #include "lit_object.hpp"
 
-char* dts(double value) {
-	std::stringstream ss;
-	ss << value;
-	return (char*) ss.str().c_str();
+char buff[21];
+char* dts(LitValue value) {
+	sprintf(buff, "%g", PRIu64, (double) value);
+	return buff;
 }
 
 const char* lit_to_string(LitValue value) {
-	switch (value.type) {
-		case VAL_BOOL: return (char*) (AS_BOOL(value) ? "true" : "false");
-		case VAL_NIL: return (char*) "nil";
-		case VAL_NUMBER: return dts(AS_NUMBER(value));
-		case VAL_OBJECT: {
-			switch (OBJECT_TYPE(value)) {
-				case OBJ_STRING: return AS_CSTRING(value);
-				default: UNREACHABLE();
-			}
+	if (IS_BOOL(value)) {
+		return AS_BOOL(value) == 0 ? "false" : "true";
+	} else if (IS_NIL(value)) {
+		return "nil";
+	} else if (IS_NUMBER(value)) {
+		return dts(AS_NUMBER(value));
+	} else if (IS_OBJECT(value)) {
+		switch (OBJECT_TYPE(value)) {
+			case OBJ_STRING: return AS_CSTRING(value);
+			default: UNREACHABLE();
 		}
-		default: UNREACHABLE();
+	} else {
+		UNREACHABLE()
 	}
 }
 
 void lit_print_value(LitValue value) {
   printf("%s", lit_to_string(value));
-}
-
-bool lit_values_are_equal(LitValue a, LitValue b) {
-  if (a.type != b.type) {
-    return false;
-  }
-
-  switch (a.type) {
-    case VAL_BOOL: return AS_BOOL(a) == AS_BOOL(b);
-    case VAL_NIL: return true;
-    case VAL_NUMBER: return AS_NUMBER(a) == AS_NUMBER(b);
-    default: UNREACHABLE();
-  }
 }

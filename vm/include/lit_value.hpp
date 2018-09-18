@@ -2,49 +2,64 @@
 #define LIT_VALUE_HPP
 
 #include <cstdio>
+#include <stdint.h>
 
 #include "lit_config.hpp"
 
 typedef struct _LitObject LitObject;
 typedef struct _LitString LitString;
 
-enum LitValueType {
-  VAL_BOOL,
-  VAL_NIL,
-  VAL_NUMBER,
-  VAL_OBJECT
-};
+#define SIGN_BIT ((uint64_t) 1 << 63)
+#define QNAN ((uint64_t) 0x7ffc000000000000)
 
-struct LitValue {
-  LitValueType type;
+#define TAG_NIL   1 // 01
+#define TAG_FALSE 2 // 10
+#define TAG_TRUE  3 // 11
 
-  union {
-    bool boolean;
-    LitNumber number;
-    LitObject* object;
-  } as;
-};
+typedef uint64_t LitValue;
 
-#define MAKE_BOOL_VALUE(value) ((LitValue){ VAL_BOOL, { .boolean = value } })
-#define NIL_VAL ((LitValue) { VAL_NIL, { .number = 0 } })
-#define MAKE_NUMBER_VALUE(value) ((LitValue){ VAL_NUMBER, { .number = value } })
-#define MAKE_OBJECT_VALUE(obj) ((LitValue){ VAL_OBJECT, { .object = (LitObject*) obj } })
+#define IS_BOOL(v) (((v) & (QNAN | TAG_FALSE)) == (QNAN | TAG_FALSE))
+#define IS_NIL(v) ((v) == NIL_VALUE)
+#define IS_NUMBER(v) (((v) & QNAN) != QNAN)
+#define IS_OBJECT(v) (((v) & (QNAN | SIGN_BIT)) == (QNAN | SIGN_BIT))
 
-#define AS_BOOL(value) ((value).as.boolean)
-#define AS_NUMBER(value) ((value).as.number)
-#define AS_OBJECT(value) ((value).as.object)
+#define AS_BOOL(v) ((v) == TRUE_VALUE)
+#define AS_NUMBER(v) value_to_num(v)
+#define AS_OBJECT(v) ((LitObject*) (uintptr_t) ((v) & ~(SIGN_BIT | QNAN)))
 
-#define IS_BOOL(value) ((value).type == VAL_BOOL)
-#define IS_NIL(value) ((value).type == VAL_NIL)
-#define IS_NUMBER(value) ((value).type == VAL_NUMBER)
-#define IS_OBJECT(value) ((value).type == VAL_OBJECT)
+#define MAKE_BOOL_VALUE(boolean) ((boolean) ? TRUE_VALUE : FALSE_VALUE)
+#define FALSE_VALUE ((LitValue) (uint64_t) (QNAN | TAG_FALSE))
+#define TRUE_VALUE ((LitValue) (uint64_t) (QNAN | TAG_TRUE))
+#define NIL_VALUE ((LitValue) (uint64_t) (QNAN | TAG_NIL))
+#define MAKE_NUMBER_VALUE(num) num_to_value(num)
 
-#define OBJECT_TYPE(value) (AS_OBJECT(value)->type)
+#define MAKE_OBJECT_VALUE(obj) (LitValue)(SIGN_BIT | QNAN | (uint64_t)(uintptr_t)(obj))
+
+typedef union {
+  uint64_t bits64;
+  uint32_t bits32[2];
+  double num;
+} DoubleUnion;
+
+static inline double value_to_num(LitValue value) {
+  DoubleUnion data;
+  data.bits64 = value;
+  return data.num;
+}
+
+static inline LitValue num_to_value(double num) {
+  DoubleUnion data;
+  data.num = num;
+  return data.bits64;
+}
+
 #define AS_CSTRING(value) (((LitString*) AS_OBJECT(value))->chars)
 
 const char* lit_to_string(LitValue value);
 void lit_print_value(LitValue value);
 
-bool lit_values_are_equal(LitValue a, LitValue b);
+static inline bool lit_values_are_equal(LitValue a, LitValue b) {
+	return a == b;
+}
 
 #endif

@@ -34,6 +34,7 @@ LitString* lit_alloc_string(char* chars, int length, uint32_t hash);
 LitString* lit_copy_string(const char* chars, int length);
 LitString* lit_take_string(const char* chars, int length);
 
+#define OBJECT_TYPE(value) (AS_OBJECT(value)->type)
 #define IS_STRING(value) lit_is_object_type(value, OBJ_STRING)
 #define AS_STRING(value) ((LitString*) AS_OBJECT(value))
 

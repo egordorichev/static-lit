@@ -1,2 +1,1 @@
-var i = false or true
-print(i)
+print(10)

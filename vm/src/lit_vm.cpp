@@ -44,7 +44,7 @@ LitVm* lit_get_active_vm() {
   return active;
 }
 
-InterpretResult LitVm::run_chunk(LitChunk* cnk) {
+LitInterpretResult LitVm::run_chunk(LitChunk* cnk) {
   active = this;
   chunk = cnk;
   ip = cnk->get_code();
@@ -142,7 +142,7 @@ InterpretResult LitVm::run_chunk(LitChunk* cnk) {
 			case OP_SUBTRACT: BINARY_OP(MAKE_NUMBER_VALUE, -); break;
 			case OP_MULTIPLY: BINARY_OP(MAKE_NUMBER_VALUE, *); break;
 			case OP_DIVIDE: BINARY_OP(MAKE_NUMBER_VALUE, /); break;
-			case OP_NIL: push(NIL_VAL); break;
+			case OP_NIL: push(NIL_VALUE); break;
 			case OP_TRUE: push(MAKE_BOOL_VALUE(true)); break;
 			case OP_FALSE: push(MAKE_BOOL_VALUE(false)); break;
 			case OP_NOT: push(MAKE_BOOL_VALUE(is_false(pop()))); break;
@@ -238,22 +238,23 @@ LitValue LitVm::peek(int depth) {
 void LitVm::runtime_error(const char* format, ...) {
   va_list args;
 
+	size_t instruction = ip - chunk->get_code();
+
+#ifndef DEBUG
+	fprintf(stderr, "[line %d] in script\n", chunk->get_line(instruction));
+#else
+	printf("[line %d] in script: ", chunk->get_line(instruction));
+#endif
+
   va_start(args, format);
 #ifndef DEBUG
   vfprintf(stderr, format, args);
+  fputs("\n", stderr);
 #else
   vprintf(format, args);
+	fputs("\n", stdout);
 #endif
   va_end(args);
-  fputs("\n", stderr);
-
-  size_t instruction = ip - chunk->get_code();
-
-#ifndef DEBUG
-  fprintf(stderr, "[line %d] in script\n", chunk->get_line(instruction));
-#else
-  printf("[line %d] in script\n", chunk->get_line(instruction));
-#endif
 
   reset_stack();
 }
