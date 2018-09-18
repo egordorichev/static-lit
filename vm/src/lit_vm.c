@@ -13,8 +13,11 @@ void lit_init_vm(LitVm* vm) {
 }
 
 void lit_free_vm(LitVm* vm) {
-
+	if (vm->compiler != NULL) {
+		lit_free_compiler(vm->compiler);
+	}
 }
+
 void lit_push(LitVm* vm, LitValue value) {
 	*vm->stack_top = value;
 	vm->stack_top++;
@@ -27,7 +30,21 @@ LitValue lit_pop(LitVm* vm) {
 	return *vm->stack_top;
 }
 
+LitCompiler compiler;
+
 LitInterpretResult lit_execute(LitVm* vm, const char* code) {
+	// FIXME: workaround
+	if (vm->compiler == NULL) {
+		lit_init_compiler(&compiler);
+
+		compiler.vm = vm;
+		vm->compiler = &compiler;
+	}
+
+	if (!lit_compile(vm->compiler, code)) {
+		return INTERPRET_COMPILE_ERROR;
+	}
+
 	return INTERPRET_OK;
 }
 

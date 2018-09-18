@@ -34,8 +34,17 @@ typedef struct {
 } LitToken;
 
 typedef struct {
+	const char* start;
+	const char* current;
+	int line;
 
+	LitVm* vm;
 } LitLexer;
+
+void lit_init_lexer(LitLexer* lexer, const char* code);
+void lit_free_lexer(LitLexer* lexer);
+
+// FIXME: split lexer and compiler into separate files
 
 typedef struct {
 	LitLexer lexer;

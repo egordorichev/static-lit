@@ -5,9 +5,8 @@
 #include "lit.h"
 #include "lit_debug.h"
 
-/*
 void show_repl() {
-	LitContext context;
+	LitVm vm;
 
 	char line[1024];
 
@@ -19,7 +18,7 @@ void show_repl() {
 			break;
 		}
 
-		context.execute(line);
+		lit_execute(&vm, line);
 	}
 }
 
@@ -69,8 +68,8 @@ int main(int argc, char** argv) {
 				  } else {
 					  i++;
 
-					  LitContext context;
-					  LitInterpretResult result = context.execute(argv[i]);
+					  LitVm vm;
+					  LitInterpretResult result = lit_execute(&vm, argv[i]);
 					  return result == INTERPRET_OK ? 0 : -2;
 				  }
 			  } else if (strcmp(arg, "-h") == 0 || strcmp(arg, "--help") == 0) {
@@ -83,34 +82,12 @@ int main(int argc, char** argv) {
 			  	return -1;
 			  }
 		  } else {
-			  LitContext context;
-			  LitInterpretResult result = context.execute(read_file(arg));
+			  LitVm vm;
+			  LitInterpretResult result = lit_execute(&vm, read_file(arg));
 			  return result == INTERPRET_OK ? 0 : -2;
 		  }
 	  }
   }
 
   return 0;
-}*/
-
-int main(int argc, char** argv) {
-	LitVm vm;
-	lit_init_vm(&vm);
-
-	LitChunk chunk;
-	lit_init_chunk(&chunk);
-	lit_chunk_write(&vm, &chunk, OP_CONSTANT, 1);
-	lit_chunk_write(&vm, &chunk, lit_chunk_add_constant(&vm, &chunk, 10), 1);
-	lit_chunk_write(&vm, &chunk, OP_CONSTANT, 1);
-	lit_chunk_write(&vm, &chunk, lit_chunk_add_constant(&vm, &chunk, 20), 1);
-	lit_chunk_write(&vm, &chunk, OP_CONSTANT, 1);
-	lit_chunk_write(&vm, &chunk, lit_chunk_add_constant(&vm, &chunk, 30), 1);
-	lit_chunk_write(&vm, &chunk, OP_NEGATE, 2);
-	lit_chunk_write(&vm, &chunk, OP_ADD, 2);
-	lit_chunk_write(&vm, &chunk, OP_PRINT, 2);
-	lit_chunk_write(&vm, &chunk, OP_RETURN, 3);
-
-	lit_interpret(&vm, &chunk);
-	lit_free_chunk(&vm, &chunk);
-	lit_free_vm(&vm);
 }
