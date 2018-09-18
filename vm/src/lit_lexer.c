@@ -1,11 +1,15 @@
 #include <string.h>
+#include <lit_lexer.h>
 #include "lit_lexer.h"
 #include "lit_common.h"
 
 void lit_init_lexer(LitLexer* lexer, const char* code) {
 	lexer->start = code;
-	lexer->current = code;
+	lexer->current_code = code;
 	lexer->line = 1;
+	lexer->had_error = false;
+	lexer->panic_mode = false;
+	lexer->vm = NULL;
 }
 
 void lit_free_lexer(LitLexer* lexer) {
@@ -21,7 +25,7 @@ static bool is_alpha(char c) {
 }
 
 static inline bool is_at_end(LitLexer* lexer) {
-	return *lexer->current == '\0';
+	return *lexer->current_code == '\0';
 }
 
 static LitToken make_token(LitLexer* lexer, LitTokenType type) {
@@ -29,7 +33,7 @@ static LitToken make_token(LitLexer* lexer, LitTokenType type) {
 
 	token.type = type;
 	token.start = lexer->start;
-	token.length = (int) (lexer->current - lexer->start);
+	token.length = (int) (lexer->current_code - lexer->start);
 	token.line = lexer->line;
 
 	return token;
@@ -47,8 +51,8 @@ static LitToken make_error_token(LitLexer* lexer, const char* message) {
 }
 
 static char advance(LitLexer* lexer) {
-	lexer->current++;
-	return lexer.current[-1];
+	lexer->current_code++;
+	return lexer->current_code[-1];
 }
 
 static bool match(LitLexer* lexer, char expected) {
@@ -56,16 +60,16 @@ static bool match(LitLexer* lexer, char expected) {
 		return false;
 	}
 
-	if (*lexer->current != expected) {
+	if (*lexer->current_code != expected) {
 		return false;
 	}
 
-	lexer->current++;
+	lexer->current_code++;
 	return true;
 }
 
 static char peek(LitLexer* lexer) {
-	return *lexer->current;
+	return *lexer->current_code;
 }
 
 static char peek_next(LitLexer* lexer) {
@@ -73,7 +77,7 @@ static char peek_next(LitLexer* lexer) {
 		return '\0';
 	}
 
-	return lexer->current[1];
+	return lexer->current_code[1];
 }
 
 static void skip_whitespace(LitLexer* lexer) {
@@ -105,10 +109,48 @@ static void skip_whitespace(LitLexer* lexer) {
 	}
 }
 
+static LitTokenType check_keyword(LitLexer* lexer, int start, int length, const char* rest, LitTokenType type) {
+	if (lexer->current_code - lexer->start == start + length &&
+	    memcmp(lexer->start + start, rest, length) == 0) {
+
+		return type;
+	}
+
+	return TOKEN_IDENTIFIER;
+}
+
+static LitTokenType find_identifier_type(LitLexer* lexer) {
+	switch (lexer->start[0]) {
+		case 'a': return check_keyword(lexer, 1, 2, "nd", TOKEN_AND);
+		case 'c': return check_keyword(lexer, 1, 4, "lass", TOKEN_CLASS);
+		case 'e': return check_keyword(lexer, 1, 3, "lse", TOKEN_ELSE);
+		case 'i': return check_keyword(lexer, 1, 1, "f", TOKEN_IF);
+		case 'n': return check_keyword(lexer, 1, 2, "il", TOKEN_NIL);
+		case 'o': return check_keyword(lexer, 1, 1, "r", TOKEN_OR);
+		case 'p': return check_keyword(lexer, 1, 4, "rint", TOKEN_PRINT);
+		case 'r': return check_keyword(lexer, 1, 5, "eturn", TOKEN_RETURN);
+		case 's': return check_keyword(lexer, 1, 4, "uper", TOKEN_SUPER);
+		case 'v': return check_keyword(lexer, 1, 2, "ar", TOKEN_VAR);
+		case 'w': return check_keyword(lexer, 1, 4, "hile", TOKEN_WHILE);
+		case 'f': {
+			if (lexer->current_code - lexer->start > 1) {
+				switch (lexer->start[1]) {
+					case 'a': return check_keyword(lexer, 2, 3, "lse", TOKEN_FALSE);
+					case 'o': return check_keyword(lexer, 2, 1, "r", TOKEN_FOR);
+					case 'u': return check_keyword(lexer, 2, 1, "n", TOKEN_FUN);
+				}
+			}
+			break;
+		}
+	}
+
+	return TOKEN_IDENTIFIER;
+}
+
 LitToken lit_lexer_next_token(LitLexer* lexer) {
 	skip_whitespace(lexer);
 
-	lexer->start = lexer->current;
+	lexer->start = lexer->current_code;
 
 	if (is_at_end(lexer)) {
 		return make_token(lexer, TOKEN_EOF);
@@ -137,7 +179,7 @@ LitToken lit_lexer_next_token(LitLexer* lexer) {
 			advance(lexer);
 		}
 
-		return make_token(lexer, find_identifier_type());
+		return make_token(lexer, find_identifier_type(lexer));
 	}
 
 	switch (c) {
@@ -172,7 +214,6 @@ LitToken lit_lexer_next_token(LitLexer* lexer) {
 			advance(lexer);
 			return make_token(lexer, TOKEN_STRING);
 		}
-		case
 	}
 
 	return make_error_token(lexer, "Unexpected character");

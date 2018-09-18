@@ -34,10 +34,16 @@ typedef struct {
 
 typedef struct {
 	const char* start;
-	const char* current;
+	const char* current_code;
 	int line;
 
 	LitVm* vm;
+
+	LitToken current;
+	LitToken previous;
+
+	bool had_error;
+	bool panic_mode;
 } LitLexer;
 
 void lit_init_lexer(LitLexer* lexer, const char* code);

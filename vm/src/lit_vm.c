@@ -10,6 +10,7 @@ static inline void reset_stack(LitVm *vm) {
 
 void lit_init_vm(LitVm* vm) {
 	reset_stack(vm);
+	vm->compiler = NULL;
 }
 
 void lit_free_vm(LitVm* vm) {
@@ -41,9 +42,16 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 		vm->compiler = &compiler;
 	}
 
-	if (!lit_compile(vm->compiler, code)) {
+	LitChunk chunk;
+	lit_init_chunk(&chunk);
+
+	if (!lit_compile(vm->compiler, &chunk, code)) {
+		lit_free_chunk(vm, &chunk);
 		return INTERPRET_COMPILE_ERROR;
 	}
+
+	lit_interpret(vm, &chunk);
+	lit_free_chunk(vm, &chunk);
 
 	return INTERPRET_OK;
 }

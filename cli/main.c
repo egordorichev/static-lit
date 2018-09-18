@@ -7,6 +7,7 @@
 
 void show_repl() {
 	LitVm vm;
+	lit_init_vm(&vm);
 
 	char line[1024];
 
@@ -20,6 +21,9 @@ void show_repl() {
 
 		lit_execute(&vm, line);
 	}
+
+	// todo: quit command
+	lit_free_vm(&vm);
 }
 
 static char* read_file(const char* path) {
@@ -55,7 +59,7 @@ static char* read_file(const char* path) {
 }
 
 int main(int argc, char** argv) {
-  if (argc == 1) {
+  /*if (argc == 1) {
   	show_repl();
   } else {
 	  for (int i = 1; i < argc; i++) {
@@ -69,7 +73,9 @@ int main(int argc, char** argv) {
 					  i++;
 
 					  LitVm vm;
+					  lit_init_vm(&vm);
 					  LitInterpretResult result = lit_execute(&vm, argv[i]);
+					  lit_free_vm(&vm);
 					  return result == INTERPRET_OK ? 0 : -2;
 				  }
 			  } else if (strcmp(arg, "-h") == 0 || strcmp(arg, "--help") == 0) {
@@ -83,11 +89,19 @@ int main(int argc, char** argv) {
 			  }
 		  } else {
 			  LitVm vm;
+			  lit_init_vm(&vm);
 			  LitInterpretResult result = lit_execute(&vm, read_file(arg));
+			  lit_free_vm(&vm);
 			  return result == INTERPRET_OK ? 0 : -2;
 		  }
 	  }
   }
 
-  return 0;
+  return 0;*/
+
+	LitVm vm;
+	lit_init_vm(&vm);
+	LitInterpretResult result = lit_execute(&vm, "-20 * 20");
+	lit_free_vm(&vm);
+	return result == INTERPRET_OK ? 0 : -2;
 }

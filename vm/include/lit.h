@@ -3,6 +3,7 @@
 
 #include "lit_vm.h"
 #include "lit_chunk.h"
+#include "lit_compiler.h"
 
 typedef struct _LitVm {
 	LitValue stack[STACK_MAX];
@@ -10,7 +11,7 @@ typedef struct _LitVm {
 	LitChunk* chunk;
 
 	uint8_t* ip;
-	struct LitCompiler *compiler;
+	LitCompiler *compiler;
 };
 
 void lit_init_vm(LitVm* vm);
