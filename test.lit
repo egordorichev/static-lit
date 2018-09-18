@@ -1,1 +1,2 @@
-print(0 or 10)
+var i = false or true
+print(i)

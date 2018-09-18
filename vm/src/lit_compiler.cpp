@@ -49,14 +49,58 @@ static uint8_t make_identifier_constant(LitToken name) {
 	return compiler->make_constant(MAKE_OBJECT_VALUE(lit_copy_string(name.start, name.length)));
 }
 
-static void namedVariable(LitToken name, bool canAssign) {
-	/*uint8_t getOp, setOp;
-	int arg = resolve_local(compiler->get_current(), &name, false);
+static bool are_identifiers_equal(LitToken* a, LitToken* b) {
+	if (a->length != b->length) {
+		return false;
+	}
+
+	return memcmp(a->start, b->start, a->length) == 0;
+}
+
+static int resolve_local(LitToken* name, bool in_function) {
+	for (int i = compiler->get_local_count() - 1; i >= 0; i--) {
+		LitLocal* local = compiler->get_local(i);
+
+		if (are_identifiers_equal(name, &local->name)) {
+			if (!in_function && local->depth == -1) {
+				compiler->error("Cannot read local variable in its own initializer.");
+			}
+
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+static int resolve_upvalue(LitToken* name) {
+	/*
+	if (compiler->enclosing == NULL) {
+		return -1;
+	}*/ // FIXME
+
+	/*int local = resolveLocal(compiler->enclosing, name, true);
+	if (local != -1) {
+		compiler->enclosing->locals[local].isUpvalue = true;
+		return addUpvalue(compiler, (uint8_t)local, true);
+	}
+
+	int upvalue = resolveUpvalue(compiler->enclosing, name);
+	if (upvalue != -1) {
+		return addUpvalue(compiler, (uint8_t)upvalue, false);
+	}*/
+
+	return -1;
+}
+
+static void parse_named_variable(LitToken name, bool canAssign) {
+	uint8_t getOp, setOp;
+	int arg = resolve_local(&name, false);
 
 	if (arg != -1) {
 		getOp = OP_GET_LOCAL;
 		setOp = OP_SET_LOCAL;
-	} else if ((arg = resolve_upvalue(compiler->get_current(), &name)) != -1) {
+	} else if ((arg = resolve_upvalue(&name)) != -1) {
 		getOp = OP_GET_UPVALUE;
 		setOp = OP_SET_UPVALUE;
 	} else {
@@ -70,11 +114,11 @@ static void namedVariable(LitToken name, bool canAssign) {
 		compiler->emit_bytes(setOp, (uint8_t) arg);
 	} else {
 		compiler->emit_bytes(getOp, (uint8_t) arg);
-	}*/
+	}
 }
 
-void variable(bool canAssign) {
-	namedVariable(compiler->get_previous(), canAssign);
+void parse_variable(bool canAssign) {
+	parse_named_variable(compiler->get_previous(), canAssign);
 }
 
 void parse_print() {
@@ -339,14 +383,6 @@ static void addLocal(LitToken name) {
 	compiler->add_local();
 }
 
-static bool are_identifiers_equal(LitToken* a, LitToken* b) {
-	if (a->length != b->length) {
-		return false;
-	}
-
-	return memcmp(a->start, b->start, a->length) == 0;
-}
-
 static void declare_variable() {
 	if (compiler->get_depth() == 0) {
 		return;
@@ -431,9 +467,6 @@ void parse_statement() {
 		parse_expression();
 		compiler->emit_byte(OP_POP);
 	}
-}
-
-void parse_variable(bool can_assign) {
 }
 
 bool LitCompiler::match(LitTokenType token) {

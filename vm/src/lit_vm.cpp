@@ -190,6 +190,19 @@ InterpretResult LitVm::run_chunk(LitChunk* cnk) {
 				pop();
 				break;
 			}
+			case OP_GET_GLOBAL: {
+				LitString* name = READ_STRING();
+				LitValue value;
+
+				if (!globals.get(name, &value)) {
+					runtime_error("Undefined variable '%s'.", name->chars);
+					return INTERPRET_RUNTIME_ERROR;
+				}
+
+				push(value);
+				break;
+			}
+			default: UNREACHABLE();
 		}
 	}
 

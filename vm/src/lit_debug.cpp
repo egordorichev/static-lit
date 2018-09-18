@@ -65,6 +65,8 @@ int lit_disassemble_instruction(LitChunk* chunk, int i) {
 		case OP_JUMP: return jump_instruction("OP_JUMP", 1, chunk, i);
 		case OP_JUMP_IF_FALSE: return jump_instruction("OP_JUMP_IF_FALSE", 1, chunk, i);
 		case OP_DEFINE_GLOBAL: return constant_instruction("OP_DEFINE_GLOBAL", chunk, i);
+		case OP_SET_GLOBAL: return constant_instruction("OP_SET_GLOBAL", chunk, i);
+		case OP_GET_GLOBAL: return constant_instruction("OP_GET_GLOBAL", chunk, i);
 		default: printf("Unknown opcode %d\n", instruction); return i + 1;
 	}
 }
