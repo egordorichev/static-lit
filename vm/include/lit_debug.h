@@ -6,4 +6,6 @@
 void lit_trace_chunk(LitChunk* chunk, const char* name);
 int lit_disassemble_instruction(LitChunk* chunk, int offset);
 
+#define DEBUG_TRACE_EXECUTION
+
 #endif

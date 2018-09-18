@@ -4,5 +4,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <assert.h>
+
+#define UNREACHABLE() assert(false);
 
 #endif

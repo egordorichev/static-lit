@@ -12,16 +12,6 @@ typedef enum {
 	INTERPRET_RUNTIME_ERROR
 } LitInterpretResult;
 
-typedef struct {
-	LitValue stack[STACK_MAX];
-	LitValue* stackTop;
-
-	struct LitCompiler *compiler;
-} LitVm;
-
-void lit_init_vm(LitVm* vm);
-void lit_free_vm(LitVm* vm);
-
-LitInterpretResult lit_execute(LitVm* vm, const char* code);
+typedef struct _LitVm LitVm;
 
 #endif

@@ -2,8 +2,7 @@
 #include <stdlib.h>
 #include <memory.h>
 
-#include "lit_vm.h"
-#include "lit_chunk.h"
+#include "lit.h"
 #include "lit_debug.h"
 
 /*
@@ -100,12 +99,18 @@ int main(int argc, char** argv) {
 
 	LitChunk chunk;
 	lit_init_chunk(&chunk);
-	lit_chunk_write(&vm, &chunk, OP_CONSTANT);
-	lit_chunk_write(&vm, &chunk, lit_chunk_add_constant(&vm, &chunk, 10));
-	lit_chunk_write(&vm, &chunk, OP_RETURN);
-	lit_trace_chunk(&chunk, "test");
-	lit_free_chunk(&vm, &chunk);
+	lit_chunk_write(&vm, &chunk, OP_CONSTANT, 1);
+	lit_chunk_write(&vm, &chunk, lit_chunk_add_constant(&vm, &chunk, 10), 1);
+	lit_chunk_write(&vm, &chunk, OP_CONSTANT, 1);
+	lit_chunk_write(&vm, &chunk, lit_chunk_add_constant(&vm, &chunk, 20), 1);
+	lit_chunk_write(&vm, &chunk, OP_CONSTANT, 1);
+	lit_chunk_write(&vm, &chunk, lit_chunk_add_constant(&vm, &chunk, 30), 1);
+	lit_chunk_write(&vm, &chunk, OP_NEGATE, 2);
+	lit_chunk_write(&vm, &chunk, OP_ADD, 2);
+	lit_chunk_write(&vm, &chunk, OP_PRINT, 2);
+	lit_chunk_write(&vm, &chunk, OP_RETURN, 3);
 
-	lit_execute(&vm, "10");
+	lit_interpret(&vm, &chunk);
+	lit_free_chunk(&vm, &chunk);
 	lit_free_vm(&vm);
 }
