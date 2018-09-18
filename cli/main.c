@@ -1,10 +1,12 @@
-#include <iostream>
-#include <string>
-#include <fstream>
-#include <cstring>
+#include <stdio.h>
+#include <stdlib.h>
+#include <memory.h>
 
-#include "lit_context.hpp"
+#include "lit_vm.h"
+#include "lit_chunk.h"
+#include "lit_debug.h"
 
+/*
 void show_repl() {
 	LitContext context;
 
@@ -25,7 +27,7 @@ void show_repl() {
 static char* read_file(const char* path) {
 	FILE* file = fopen(path, "rb");
 
-	if (file == nullptr) {
+	if (file == NULL) {
 		fprintf(stderr, "Could not open file \"%s\".\n", path);
 		exit(74);
 	}
@@ -36,7 +38,7 @@ static char* read_file(const char* path) {
 
 	char* buffer = (char*) malloc(fileSize + 1);
 
-	if (buffer == nullptr) {
+	if (buffer == NULL) {
 		fprintf(stderr, "Not enough memory to read \"%s\".\n", path);
 		exit(74);
 	}
@@ -90,4 +92,20 @@ int main(int argc, char** argv) {
   }
 
   return 0;
+}*/
+
+int main(int argc, char** argv) {
+	LitVm vm;
+	lit_init_vm(&vm);
+
+	LitChunk chunk;
+	lit_init_chunk(&chunk);
+	lit_chunk_write(&vm, &chunk, OP_CONSTANT);
+	lit_chunk_write(&vm, &chunk, lit_chunk_add_constant(&vm, &chunk, 10));
+	lit_chunk_write(&vm, &chunk, OP_RETURN);
+	lit_trace_chunk(&chunk, "test");
+	lit_free_chunk(&vm, &chunk);
+
+	lit_execute(&vm, "10");
+	lit_free_vm(&vm);
 }
