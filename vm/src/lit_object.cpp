@@ -2,16 +2,17 @@
 #include "lit_object.hpp"
 #include "lit_vm.hpp"
 #include "lit_value.hpp"
+#include "lit_gc.hpp"
 
-#define ALLOCATE_OBJECT(type, objectType) (type*) allocate_object(sizeof(type), objectType)
+#define ALLOCATE_OBJECT(vm, type, objectType) (type*) allocate_object(vm, sizeof(type), objectType)
 
-static LitObject* allocate_object(size_t size, LitObjectType type) {
+static LitObject* allocate_object(LitVm* vm, size_t size, LitObjectType type) {
   LitObject* object = (LitObject*) reallocate(NULL, 0, size);
   object->type = type;
   object->dark = false;
 
-  object->next = lit_get_active_vm()->objects;
-  lit_get_active_vm()->objects = object;
+  object->next = vm->objects;
+  vm->objects = object;
 
 #ifdef DEBUG_TRACE_GC
   printf("%p allocate %ld for %d\n", object, size, type);
@@ -32,13 +33,11 @@ static uint32_t hashString(const char* key, int length) {
   return hash;
 }
 
-LitString* lit_alloc_string(char* chars, int length, uint32_t hash) {
-  LitString* string = ALLOCATE_OBJECT(LitString, OBJ_STRING);
+LitString* lit_alloc_string(LitVm* vm, char* chars, int length, uint32_t hash) {
+  LitString* string = ALLOCATE_OBJECT(vm, LitString, OBJ_STRING);
   string->length = length;
   string->chars = chars;
   string->hash = hash;
-
-  LitVm* vm = lit_get_active_vm();
 
   vm->push(MAKE_OBJECT_VALUE(string));
   vm->strings.set(string, NIL_VALUE);
@@ -47,20 +46,20 @@ LitString* lit_alloc_string(char* chars, int length, uint32_t hash) {
   return string;
 }
 
-LitString* lit_take_string(const char* chars, int length) {
+LitString* lit_take_string(LitVm* vm, const char* chars, int length) {
   uint32_t hash = hashString(chars, length);
-  LitString* interned = lit_get_active_vm()->strings.find(chars, length, hash);
+  LitString* interned = vm->strings.find(chars, length, hash);
 
   if (interned != nullptr) {
     return interned;
   }
 
-  return lit_alloc_string((char*) chars, length, hash);
+  return lit_alloc_string(vm, (char*) chars, length, hash);
 }
 
-LitString* lit_copy_string(const char* chars, int length) {
+LitString* lit_copy_string(LitVm* vm, const char* chars, int length) {
   uint32_t hash = hashString(chars, length);
-  LitString* interned = lit_get_active_vm()->strings.find(chars, length, hash);
+  LitString* interned = vm->strings.find(chars, length, hash);
 
   if (interned != nullptr) {
     return interned;
@@ -70,5 +69,5 @@ LitString* lit_copy_string(const char* chars, int length) {
   memcpy(heapChars, chars, length);
   heapChars[length] = '\0';
 
-  return lit_alloc_string(heapChars, length, hash);
+  return lit_alloc_string(vm, heapChars, length, hash);
 }

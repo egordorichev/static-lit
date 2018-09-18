@@ -9,8 +9,6 @@
 
 #include <cstring>
 
-static LitCompiler* compiler;
-
 static LitParseRule rules[TOKEN_EOF + 1];
 bool inited_rules = false;
 
@@ -45,8 +43,8 @@ static void init_rules() {
 	rules[TOKEN_IDENTIFIER] = { parse_variable, NULL, PREC_NONE };
 }
 
-static uint8_t make_identifier_constant(LitToken name) {
-	return compiler->make_constant(MAKE_OBJECT_VALUE(lit_copy_string(name.start, name.length)));
+static uint8_t make_identifier_constant(LitCompiler* compiler, LitToken name) {
+	return compiler->make_constant(MAKE_OBJECT_VALUE(lit_copy_string(compiler->vm, name.start, name.length)));
 }
 
 static bool are_identifiers_equal(LitToken* a, LitToken* b) {
@@ -57,7 +55,7 @@ static bool are_identifiers_equal(LitToken* a, LitToken* b) {
 	return memcmp(a->start, b->start, a->length) == 0;
 }
 
-static int resolve_local(LitToken* name, bool in_function) {
+static int resolve_local(LitCompiler* compiler, LitToken* name, bool in_function) {
 	for (int i = compiler->get_local_count() - 1; i >= 0; i--) {
 		LitLocal* local = compiler->get_local(i);
 
@@ -73,7 +71,7 @@ static int resolve_local(LitToken* name, bool in_function) {
 	return -1;
 }
 
-static int resolve_upvalue(LitToken* name) {
+static int resolve_upvalue(LitCompiler* compiler, LitToken* name) {
 	/*
 	if (compiler->enclosing == NULL) {
 		return -1;
@@ -93,36 +91,36 @@ static int resolve_upvalue(LitToken* name) {
 	return -1;
 }
 
-static void parse_named_variable(LitToken name, bool canAssign) {
+static void parse_named_variable(LitCompiler* compiler, LitToken name, bool canAssign) {
 	uint8_t getOp, setOp;
-	int arg = resolve_local(&name, false);
+	int arg = resolve_local(compiler, &name, false);
 
 	if (arg != -1) {
 		getOp = OP_GET_LOCAL;
 		setOp = OP_SET_LOCAL;
-	} else if ((arg = resolve_upvalue(&name)) != -1) {
+	} else if ((arg = resolve_upvalue(compiler, &name)) != -1) {
 		getOp = OP_GET_UPVALUE;
 		setOp = OP_SET_UPVALUE;
 	} else {
-		arg = make_identifier_constant(name);
+		arg = make_identifier_constant(compiler, name);
 		getOp = OP_GET_GLOBAL;
 		setOp = OP_SET_GLOBAL;
 	}
 
 	if (canAssign && compiler->match(TOKEN_EQUAL)) {
-		parse_expression();
+		parse_expression(compiler);
 		compiler->emit_bytes(setOp, (uint8_t) arg);
 	} else {
 		compiler->emit_bytes(getOp, (uint8_t) arg);
 	}
 }
 
-void parse_variable(bool canAssign) {
-	parse_named_variable(compiler->get_previous(), canAssign);
+void parse_variable(LitCompiler* compiler, bool canAssign) {
+	parse_named_variable(compiler, compiler->get_previous(), canAssign);
 }
 
-void parse_print() {
-	parse_expression();
+void parse_print(LitCompiler* compiler) {
+	parse_expression(compiler);
 	compiler->emit_byte(OP_PRINT);
 }
 
@@ -217,14 +215,14 @@ uint8_t LitCompiler::make_constant(LitValue value) {
   return (uint8_t) constant;
 }
 
-void parse_grouping(bool can_assign) {
-  parse_expression();
+void parse_grouping(LitCompiler* compiler, bool can_assign) {
+  parse_expression(compiler);
   compiler->consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
 }
 
-void parse_unary(bool can_assign) {
+void parse_unary(LitCompiler* compiler, bool can_assign) {
   LitTokenType type = compiler->get_previous().type;
-  parse_precedence(PREC_UNARY);
+  parse_precedence(compiler, PREC_UNARY);
 
   switch (type) {
     case TOKEN_MINUS:
@@ -237,7 +235,7 @@ void parse_unary(bool can_assign) {
   }
 }
 
-void parse_number(bool can_assign) {
+void parse_number(LitCompiler* compiler, bool can_assign) {
   double value = strtod(compiler->get_previous().start, nullptr);
   compiler->emit_constant(MAKE_NUMBER_VALUE(value));
 }
@@ -246,11 +244,11 @@ static LitParseRule* get_rule(LitTokenType type) {
   return &rules[type];
 }
 
-void parse_binary(bool can_assign) {
+void parse_binary(LitCompiler* compiler, bool can_assign) {
   LitTokenType type = compiler->get_previous().type;
 
   LitParseRule* rule = get_rule(type);
-  parse_precedence((LitPrecedence) (rule->precedence + 1));
+  parse_precedence(compiler, (LitPrecedence) (rule->precedence + 1));
 
   switch (type) {
     case TOKEN_BANG_EQUAL: compiler->emit_bytes(OP_EQUAL, OP_NOT); break;
@@ -267,7 +265,7 @@ void parse_binary(bool can_assign) {
   }
 }
 
-void parse_literal(bool can_assign) {
+void parse_literal(LitCompiler* compiler, bool can_assign) {
   switch (compiler->get_previous().type) {
     case TOKEN_FALSE: compiler->emit_byte(OP_FALSE); break;
     case TOKEN_NIL: compiler->emit_byte(OP_NIL); break;
@@ -276,12 +274,11 @@ void parse_literal(bool can_assign) {
   }
 }
 
-void parse_string(bool can_assign) {
-  compiler->emit_constant(
-    MAKE_OBJECT_VALUE(lit_copy_string(compiler->get_previous().start + 1, compiler->get_previous().length - 2)));
+void parse_string(LitCompiler* compiler, bool can_assign) {
+  compiler->emit_constant(MAKE_OBJECT_VALUE(lit_copy_string(compiler->vm, compiler->get_previous().start + 1, compiler->get_previous().length - 2)));
 }
 
-void parse_precedence(LitPrecedence precedence) {
+void parse_precedence(LitCompiler* compiler, LitPrecedence precedence) {
   compiler->advance();
   LitParseFn prefixRule = get_rule(compiler->get_previous().type)->prefix;
 
@@ -291,33 +288,33 @@ void parse_precedence(LitPrecedence precedence) {
   }
 
   bool can_assign = precedence <= PREC_ASSIGNMENT;
-  prefixRule(can_assign);
+  prefixRule(compiler, can_assign);
 
   while(precedence <= get_rule(compiler->get_current().type)->precedence) {
     compiler->advance();
-    get_rule(compiler->get_previous().type)->infix(can_assign);
+    get_rule(compiler->get_previous().type)->infix(compiler, can_assign);
   }
 
   if (can_assign && compiler->match(TOKEN_EQUAL)) {
     compiler->error("Invalid assignment target.");
-    parse_expression();
+    parse_expression(compiler);
   }
 }
 
-void parse_expression() {
-  parse_precedence(PREC_ASSIGNMENT);
+void parse_expression(LitCompiler* compiler) {
+  parse_precedence(compiler, PREC_ASSIGNMENT);
 }
 
-static int emit_jump(uint8_t instruction) {
+static int emit_jump(LitCompiler* compiler, uint8_t instruction) {
 	compiler->emit_byte(instruction);
 	compiler->emit_byte(0xff);
 	compiler->emit_byte(0xff);
 
-	return lit_get_active_vm()->get_chunk()->get_count() - 2;
+	return compiler->vm->get_chunk()->get_count() - 2;
 }
 
-static void patch_jump(int offset) {
-	LitChunk* chunk = lit_get_active_vm()->get_chunk();
+static void patch_jump(LitCompiler* compiler, int offset) {
+	LitChunk* chunk = compiler->vm->get_chunk();
 
 	int jump = chunk->get_count() - offset - 2;
 
@@ -329,47 +326,47 @@ static void patch_jump(int offset) {
 	chunk->get_code()[offset + 1] = jump & 0xff;
 }
 
-void parse_if() {
+void parse_if(LitCompiler* compiler) {
 	compiler->consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
-	parse_expression();
+	parse_expression(compiler);
 	compiler->consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
 
-	int elseJump = emit_jump(OP_JUMP_IF_FALSE);
+	int elseJump = emit_jump(compiler, OP_JUMP_IF_FALSE);
 
 	compiler->emit_byte(OP_POP);
-	parse_statement();
-	int endJump = emit_jump(OP_JUMP);
+	parse_statement(compiler);
+	int endJump = emit_jump(compiler, OP_JUMP);
 
-	patch_jump(elseJump);
+	patch_jump(compiler, elseJump);
 	compiler->emit_byte(OP_POP);
 
 	if (compiler->match(TOKEN_ELSE)) {
-		parse_statement();
+		parse_statement(compiler);
 	}
 
-	patch_jump(endJump);
+	patch_jump(compiler, endJump);
 }
 
-void parse_or(bool can_assign) {
-	int else_jump = emit_jump(OP_JUMP_IF_FALSE);
-	int end_jump = emit_jump(OP_JUMP);
+void parse_or(LitCompiler* compiler, bool can_assign) {
+	int else_jump = emit_jump(compiler, OP_JUMP_IF_FALSE);
+	int end_jump = emit_jump(compiler, OP_JUMP);
 
-	patch_jump(else_jump);
+	patch_jump(compiler, else_jump);
 	compiler->emit_byte(OP_POP);
-	parse_precedence(PREC_OR);
-	patch_jump(end_jump);
+	parse_precedence(compiler, PREC_OR);
+	patch_jump(compiler, end_jump);
 }
 
-void parse_and(bool can_assign) {
-	int end_jump = emit_jump(OP_JUMP_IF_FALSE);
+void parse_and(LitCompiler* compiler, bool can_assign) {
+	int end_jump = emit_jump(compiler, OP_JUMP_IF_FALSE);
 
 	compiler->emit_byte(OP_POP);
-	parse_precedence(PREC_AND);
+	parse_precedence(compiler, PREC_AND);
 
-	patch_jump(end_jump);
+	patch_jump(compiler, end_jump);
 }
 
-static void addLocal(LitToken name) {
+static void add_local(LitCompiler* compiler, LitToken name) {
 	if (compiler->get_local_count() == UINT8_COUNT) {
 		compiler->error("Too many local variables in function.");
 		return;
@@ -383,7 +380,7 @@ static void addLocal(LitToken name) {
 	compiler->add_local();
 }
 
-static void declare_variable() {
+static void declare_variable(LitCompiler* compiler) {
 	if (compiler->get_depth() == 0) {
 		return;
 	}
@@ -402,21 +399,21 @@ static void declare_variable() {
 		}
 	}
 
-	addLocal(name);
+	add_local(compiler, name);
 }
 
-static uint8_t parse_variable(const char* error) {
+static uint8_t parse_variable(LitCompiler* compiler, const char* error) {
 	compiler->consume(TOKEN_IDENTIFIER, error);
 
 	if (compiler->get_depth() == 0) {
-		return make_identifier_constant(compiler->get_previous());
+		return make_identifier_constant(compiler, compiler->get_previous());
 	}
 
-	declare_variable();
+	declare_variable(compiler);
 	return 0;
 }
 
-static void define_variable(uint8_t global) {
+static void define_variable(LitCompiler* compiler, uint8_t global) {
 	if (compiler->get_depth() == 0) {
 		compiler->emit_bytes(OP_DEFINE_GLOBAL, global);
 	} else {
@@ -424,53 +421,53 @@ static void define_variable(uint8_t global) {
 	}
 }
 
-void parse_var_declaration() {
-	uint8_t global = parse_variable("Expect variable name.");
+void parse_var_declaration(LitCompiler* compiler) {
+	uint8_t global = parse_variable(compiler, "Expect variable name.");
 
 	if (compiler->match(TOKEN_EQUAL)) {
-		parse_expression();
+		parse_expression(compiler);
 	} else {
 		compiler->emit_byte(OP_NIL);
 	}
 
-	define_variable(global);
+	define_variable(compiler, global);
 }
 
-void parse_declaration() {
+void parse_declaration(LitCompiler* compiler) {
 	if (compiler->match(TOKEN_VAR)) {
-		parse_var_declaration();
+		parse_var_declaration(compiler);
 	} else {
-		parse_statement();
+		parse_statement(compiler);
 	}
 }
 
-void parse_block() {
+void parse_block(LitCompiler* compiler) {
 	while (!compiler->check(TOKEN_RIGHT_BRACE) && !compiler->check(TOKEN_EOF)) {
-		parse_declaration();
+		parse_declaration(compiler);
 	}
 
 	compiler->consume(TOKEN_RIGHT_BRACE, "Expect '}' after block.");
 }
 
-void parse_statement() {
+void parse_statement(LitCompiler* compiler) {
 	if (compiler->match(TOKEN_IF)) {
-		parse_if();
+		parse_if(compiler);
 	} else if (compiler->match(TOKEN_PRINT)) {
-		parse_print();
+		parse_print(compiler);
 	} else if (compiler->match(TOKEN_WHILE)) {
 
 	} else if (compiler->match(TOKEN_LEFT_BRACE)) {
 		compiler->begin_scope();
-		parse_block();
+		parse_block(compiler);
 		compiler->end_scope();
 	} else {
-		parse_expression();
+		parse_expression(compiler);
 		compiler->emit_byte(OP_POP);
 	}
 }
 
 bool LitCompiler::match(LitTokenType token) {
-	if (compiler->check(token)) {
+	if (check(token)) {
 		advance();
 
 		return true;
@@ -482,7 +479,6 @@ bool LitCompiler::match(LitTokenType token) {
 bool LitCompiler::compile(LitChunk* cnk) {
   init_rules();
 
-  compiler = this;
   chunk = cnk;
   had_error = false;
   panic_mode = false;
@@ -491,7 +487,7 @@ bool LitCompiler::compile(LitChunk* cnk) {
 
 	if (!match(TOKEN_EOF)) {
 		do {
-			parse_declaration();
+			parse_declaration(this);
 		} while (!match(TOKEN_EOF));
 	}
 

@@ -6,12 +6,10 @@
 #include "lit_debug.hpp"
 #include "lit_object.hpp"
 #include "lit_value.hpp"
-
-static LitVm* active;
+#include "lit_gc.hpp"
 
 LitVm::LitVm() {
   reset_stack();
-  active = this;
 
   objects = nullptr;
   bytes_allocated = 0;
@@ -22,8 +20,7 @@ LitVm::LitVm() {
 }
 
 LitVm::~LitVm() {
-  active = this;
-  free_objects();
+  free_objects(this);
 }
 
 static bool can_be_cast_to_bool(LitValue value) {
@@ -39,13 +36,7 @@ static bool is_true(LitValue value) {
 	return !is_false(value);
 }
 
-
-LitVm* lit_get_active_vm() {
-  return active;
-}
-
 LitInterpretResult LitVm::run_chunk(LitChunk* cnk) {
-  active = this;
   chunk = cnk;
   ip = cnk->get_code();
 
@@ -125,7 +116,7 @@ LitInterpretResult LitVm::run_chunk(LitChunk* cnk) {
 					memcpy(chars + al, b, bl);
 					chars[len] = '\0';
 
-					push(MAKE_OBJECT_VALUE(lit_take_string(chars, len)));
+					push(MAKE_OBJECT_VALUE(lit_take_string(this, chars, len)));
 				} else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
 					push(MAKE_NUMBER_VALUE(AS_NUMBER(pop()) + AS_NUMBER(pop())));
 				} else {

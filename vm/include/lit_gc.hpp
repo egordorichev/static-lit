@@ -2,6 +2,8 @@
 #define LIT_GC_HPP
 
 #include <cstdlib>
+
+#include "lit_vm.hpp"
 #include "lit_value.hpp"
 
 #define GROW_CAPACITY(capacity) ((capacity) < 8 ? 8 : (capacity) * 2)
@@ -12,9 +14,9 @@
 #define FREE(type, pointer) reallocate(pointer, sizeof(type), 0)
 
 void* reallocate(void* previous, size_t old_size, size_t new_size);
-void gray_object(LitObject* object);
-void gray_value(LitValue value);
-void collect_garbage();
-void free_objects();
+void gray_object(LitVm* vm, LitObject* object);
+void gray_value(LitVm* vm, LitValue value);
+void collect_garbage(LitVm* vm);
+void free_objects(LitVm* vm);
 
 #endif

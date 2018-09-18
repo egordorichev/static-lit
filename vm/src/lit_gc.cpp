@@ -3,8 +3,7 @@
 #include "lit_object.hpp"
 
 void* reallocate(void* previous, size_t old_size, size_t new_size) {
-  LitVm* vm = lit_get_active_vm();
-  vm->bytes_allocated += new_size - old_size;
+  /*vm->bytes_allocated += new_size - old_size;
 
   if (new_size > old_size) {
 #ifdef DEBUG_STRESS_GC
@@ -14,7 +13,7 @@ void* reallocate(void* previous, size_t old_size, size_t new_size) {
     if (vm->bytes_allocated > vm->next_gc) {
       collect_garbage();
     }
-  }
+  }*/
 
   if (new_size == 0) {
     free(previous);
@@ -25,7 +24,7 @@ void* reallocate(void* previous, size_t old_size, size_t new_size) {
   return realloc(previous, new_size);
 }
 
-void gray_object(LitObject* object) {
+void gray_object(LitVm* vm, LitObject* object) {
   if (object == nullptr) {
     return;
   }
@@ -41,7 +40,6 @@ void gray_object(LitObject* object) {
 #endif
 
   object->dark = true;
-  LitVm* vm = lit_get_active_vm();
 
   if (vm->gray_capacity < vm->gray_count + 1) {
     vm->gray_capacity = GROW_CAPACITY(vm->gray_capacity);
@@ -51,16 +49,16 @@ void gray_object(LitObject* object) {
   vm->gray_stack[vm->gray_count++] = object;
 }
 
-void gray_value(LitValue value) {
+void gray_value(LitVm* vm, LitValue value) {
   if (IS_OBJECT(value)) {
-    gray_object(AS_OBJECT(value));
+    gray_object(vm, AS_OBJECT(value));
   }
 }
 
-void collect_garbage() {
+void collect_garbage(LitVm* vm) {
 
 }
 
-void free_objects() {
+void free_objects(LitVm* vm) {
 
 }

@@ -1,13 +1,13 @@
 #include <string>
-#include <cinttypes>
 
 #include "lit_value.hpp"
 #include "lit_common.hpp"
 #include "lit_object.hpp"
 
 char buff[21];
+
 char* dts(LitValue value) {
-	sprintf(buff, "%g", PRIu64, (double) value);
+	sprintf(buff, "%g", (double) value);
 	return buff;
 }
 

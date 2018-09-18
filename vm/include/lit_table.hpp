@@ -25,7 +25,7 @@ class LitTable {
 	  bool add_all(LitTable* table);
 	  LitString* find(const char* chars, int length, uint32_t hash);
 	  void remove_white();
-	  void gray();
+	  // void gray(LitVm* vm);
 };
 
 #endif

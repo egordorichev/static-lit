@@ -1,5 +1,6 @@
 #include "list.hpp"
 #include "lit_common.hpp"
+#include "lit_gc.hpp"
 
 template<typename T>
 List<T>::List() {

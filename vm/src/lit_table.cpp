@@ -176,11 +176,13 @@ void LitTable::remove_white() {
   }
 }
 
-void LitTable::gray() {
+/*
+void LitTable::gray(LitVm* vm) {
   for (int i = 0; i <= capacity_mask; i++) {
     Entry* entry = &entries[i];
 
-    gray_object((LitObject*) entry->key);
-    gray_value(entry->value);
+    gray_object(vm, (LitObject*) entry->key);
+    gray_value(vm, entry->value);
   }
 }
+*/

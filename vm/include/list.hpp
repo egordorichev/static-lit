@@ -1,26 +1,24 @@
 #ifndef LIST_HPP
 #define LIST_HPP
 
-#include "lit_gc.hpp"
-
 template<class T>
-class List {
-  private:
-    int count;
-    int capacity;
-    T* values;
+	class List {
+	  private:
+	    int count;
+	    int capacity;
+	    T* values;
 
-  public:
-    List();
-    ~List();
+	  public:
+	    List();
+	    ~List();
 
-    void add(T value);
-    void free();
+	    void add(T value);
+	    void free();
 
-    T get(int i) { return values[i]; }
+	    T get(int i) { return values[i]; }
 
-    int get_count() { return count; }
-    int get_capacity() { return capacity; }
+	    int get_count() { return count; }
+	    int get_capacity() { return capacity; }
 };
 
 #endif

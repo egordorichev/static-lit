@@ -1,11 +1,13 @@
 #include "lit_context.hpp"
 
 LitContext::LitContext() {
-  compiler.set_lexer(&lexer);
+  compiler.lexer = &this->lexer;
+  compiler.vm = &this->vm;
 }
 
 LitInterpretResult LitContext::execute(const char* string) {
   lexer.setup(string);
+
   LitChunk chunk;
   vm.set_chunk(&chunk);
 
