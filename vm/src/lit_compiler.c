@@ -55,6 +55,8 @@ static void advance(LitCompiler* compiler) {
 	for (;;) {
 		compiler->lexer.current = lit_lexer_next_token(&compiler->lexer);
 
+		// printf("Token: %i\n", compiler->lexer.current.type);
+
 		if (compiler->lexer.current.type != TOKEN_ERROR) {
 			break;
 		}
@@ -142,6 +144,7 @@ static void parse_unary(LitCompiler* compiler) {
 	parse_precedence(compiler, PREC_UNARY);
 
 	switch (operatorType) {
+		case TOKEN_BANG: emit_byte(compiler, OP_NOT); break;
 		case TOKEN_MINUS: emit_byte(compiler, OP_NEGATE); break;
 		default: UNREACHABLE();
 	}
@@ -158,6 +161,15 @@ static void parse_binary(LitCompiler* compiler) {
 		case TOKEN_MINUS: emit_byte(compiler, OP_SUBTRACT); break;
 		case TOKEN_STAR: emit_byte(compiler, OP_MULTIPLY); break;
 		case TOKEN_SLASH: emit_byte(compiler, OP_DIVIDE); break;
+		default: UNREACHABLE();
+	}
+}
+
+static void parse_literal(LitCompiler* compiler) {
+	switch (compiler->lexer.previous.type) {
+		case TOKEN_NIL: emit_byte(compiler, OP_NIL); break;
+		case TOKEN_TRUE: emit_byte(compiler, OP_TRUE); break;
+		case TOKEN_FALSE: emit_byte(compiler, OP_FALSE); break;
 		default: UNREACHABLE();
 	}
 }
@@ -234,4 +246,8 @@ static void init_parse_rules() {
 	parse_rules[TOKEN_SLASH] = (LitParseRule) { NULL, parse_binary, PREC_FACTOR };
 	parse_rules[TOKEN_STAR] = (LitParseRule) { NULL, parse_binary, PREC_FACTOR };
 	parse_rules[TOKEN_NUMBER] = (LitParseRule) { parse_number, NULL, PREC_NONE };
+	parse_rules[TOKEN_BANG] = (LitParseRule) { parse_unary, NULL, PREC_NONE };
+	parse_rules[TOKEN_NIL] = (LitParseRule) { parse_literal, NULL, PREC_NONE };
+	parse_rules[TOKEN_TRUE] = (LitParseRule) { parse_literal, NULL, PREC_NONE };
+	parse_rules[TOKEN_FALSE] = (LitParseRule) { parse_literal, NULL, PREC_NONE };
 }

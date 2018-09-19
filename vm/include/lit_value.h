@@ -48,5 +48,6 @@ static inline LitValue lit_num_to_value(double num) {
 }
 
 char *lit_to_string(LitValue value);
+bool lit_is_false(LitValue value);
 
 #endif

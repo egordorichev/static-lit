@@ -142,6 +142,15 @@ static LitTokenType find_identifier_type(LitLexer* lexer) {
 			}
 			break;
 		}
+		case 't': {
+			if (lexer->current_code - lexer->start > 1) {
+				switch (lexer->start[1]) {
+					case 'h': return check_keyword(lexer, 2, 2, "is", TOKEN_THIS);
+					case 'r': return check_keyword(lexer, 2, 2, "ue", TOKEN_TRUE);
+				}
+			}
+			break;
+		}
 	}
 
 	return TOKEN_IDENTIFIER;

@@ -6,15 +6,19 @@
 #include "lit_array.h"
 
 typedef enum {
-	OP_RETURN,
-	OP_CONSTANT,
-	OP_PRINT,
-	OP_NEGATE,
-	OP_ADD,
-	OP_SUBTRACT,
-	OP_MULTIPLY,
-	OP_DIVIDE,
-	OP_POP
+	OP_RETURN = 0,
+	OP_CONSTANT = 1,
+	OP_PRINT = 2,
+	OP_NEGATE = 3,
+	OP_ADD = 4,
+	OP_SUBTRACT = 5,
+	OP_MULTIPLY = 6,
+	OP_DIVIDE = 7,
+	OP_POP = 8,
+	OP_NOT = 9,
+	OP_NIL = 10,
+	OP_TRUE = 11,
+	OP_FALSE = 12
 } LitOpCode;
 
 typedef struct {
