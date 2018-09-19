@@ -26,3 +26,7 @@ bool lit_is_false(LitValue value) {
 	return IS_NIL(value) || (IS_NUMBER(value) && AS_NUMBER(value) == 0)
 		|| (IS_BOOL(value) && !AS_BOOL(value));
 }
+
+bool lit_are_values_equal(LitValue a, LitValue b) {
+	return a == b;
+}

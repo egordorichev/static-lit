@@ -161,6 +161,12 @@ static void parse_binary(LitCompiler* compiler) {
 		case TOKEN_MINUS: emit_byte(compiler, OP_SUBTRACT); break;
 		case TOKEN_STAR: emit_byte(compiler, OP_MULTIPLY); break;
 		case TOKEN_SLASH: emit_byte(compiler, OP_DIVIDE); break;
+		case TOKEN_EQUAL_EQUAL: emit_byte(compiler, OP_EQUAL); break;
+		case TOKEN_BANG_EQUAL: emit_byte(compiler, OP_NOT_EQUAL); break;
+		case TOKEN_LESS_EQUAL: emit_byte(compiler, OP_LESS_EQUAL); break;
+		case TOKEN_GREATER_EQUAL: emit_byte(compiler, OP_GREATER_EQUAL); break;
+		case TOKEN_LESS: emit_byte(compiler, OP_LESS); break;
+		case TOKEN_GREATER: emit_byte(compiler, OP_GREATER); break;
 		default: UNREACHABLE();
 	}
 }
@@ -250,4 +256,10 @@ static void init_parse_rules() {
 	parse_rules[TOKEN_NIL] = (LitParseRule) { parse_literal, NULL, PREC_NONE };
 	parse_rules[TOKEN_TRUE] = (LitParseRule) { parse_literal, NULL, PREC_NONE };
 	parse_rules[TOKEN_FALSE] = (LitParseRule) { parse_literal, NULL, PREC_NONE };
+	parse_rules[TOKEN_EQUAL_EQUAL] = (LitParseRule) { NULL, parse_binary, PREC_EQUALITY };
+	parse_rules[TOKEN_GREATER] = (LitParseRule) { NULL, parse_binary, PREC_COMPARISON };
+	parse_rules[TOKEN_LESS] = (LitParseRule) { NULL, parse_binary, PREC_COMPARISON };
+	parse_rules[TOKEN_GREATER_EQUAL] = (LitParseRule) { NULL, parse_binary, PREC_COMPARISON };
+	parse_rules[TOKEN_LESS_EQUAL] = (LitParseRule) { NULL, parse_binary, PREC_COMPARISON };
+	parse_rules[TOKEN_BANG_EQUAL] = (LitParseRule) { NULL, parse_binary, PREC_EQUALITY };
 }

@@ -122,11 +122,16 @@ LitInterpretResult lit_interpret(LitVm* vm, LitChunk* chunk) {
 			case OP_SUBTRACT: BINARY_OP(MAKE_NUMBER_VALUE, -); break;
 			case OP_MULTIPLY: BINARY_OP(MAKE_NUMBER_VALUE, *); break;
 			case OP_DIVIDE: BINARY_OP(MAKE_NUMBER_VALUE, /); break;
+			case OP_LESS: BINARY_OP(MAKE_BOOL_VALUE, <); break;
+			case OP_LESS_EQUAL: BINARY_OP(MAKE_BOOL_VALUE, <=); break;
+			case OP_GREATER: BINARY_OP(MAKE_BOOL_VALUE, >); break;
+			case OP_GREATER_EQUAL: BINARY_OP(MAKE_BOOL_VALUE, >=); break;
 			case OP_POP: lit_pop(vm); break;
 			case OP_NOT: lit_push(vm, MAKE_BOOL_VALUE(lit_is_false(lit_pop(vm)))); break;
 			case OP_NIL: lit_push(vm, NIL_VALUE); break;
 			case OP_TRUE: lit_push(vm, TRUE_VALUE); break;
 			case OP_FALSE: lit_push(vm, FALSE_VALUE); break;
+			case OP_EQUAL: lit_push(vm, MAKE_BOOL_VALUE(lit_are_values_equal(lit_pop(vm), lit_pop(vm)))); break;
 			default: UNREACHABLE();
 		}
 	}

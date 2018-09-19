@@ -18,7 +18,15 @@ typedef enum {
 	OP_NOT = 9,
 	OP_NIL = 10,
 	OP_TRUE = 11,
-	OP_FALSE = 12
+	OP_FALSE = 12,
+	OP_EQUAL = 13,
+	OP_GREATER = 14,
+	OP_LESS = 15,
+	// We could make those a combination of op codes
+	// Yet it will be a bit slower
+	OP_GREATER_EQUAL = 16,
+	OP_LESS_EQUAL = 17,
+	OP_NOT_EQUAL = 18
 } LitOpCode;
 
 typedef struct {
@@ -35,6 +43,5 @@ void lit_free_chunk(LitVm* vm, LitChunk* chunk);
 
 void lit_chunk_write(LitVm* vm, LitChunk* chunk, uint8_t byte, int line);
 int lit_chunk_add_constant(LitVm* vm, LitChunk* chunk, LitValue constant);
-
 
 #endif
