@@ -6,9 +6,19 @@
 #include "lit_lexer.h"
 
 typedef struct {
+	LitToken name;
+	int depth;
+	bool upvalue;
+} LitLocal;
+
+typedef struct {
 	LitLexer lexer;
 	LitChunk* chunk;
 	LitVm* vm;
+
+	LitLocal locals[UINT8_MAX + 1];
+	int local_count;
+	int depth;
 } LitCompiler;
 
 typedef enum {
@@ -32,7 +42,6 @@ typedef struct {
 	LitParseFn infix;
 	LitPrecedence precedence;
 } LitParseRule;
-
 
 void lit_init_compiler(LitCompiler* compiler);
 void lit_free_compiler(LitCompiler* compiler);

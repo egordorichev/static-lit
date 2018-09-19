@@ -26,7 +26,9 @@ typedef enum {
 	// Yet it will be a bit slower
 	OP_GREATER_EQUAL = 16,
 	OP_LESS_EQUAL = 17,
-	OP_NOT_EQUAL = 18
+	OP_NOT_EQUAL = 18,
+	OP_CLOSE_UPVALUE = 19,
+	OP_DEFINE_GLOBAL = 20
 } LitOpCode;
 
 typedef struct {

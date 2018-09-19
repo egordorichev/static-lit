@@ -1,13 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <lit_object.h>
+#include <string.h>
 
 #include "lit_compiler.h"
 #include "lit_vm.h"
 #include "lit_debug.h"
 
 void lit_init_compiler(LitCompiler* compiler) {
-
+	compiler->depth = 0;
+	compiler->depth = 0;
 }
 
 void lit_free_compiler(LitCompiler* compiler) {
@@ -42,7 +44,7 @@ static inline void error(LitCompiler* compiler, const char* message) {
 	error_at(compiler, &compiler->lexer.previous, message);
 }
 
-static inline void error_at_current(LitCompiler* compiler, const char* message) {
+static inline void error_at_compiler(LitCompiler* compiler, const char* message) {
 	error_at(compiler, &compiler->lexer.current, message);
 }
 
@@ -56,13 +58,13 @@ static void advance(LitCompiler* compiler) {
 	for (;;) {
 		compiler->lexer.current = lit_lexer_next_token(&compiler->lexer);
 
-		// printf("Token: %i\n", compiler->lexer.current.type);
+		// printf("Token: %i\n", compiler->lexer.compiler.type);
 
 		if (compiler->lexer.current.type != TOKEN_ERROR) {
 			break;
 		}
 
-		error_at_current(&compiler, compiler->lexer.current.start);
+		error_at_compiler(&compiler, compiler->lexer.current.start);
 	}
 }
 
@@ -72,7 +74,7 @@ static void consume(LitCompiler* compiler, LitTokenType type, const char* messag
 		return;
 	}
 
-	error_at_current(compiler, message);
+	error_at_compiler(compiler, message);
 }
 
 static inline bool check(LitCompiler* compiler, LitTokenType type) {
@@ -119,6 +121,119 @@ static inline void emit_constant(LitCompiler* compiler, LitValue value) {
 /*
  * Actuall compilation
  */
+
+/*
+ * Variables
+ */
+
+static uint8_t make_identifier_constant(LitCompiler* compiler, LitToken* name) {
+	return make_constant(compiler, MAKE_OBJECT_VALUE(lit_copy_string(compiler->vm, name->start, name->length)));
+}
+
+static bool identifiers_equal(LitToken* a, LitToken* b) {
+	if (a->length != b->length) {
+		return false;
+	}
+
+	return memcmp(a->start, b->start, a->length) == 0;
+}
+
+static void begin_scope(LitCompiler* compiler) {
+	compiler->depth++;
+}
+
+static void end_scope(LitCompiler* compiler) {
+	compiler->depth--;
+
+	while (compiler->local_count > 0 &&
+		compiler->locals[compiler->local_count - 1].depth > compiler->depth) {
+
+		if (compiler->locals[compiler->local_count - 1].upvalue) {
+			emit_byte(compiler, OP_CLOSE_UPVALUE);
+		} else {
+			emit_byte(compiler, OP_POP);
+		}
+
+		compiler->local_count--;
+	}
+}
+
+static int resolve_local(LitCompiler* compiler, LitToken* name, bool inFunction) {
+	for (int i = compiler->local_count - 1; i >= 0; i--) {
+		LitLocal* local = &compiler->locals[i];
+
+		if (identifiers_equal(name, &local->name)) {
+			if (!inFunction && local->depth == -1) {
+				error(compiler, "Cannot read local variable in its own initializer");
+			}
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+static int add_upvalue(LitCompiler* compiler, uint8_t index, bool isLocal) {
+	// TODO
+}
+
+static int resolve_upvalue(LitCompiler* compiler, LitToken* name) {
+	// TODO
+}
+
+static void add_local(LitCompiler* compiler, LitToken name) {
+	if (compiler->local_count == UINT8_COUNT) {
+		error(compiler, "Too many local variables in function");
+		return;
+	}
+
+	LitLocal* local = &compiler->locals[compiler->local_count];
+
+	local->name = name;
+	local->depth = -1;
+	local->upvalue = false;
+	compiler->local_count++;
+}
+
+static void declare_variable(LitCompiler* compiler) {
+	if (compiler->depth == 0) {
+		return;
+	}
+
+	LitToken* name = &compiler->lexer.previous;
+
+	for (int i = compiler->local_count - 1; i >= 0; i--) {
+		LitLocal* local = &compiler->locals[i];
+
+		if (local->depth != -1 && local->depth < compiler->depth) {
+			break;
+		}
+
+		if (identifiers_equal(name, &local->name)) {
+			error(compiler, "Variable with this name already declared in this scope.");
+		}
+	}
+
+	add_local(compiler, *name);
+}
+static uint8_t parse_variable(LitCompiler* compiler, const char* errorMessage) {
+	consume(compiler, TOKEN_IDENTIFIER, errorMessage);
+
+	if (compiler->depth == 0) {
+		return make_identifier_constant(compiler, &compiler->lexer.previous);
+	}
+
+	declare_variable(compiler);
+	return 0;
+}
+
+static void define_variable(LitCompiler* compiler, uint8_t global) {
+	if (compiler->depth == 0) {
+		emit_bytes(compiler, OP_DEFINE_GLOBAL, global);
+	} else {
+		compiler->locals[compiler->local_count - 1].depth = compiler->depth;
+	}
+}
 
 static void parse_expression(LitCompiler* compiler);
 static void parse_precedence(LitCompiler* compiler, LitPrecedence precedence);

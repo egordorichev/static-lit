@@ -5,6 +5,7 @@
 #include "lit.h"
 #include "lit_debug.h"
 
+/*
 void show_repl() {
 	LitVm vm;
 	lit_init_vm(&vm);
@@ -57,8 +58,9 @@ static char* read_file(const char* path) {
 
 	return buffer;
 }
+*/
 
-int main(int argc, char** argv) {
+int main(/*int argc, char** argv*/) {
   /*if (argc == 1) {
   	show_repl();
   } else {

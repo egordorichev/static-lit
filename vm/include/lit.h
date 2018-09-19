@@ -22,7 +22,7 @@ typedef struct _LitVm {
 	int gray_count;
 	int gray_capacity;
 	LitObject** gray_stack;
-};
+} _LitVm;
 
 void lit_init_vm(LitVm* vm);
 void lit_free_vm(LitVm* vm);

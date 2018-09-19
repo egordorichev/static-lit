@@ -7,5 +7,6 @@
 #include <assert.h>
 
 #define UNREACHABLE() assert(false);
+#define UINT8_COUNT UINT8_MAX + 1
 
 #endif

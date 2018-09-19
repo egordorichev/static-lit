@@ -65,7 +65,7 @@ static void blacken_object(LitVm* vm, LitObject* object) {
 #endif
 
 	switch (object->type) {
-
+		case OBJECT_STRING: break;
 	}
 }
 
