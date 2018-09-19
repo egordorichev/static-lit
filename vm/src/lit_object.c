@@ -19,6 +19,15 @@ static LitObject* allocate_object(LitVm* vm, size_t size, LitObjectType type) {
 	return object;
 }
 
+LitUpvalue* lit_new_upvalue(LitVm* vm, LitValue* slot) {
+	LitUpvalue* upvalue = ALLOCATE_OBJECT(vm, LitUpvalue, OBJECT_UPVALUE);
+	upvalue->closed = NIL_VALUE;
+	upvalue->value = slot;
+	upvalue->next = NULL;
+
+	return upvalue;
+}
+
 static LitString* allocate_string(LitVm* vm, char* chars, int length, uint32_t hash) {
 	LitString* string = ALLOCATE_OBJECT(vm, LitString, OBJECT_STRING);
 

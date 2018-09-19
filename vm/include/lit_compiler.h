@@ -11,7 +11,8 @@ typedef struct {
 	bool upvalue;
 } LitLocal;
 
-typedef struct {
+typedef struct sLitCompiler {
+	struct sLitCompiler* enclosing;
 	LitLexer lexer;
 	LitChunk* chunk;
 	LitVm* vm;

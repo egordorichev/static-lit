@@ -10,6 +10,7 @@
 void lit_init_compiler(LitCompiler* compiler) {
 	compiler->depth = 0;
 	compiler->depth = 0;
+	compiler->enclosing = NULL;
 }
 
 void lit_free_compiler(LitCompiler* compiler) {
@@ -174,11 +175,46 @@ static int resolve_local(LitCompiler* compiler, LitToken* name, bool inFunction)
 }
 
 static int add_upvalue(LitCompiler* compiler, uint8_t index, bool isLocal) {
-	return -1; // TODO
+	int upvalueCount = compiler->function->upvalue_count;
+
+	for (int i = 0; i < upvalueCount; i++) {
+		LitUpvalue* upvalue = &compiler->upvalues[i];
+
+		if (upvalue->index == index && upvalue->isLocal == isLocal) {
+			return i;
+		}
+	}
+
+	if (upvalueCount == UINT8_COUNT) {
+		error(compiler, "Too many closure variables in function");
+		return 0;
+	}
+
+	compiler->upvalues[upvalueCount].isLocal = isLocal;
+	compiler->upvalues[upvalueCount].index = index;
+
+	return compiler->function->upvalue_count++;
 }
 
 static int resolve_upvalue(LitCompiler* compiler, LitToken* name) {
-	return -1; // TODO
+	if (compiler->enclosing == NULL) {
+		return -1;
+	}
+
+	int local = resolve_local(compiler, compiler->enclosing, name, true);
+
+	if (local != -1) {
+		compiler->enclosing->locals[local].upvalue = true;
+		return add_upvalue(compiler, (uint8_t)local, true);
+	}
+
+	int upvalue = resolve_upvalue(compiler->enclosing, name);
+
+	if (upvalue != -1) {
+		return add_upvalue(compiler, (uint8_t)upvalue, false);
+	}
+
+	return -1;
 }
 
 static void add_local(LitCompiler* compiler, LitToken name) {

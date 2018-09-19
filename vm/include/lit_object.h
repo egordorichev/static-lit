@@ -13,6 +13,7 @@
 
 typedef enum {
 	OBJECT_STRING,
+	OBJECT_UPVALUE
 } LitObjectType;
 
 struct sLitObject {
@@ -27,6 +28,17 @@ struct sLitString {
 	char* chars;
 	uint32_t hash;
 };
+
+
+typedef struct sLitUpvalue {
+	LitObject object;
+	LitValue* value;
+	LitValue closed;
+
+	struct sLitUpvalue* next;
+} LitUpvalue;
+
+LitUpvalue* lit_new_upvalue(LitVm* vm, LitValue* slot);
 
 LitString* lit_make_string(LitVm* vm, char* chars, int length);
 LitString* lit_copy_string(LitVm* vm, const char* chars, int length);

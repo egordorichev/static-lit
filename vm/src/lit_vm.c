@@ -124,6 +124,7 @@ LitInterpretResult lit_interpret(LitVm* vm, LitChunk* chunk) {
 
 			printf("\n");
 		}
+
 		lit_disassemble_instruction(chunk, (int)(vm->ip - vm->chunk->code));
 #endif
 
