@@ -4,14 +4,20 @@
 #include "lit_vm.h"
 #include "lit_chunk.h"
 #include "lit_compiler.h"
+#include "lit_table.h"
 
 typedef struct _LitVm {
 	LitValue stack[STACK_MAX];
 	LitValue* stack_top;
 	LitChunk* chunk;
+	LitObject* objects;
+	LitTable strings;
 
 	uint8_t* ip;
 	LitCompiler *compiler;
+
+	size_t bytes_allocated;
+	size_t next_gc;
 };
 
 void lit_init_vm(LitVm* vm);

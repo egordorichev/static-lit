@@ -1,9 +1,11 @@
 #include <stdio.h>
 #include <zconf.h>
+
 #include "lit_vm.h"
 #include "lit_compiler.h"
 #include "lit.h"
 #include "lit_debug.h"
+#include "lit_memory.h"
 
 static inline void reset_stack(LitVm *vm) {
 	vm->stack_top = vm->stack;
@@ -11,13 +13,21 @@ static inline void reset_stack(LitVm *vm) {
 
 void lit_init_vm(LitVm* vm) {
 	reset_stack(vm);
+	lit_init_table(&vm->strings);
+
 	vm->compiler = NULL;
+	vm->bytes_allocated = 0;
+	vm->next_gc = 1024 * 1024;
 }
 
 void lit_free_vm(LitVm* vm) {
+	lit_free_table(vm, &vm->strings);
+
 	if (vm->compiler != NULL) {
 		lit_free_compiler(vm->compiler);
 	}
+
+	lit_free_objects(vm);
 }
 
 void lit_push(LitVm* vm, LitValue value) {

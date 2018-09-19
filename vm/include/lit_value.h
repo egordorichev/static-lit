@@ -3,6 +3,9 @@
 
 #include "lit_common.h"
 
+typedef struct sLitObject LitObject;
+typedef struct sLitString LitString;
+
 #define SIGN_BIT ((uint64_t) 1 << 63)
 #define QNAN ((uint64_t) 0x7ffc000000000000)
 
@@ -27,7 +30,7 @@ typedef uint64_t LitValue;
 #define NIL_VALUE ((LitValue)(uint64_t)(QNAN | TAG_NIL))
 #define MAKE_NUMBER_VALUE(num) lit_num_to_value(num)
 
-#define MAKE_OBJ_VALUE(obj) (LitValue) (SIGN_BIT | QNAN | (uint64_t) (uintptr_t) (obj))
+#define MAKE_OBJECT_VALUE(obj) (LitValue) (SIGN_BIT | QNAN | (uint64_t) (uintptr_t) (obj))
 
 typedef union {
 	uint64_t bits64;
