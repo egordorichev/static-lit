@@ -101,7 +101,7 @@ int main(int argc, char** argv) {
 
 	LitVm vm;
 	lit_init_vm(&vm);
-	LitInterpretResult result = lit_execute(&vm, "print \"Hello, world!\"");
+	LitInterpretResult result = lit_execute(&vm, "print \"Hello, \" + \"world!\"");
 	lit_free_vm(&vm);
 	return result == INTERPRET_OK ? 0 : -2;
 }

@@ -1,11 +1,13 @@
 #include <stdio.h>
 #include <zconf.h>
+#include <string.h>
 
 #include "lit_vm.h"
 #include "lit_compiler.h"
 #include "lit.h"
 #include "lit_debug.h"
 #include "lit_memory.h"
+#include "lit_object.h"
 
 static inline void reset_stack(LitVm *vm) {
 	vm->stack_top = vm->stack;
@@ -134,7 +136,30 @@ LitInterpretResult lit_interpret(LitVm* vm, LitChunk* chunk) {
 				lit_push(vm, MAKE_NUMBER_VALUE(-AS_NUMBER(lit_pop(vm))));
 				break;
 			}
-			case OP_ADD: BINARY_OP(MAKE_NUMBER_VALUE, +); break;
+			case OP_ADD: {
+				LitValue b = lit_pop(vm);
+				LitValue a = lit_pop(vm);
+
+				if (IS_NUMBER(a) && IS_NUMBER(b)) {
+					lit_push(vm, MAKE_NUMBER_VALUE(AS_NUMBER(a) + AS_NUMBER(b)));
+				} else {
+					char *as = lit_to_string(a);
+					char *bs = lit_to_string(b);
+
+					int al = strlen(as);
+					int bl = strlen(bs);
+					int length = al + bl;
+
+					char* chars = ALLOCATE(vm, char, length + 1);
+
+					memcpy(chars, as, al);
+					memcpy(chars + al, bs, bl);
+					chars[length] = '\0';
+
+					lit_push(vm, MAKE_OBJECT_VALUE(lit_make_string(vm, chars, length)));
+				}
+				break;
+			}
 			case OP_SUBTRACT: BINARY_OP(MAKE_NUMBER_VALUE, -); break;
 			case OP_MULTIPLY: BINARY_OP(MAKE_NUMBER_VALUE, *); break;
 			case OP_DIVIDE: BINARY_OP(MAKE_NUMBER_VALUE, /); break;
