@@ -8,7 +8,7 @@
 #define OBJECT_TYPE(value) (AS_OBJECT(value)->type)
 #define IS_STRING(value) lit_is_object_type(value, OBJECT_STRING)
 
-#define AS_STRING(value) ((LitObjString*) AS_OBJECT(value))
+#define AS_STRING(value) ((LitString*) AS_OBJECT(value))
 #define AS_CSTRING(value) (((LitString*) AS_OBJECT(value))->chars)
 
 typedef enum {

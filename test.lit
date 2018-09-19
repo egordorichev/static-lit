@@ -1,1 +1,73 @@
-10 + 10
+require "stuff"
+
+var i = 0
+print(i) // -> 0
+
+val j = 10 // static
+
+var array = { 0, 1, 10 }
+print(array[2]) // -> 10
+
+print("Array length " + #array) // -> Array length 3
+
+fun do_something(a, b) {
+    return a * b
+}
+
+print(do_something(3, 2)) // -> 6
+
+class Test {
+    do_stuff() {
+        print("Hi!")
+    }
+}
+
+var test = Test()
+test.do_stuff() // -> Hi!
+
+class Second < Test {
+    
+}
+
+var n = Second()
+n = nil
+n?.do_stuff()
+
+try {
+    throw RuntimeException("Error!");
+} case (e) {
+    e.report()
+}
+
+fun do_thing(a) {
+    print(a)
+    return 3, "hi"
+}
+
+var x = 10
+
+when (x) {
+    1: print("x == 1")
+    2: print("x == 2")
+    3 .. 5: { // 3, 4 or 5
+        // can have a block here
+    } 
+    else > print("x is neither 1 nor 2")
+}
+
+var ar = { 1, 2, 3 }
+var ar2 = { ...ar, 4, 5, 6 }
+
+while (false) {
+    // do stuff
+}
+
+for (i in 1 .. 10, 2) { // 2 is step
+    break // can continue
+}
+
+var a = { 0 .. 10 }
+
+do_lambada((int a) {
+    print(a);
+})

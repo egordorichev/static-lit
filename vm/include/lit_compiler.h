@@ -35,7 +35,7 @@ typedef enum {
 	PREC_PRIMARY
 } LitPrecedence;
 
-typedef void (*LitParseFn)(LitCompiler* compiler);
+typedef void (*LitParseFn)(LitCompiler* compiler, bool can_assign);
 
 typedef struct {
 	LitParseFn prefix;

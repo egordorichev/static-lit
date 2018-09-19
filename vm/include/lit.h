@@ -12,6 +12,7 @@ typedef struct _LitVm {
 	LitChunk* chunk;
 	LitObject* objects;
 	LitTable strings;
+	LitTable globals;
 
 	uint8_t* ip;
 	LitCompiler *compiler;

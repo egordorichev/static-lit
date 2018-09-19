@@ -105,7 +105,7 @@ void lit_collect_garbage(LitVm* vm) {
 		grayObject((Obj*)upvalue);
 	}*/
 
-	//grayTable(&vm.globals);
+	lit_table_gray(vm, &vm->globals);
 	//grayCompilerRoots();
 
 	// grayObject((Obj*)vm.initString);

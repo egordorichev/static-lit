@@ -22,6 +22,12 @@ static int constant_instruction(const char* name, LitChunk* chunk, int offset) {
 	return offset + 2;
 }
 
+static int byte_instruction(const char* name, LitChunk* chunk, int offset) {
+	uint8_t slot = chunk->code[offset + 1];
+	printf("%-16s %4d\n", name, slot);
+	return offset + 2;
+}
+
 int lit_disassemble_instruction(LitChunk* chunk, int offset) {
 	printf("%04d ", offset);
 
@@ -51,7 +57,14 @@ int lit_disassemble_instruction(LitChunk* chunk, int offset) {
 		case OP_NOT_EQUAL: return simple_instruction("OP_NOT_EQUAL", offset);
 		case OP_GREATER_EQUAL: return simple_instruction("OP_GREATER_EQUAL", offset);
 		case OP_LESS_EQUAL: return simple_instruction("OP_LESS_EQUAL", offset);
+		case OP_DEFINE_GLOBAL: return constant_instruction("OP_DEFINE_GLOBAL", chunk, offset);
+		case OP_GET_GLOBAL: return constant_instruction("OP_GET_GLOBAL", chunk, offset);
+		case OP_SET_GLOBAL: return constant_instruction("OP_SET_GLOBAL", chunk, offset);
+		case OP_GET_LOCAL: return byte_instruction("OP_GET_LOCAL", chunk, offset);
+		case OP_SET_LOCAL: return byte_instruction("OP_SET_LOCAL", chunk,offset);
+		case OP_GET_UPVALUE: return byte_instruction("OP_GET_UPVALUE", chunk, offset);
+		case OP_SET_UPVALUE: return byte_instruction("OP_SET_UPVALUE", chunk, offset);
 		case OP_CONSTANT: return constant_instruction("OP_CONSTANT", chunk, offset);
-		default: printf("Unknown opcode %d\n", instruction); return offset + 1;
+		default: printf("Unknown opcode %i\n", instruction); return offset + 1;
 	}
 }

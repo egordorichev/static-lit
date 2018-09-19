@@ -15,7 +15,9 @@ static inline void reset_stack(LitVm *vm) {
 
 void lit_init_vm(LitVm* vm) {
 	reset_stack(vm);
+
 	lit_init_table(&vm->strings);
+	lit_init_table(&vm->globals);
 
 	vm->compiler = NULL;
 
@@ -30,6 +32,7 @@ void lit_init_vm(LitVm* vm) {
 
 void lit_free_vm(LitVm* vm) {
 	lit_free_table(vm, &vm->strings);
+	lit_free_table(vm, &vm->globals);
 
 	if (vm->compiler != NULL) {
 		lit_free_compiler(vm->compiler);
@@ -98,6 +101,7 @@ LitInterpretResult lit_interpret(LitVm* vm, LitChunk* chunk) {
 
 #define READ_BYTE() (*vm->ip++)
 #define READ_CONSTANT() (vm->chunk->constants.values[READ_BYTE()])
+#define READ_STRING() AS_STRING(READ_CONSTANT())
 
 #define BINARY_OP(type, op) \
    do { \
@@ -173,11 +177,40 @@ LitInterpretResult lit_interpret(LitVm* vm, LitChunk* chunk) {
 			case OP_TRUE: lit_push(vm, TRUE_VALUE); break;
 			case OP_FALSE: lit_push(vm, FALSE_VALUE); break;
 			case OP_EQUAL: lit_push(vm, MAKE_BOOL_VALUE(lit_are_values_equal(lit_pop(vm), lit_pop(vm)))); break;
-			default: UNREACHABLE();
+			case OP_DEFINE_GLOBAL: {
+				LitString* name = READ_STRING();
+				lit_table_set(vm, &vm->globals, name, lit_peek(vm, 0));
+				lit_pop(vm);
+				break;
+			}
+			case OP_GET_GLOBAL: {
+				LitString* name = READ_STRING();
+				LitValue value;
+
+				if (!lit_table_get(&vm->globals, name, &value)) {
+					runtime_error(vm, "Undefined variable '%s'", name->chars);
+					return INTERPRET_RUNTIME_ERROR;
+				}
+
+				lit_push(vm, value);
+				break;
+			}
+			case OP_SET_GLOBAL: {
+				LitString* name = READ_STRING();
+
+				if (lit_table_set(vm, &vm->globals, name, lit_peek(vm, 0))) {
+					runtime_error(vm, "Undefined variable '%s'", name->chars);
+					return INTERPRET_RUNTIME_ERROR;
+				}
+
+				break;
+			}
+			default: printf("Unhandled instruction %i\n!", *--vm->ip); UNREACHABLE();
 		}
 	}
 
 #undef READ_BYTE
 #undef READ_CONSTANT
+#undef READ_STRING
 #undef BINARY_OP
 }

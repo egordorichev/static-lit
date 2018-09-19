@@ -174,11 +174,11 @@ static int resolve_local(LitCompiler* compiler, LitToken* name, bool inFunction)
 }
 
 static int add_upvalue(LitCompiler* compiler, uint8_t index, bool isLocal) {
-	// TODO
+	return -1; // TODO
 }
 
 static int resolve_upvalue(LitCompiler* compiler, LitToken* name) {
-	// TODO
+	return -1; // TODO
 }
 
 static void add_local(LitCompiler* compiler, LitToken name) {
@@ -235,8 +235,14 @@ static void define_variable(LitCompiler* compiler, uint8_t global) {
 	}
 }
 
+
+/*
+ * Parsing
+ */
+
 static void parse_expression(LitCompiler* compiler);
 static void parse_precedence(LitCompiler* compiler, LitPrecedence precedence);
+static void parse_declaration(LitCompiler* compiler);
 
 static void init_parse_rules();
 static LitParseRule parse_rules[TOKEN_EOF + 1];
@@ -246,16 +252,53 @@ static inline LitParseRule* get_parse_rule(LitTokenType type) {
 	return &parse_rules[type];
 }
 
-static void parse_number(LitCompiler* compiler) {
+static void named_variable(LitCompiler* compiler, LitToken name, bool can_assign) {
+	uint8_t getOp, setOp;
+	int arg = resolve_local(compiler, &name, false);
+
+	// TODO: can be speeded up via removing vars
+	if (arg != -1) {
+		getOp = OP_GET_LOCAL;
+		setOp = OP_SET_LOCAL;
+	} else if ((arg = resolve_upvalue(compiler, &name)) != -1) {
+		getOp = OP_GET_UPVALUE;
+		setOp = OP_SET_UPVALUE;
+	} else {
+		arg = make_identifier_constant(compiler, &name);
+		getOp = OP_GET_GLOBAL;
+		setOp = OP_SET_GLOBAL;
+	}
+
+	if (can_assign && match(compiler, TOKEN_EQUAL)) {
+		parse_expression(compiler);
+		emit_bytes(compiler, setOp, (uint8_t)arg);
+	} else {
+		emit_bytes(compiler, getOp, (uint8_t)arg);
+	}
+}
+
+static void parse_variable_usage(LitCompiler* compiler, bool can_assign) {
+	named_variable(compiler, compiler->lexer.previous, can_assign);
+}
+
+static void parse_block(LitCompiler* compiler) {
+	while (!check(compiler, TOKEN_RIGHT_BRACE) && !check(compiler, TOKEN_EOF)) {
+		parse_declaration(compiler);
+	}
+
+	consume(compiler, TOKEN_RIGHT_BRACE, "Expected '}' after block");
+}
+
+static void parse_number(LitCompiler* compiler, bool can_assign) {
 	emit_constant(compiler, MAKE_NUMBER_VALUE(strtod(compiler->lexer.previous.start, NULL)));
 }
 
-static void parse_grouping(LitCompiler* compiler) {
+static void parse_grouping(LitCompiler* compiler, bool can_assign) {
 	parse_expression(compiler);
 	consume(compiler, TOKEN_RIGHT_PAREN, "Expected ')' after expression");
 }
 
-static void parse_unary(LitCompiler* compiler) {
+static void parse_unary(LitCompiler* compiler, bool can_assign) {
 	LitTokenType operatorType = compiler->lexer.previous.type;
 	parse_precedence(compiler, PREC_UNARY);
 
@@ -266,7 +309,7 @@ static void parse_unary(LitCompiler* compiler) {
 	}
 }
 
-static void parse_binary(LitCompiler* compiler) {
+static void parse_binary(LitCompiler* compiler, bool can_assign) {
 	LitTokenType operator_type = compiler->lexer.previous.type;
 
 	LitParseRule* rule = get_parse_rule(operator_type);
@@ -287,7 +330,7 @@ static void parse_binary(LitCompiler* compiler) {
 	}
 }
 
-static void parse_literal(LitCompiler* compiler) {
+static void parse_literal(LitCompiler* compiler, bool can_assign) {
 	switch (compiler->lexer.previous.type) {
 		case TOKEN_NIL: emit_byte(compiler, OP_NIL); break;
 		case TOKEN_TRUE: emit_byte(compiler, OP_TRUE); break;
@@ -296,9 +339,22 @@ static void parse_literal(LitCompiler* compiler) {
 	}
 }
 
-static void parse_string(LitCompiler* compiler) {
+static void parse_string(LitCompiler* compiler, bool can_assign) {
 	emit_constant(compiler, MAKE_OBJECT_VALUE(lit_copy_string(compiler->vm, compiler->lexer.previous.start + 1, compiler->lexer.previous.length - 2)));
 }
+
+static void parse_var_declaration(LitCompiler* compiler) {
+	uint8_t global = parse_variable(compiler, "Expected variable name");
+
+	if (match(compiler, TOKEN_EQUAL)) {
+		parse_expression(compiler);
+	} else {
+		emit_byte(compiler, OP_NIL);
+	}
+
+	define_variable(compiler, global);
+}
+
 
 static void parse_precedence(LitCompiler* compiler, LitPrecedence precedence) {
 	advance(compiler);
@@ -309,11 +365,12 @@ static void parse_precedence(LitCompiler* compiler, LitPrecedence precedence) {
 		return;
 	}
 
-	prefix(compiler);
+	bool can_assign = precedence <= PREC_ASSIGNMENT;
+	prefix(compiler, can_assign);
 
 	while (precedence <= get_parse_rule(compiler->lexer.current.type)->precedence) {
 		advance(compiler);
-		get_parse_rule(compiler->lexer.previous.type)->infix(compiler);
+		get_parse_rule(compiler->lexer.previous.type)->infix(compiler, can_assign);
 	}
 }
 
@@ -325,6 +382,10 @@ static void parse_statement(LitCompiler* compiler) {
 	if (match(compiler, TOKEN_PRINT)) {
 		parse_expression(compiler);
 		emit_byte(compiler, OP_PRINT);
+	}	else if (match(compiler, TOKEN_LEFT_BRACE)) {
+		begin_scope(compiler);
+		parse_block(compiler);
+		end_scope(compiler);
 	} else {
 		parse_expression(compiler);
 		// emit_byte(compiler, OP_POP);
@@ -332,7 +393,11 @@ static void parse_statement(LitCompiler* compiler) {
 }
 
 static void parse_declaration(LitCompiler* compiler) {
-	parse_statement(compiler);
+	if (match(compiler, TOKEN_VAR)) {
+		parse_var_declaration(compiler);
+	} else {
+		parse_statement(compiler);
+	}
 }
 
 bool lit_compile(LitCompiler* compiler, LitChunk* chunk, const char* code) {
@@ -383,4 +448,5 @@ static void init_parse_rules() {
 	parse_rules[TOKEN_LESS_EQUAL] = (LitParseRule) { NULL, parse_binary, PREC_COMPARISON };
 	parse_rules[TOKEN_BANG_EQUAL] = (LitParseRule) { NULL, parse_binary, PREC_EQUALITY };
 	parse_rules[TOKEN_STRING] = (LitParseRule) { parse_string, NULL, PREC_NONE };
+	parse_rules[TOKEN_IDENTIFIER] = (LitParseRule) { parse_variable_usage, NULL, PREC_NONE };
 }
