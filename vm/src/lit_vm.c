@@ -106,7 +106,7 @@ LitInterpretResult lit_interpret(LitVm* vm, LitChunk* chunk) {
 #endif
 
 		switch (READ_BYTE()) {
-			case OP_RETURN: lit_pop(vm); return INTERPRET_OK;
+			case OP_RETURN: /*lit_pop(vm);*/ return INTERPRET_OK;
 			case OP_CONSTANT: lit_push(vm, READ_CONSTANT()); break;
 			case OP_PRINT: printf("%s\n", lit_to_string(lit_pop(vm))); break;
 			case OP_NEGATE: {
@@ -122,6 +122,7 @@ LitInterpretResult lit_interpret(LitVm* vm, LitChunk* chunk) {
 			case OP_SUBTRACT: BINARY_OP(MAKE_NUMBER_VALUE, -); break;
 			case OP_MULTIPLY: BINARY_OP(MAKE_NUMBER_VALUE, *); break;
 			case OP_DIVIDE: BINARY_OP(MAKE_NUMBER_VALUE, /); break;
+			case OP_POP: lit_pop(vm); break;
 			default: UNREACHABLE();
 		}
 	}

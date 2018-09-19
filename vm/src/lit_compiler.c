@@ -72,6 +72,19 @@ static void consume(LitCompiler* compiler, LitTokenType type, const char* messag
 	error_at_current(compiler, message);
 }
 
+static inline bool check(LitCompiler* compiler, LitTokenType type) {
+	return compiler->lexer.current.type == type;
+}
+
+static bool match(LitCompiler* compiler, LitTokenType type) {
+	if (!check(compiler, type)) {
+		return false;
+	}
+
+	advance(compiler);
+	return true;
+}
+
 /*
  * Bytecode utils
  */
@@ -170,6 +183,20 @@ static void parse_expression(LitCompiler* compiler) {
 	parse_precedence(compiler, PREC_ASSIGNMENT);
 }
 
+static void parse_statement(LitCompiler* compiler) {
+	if (match(compiler, TOKEN_PRINT)) {
+		parse_expression(compiler);
+		emit_byte(compiler, OP_PRINT);
+	} else {
+		parse_expression(compiler);
+		// emit_byte(compiler, OP_POP);
+	}
+}
+
+static void parse_declaration(LitCompiler* compiler) {
+	parse_statement(compiler);
+}
+
 bool lit_compile(LitCompiler* compiler, LitChunk* chunk, const char* code) {
 	if (!inited_parse_rules) {
 		init_parse_rules();
@@ -182,8 +209,13 @@ bool lit_compile(LitCompiler* compiler, LitChunk* chunk, const char* code) {
 	lit_init_lexer(&compiler->lexer, code);
 
 	advance(compiler);
-	parse_expression(compiler);
-	consume(compiler, TOKEN_EOF, "Expected end of expression");
+
+	if (!match(compiler, TOKEN_EOF)) {
+		do {
+			parse_declaration(compiler);
+		} while (!match(compiler, TOKEN_EOF));
+	}
+
 	emit_byte(compiler, OP_RETURN);
 
 #ifdef DEBUG_PRINT_CODE

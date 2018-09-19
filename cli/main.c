@@ -101,7 +101,7 @@ int main(int argc, char** argv) {
 
 	LitVm vm;
 	lit_init_vm(&vm);
-	LitInterpretResult result = lit_execute(&vm, "-20 * 20");
+	LitInterpretResult result = lit_execute(&vm, "print 10");
 	lit_free_vm(&vm);
 	return result == INTERPRET_OK ? 0 : -2;
 }
