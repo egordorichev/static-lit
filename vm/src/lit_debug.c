@@ -42,6 +42,7 @@ int lit_disassemble_instruction(LitChunk* chunk, int offset) {
 	switch (instruction) {
 		case OP_RETURN: return simple_instruction("OP_RETURN", offset);
 		case OP_ADD: return simple_instruction("OP_ADD", offset);
+		case OP_POP: return simple_instruction("OP_POP", offset);
 		case OP_SUBTRACT: return simple_instruction("OP_SUBTRACT", offset);
 		case OP_MULTIPLY: return simple_instruction("OP_MULTIPLY", offset);
 		case OP_DIVIDE: return simple_instruction("OP_DIVIDE", offset);

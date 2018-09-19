@@ -6,15 +6,27 @@
 #include "lit_compiler.h"
 #include "lit_table.h"
 
+#define FRAMES_MAX 64
+#define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
+
+typedef struct {
+	LitClosure* closure;
+	uint8_t* ip;
+	LitValue* slots;
+} LitFrame;
+
 typedef struct _LitVm {
 	LitValue stack[STACK_MAX];
 	LitValue* stack_top;
-	LitChunk* chunk;
 	LitObject* objects;
 	LitTable strings;
 	LitTable globals;
 
-	uint8_t* ip;
+	LitFrame frames[FRAMES_MAX];
+	int frame_count;
+
+	LitUpvalue* open_upvalues;
+
 	LitCompiler *compiler;
 
 	size_t bytes_allocated;
@@ -33,6 +45,6 @@ LitValue lit_pop(LitVm* vm);
 LitValue lit_peek(LitVm* vm, int depth);
 
 LitInterpretResult lit_execute(LitVm* vm, const char* code);
-LitInterpretResult lit_interpret(LitVm* vm, LitChunk* chunk);
+LitInterpretResult lit_interpret(LitVm* vm);
 
 #endif

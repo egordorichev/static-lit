@@ -19,6 +19,9 @@ char *lit_to_string(LitValue value) {
 	} else if (IS_OBJECT(value)) {
 		switch (AS_OBJECT(value)->type) {
 			case OBJECT_STRING: return AS_CSTRING(value);
+			case OBJECT_NATIVE: return "<native fn>";
+			case OBJECT_FUNCTION: return "<fn>";
+			case OBJECT_UPVALUE: return "upvalue";
 			default: UNREACHABLE();
 		}
 	}

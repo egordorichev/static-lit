@@ -11,6 +11,16 @@
 
 static inline void reset_stack(LitVm *vm) {
 	vm->stack_top = vm->stack;
+	vm->open_upvalues = NULL;
+	vm->frame_count = 0;
+}
+
+static void define_native(LitVm* vm, const char* name, LitNativeFn function) {
+	lit_push(vm, MAKE_OBJECT_VALUE(lit_copy_string(vm, name, (int) strlen(name))));
+	lit_push(vm, MAKE_OBJECT_VALUE(lit_new_native(vm, function)));
+	lit_table_set(vm, &vm->globals, AS_STRING(vm->stack[0]), vm->stack[1]);
+	lit_pop(vm);
+	lit_pop(vm);
 }
 
 void lit_init_vm(LitVm* vm) {
@@ -66,41 +76,84 @@ static void runtime_error(LitVm* vm, const char* format, ...) {
 	va_end(args);
 	fputs("\n", stderr);
 
-	size_t instruction = vm->ip - vm->chunk->code;
-	fprintf(stderr, "[line %d] in script\n", vm->chunk->lines[instruction]);
+	for (int i = vm->frame_count - 1; i >= 0; i--) {
+		LitFrame* frame = &vm->frames[i];
+		LitFunction* function = frame->closure->function;
+
+		size_t instruction = frame->ip - function->chunk.code - 1;
+		fprintf(stderr, "[line %d] in ", function->chunk.lines[instruction]);
+
+		if (function->name == NULL) {
+			fprintf(stderr, "script\n");
+		} else {
+			fprintf(stderr, "%s()\n", function->name->chars);
+		}
+	}
 
 	reset_stack(vm);
 }
 
-LitInterpretResult lit_execute(LitVm* vm, const char* code) {
-	// FIXME: workaround
-	if (vm->compiler == NULL) {
-		lit_init_compiler(&compiler);
-
-		compiler.vm = vm;
-		vm->compiler = &compiler;
+static bool call(LitVm* vm, LitClosure* closure, int arg_count) {
+	if (arg_count != closure->function->arity) {
+		runtime_error(vm, "Expected %d arguments but got %d",	closure->function->arity, arg_count);
+		return false;
 	}
 
-	LitChunk chunk;
-	lit_init_chunk(&chunk);
+	if (vm->frame_count == FRAMES_MAX) {
+		runtime_error(vm, "Stack overflow");
+		return false;
+	}
 
-	if (!lit_compile(vm->compiler, &chunk, code)) {
-		lit_free_chunk(vm, &chunk);
+	LitFrame* frame = &vm->frames[vm->frame_count++];
+
+	frame->closure = closure;
+	frame->ip = closure->function->chunk.code;
+	frame->slots = vm->stack_top - (arg_count + 1);
+
+	return true;
+}
+
+static bool call_value(LitVm* vm, LitValue callee, int arg_count) {
+	if (IS_OBJECT(callee)) {
+		switch (OBJECT_TYPE(callee)) {
+			case OBJECT_CLOSURE: return call(vm, AS_CLOSURE(callee), arg_count);
+			case OBJECT_NATIVE: {
+				/*LitNativeFn native = AS_NATIVE(callee);
+				Value result = native(argCount, vm.stackTop - argCount);
+				vm.stackTop -= argCount + 1;
+				push(result);*/
+
+				return true;
+			}
+		}
+	}
+
+	runtime_error(vm, "Can only call functions and classes.");
+	return false;
+}
+
+LitInterpretResult lit_execute(LitVm* vm, const char* code) {
+	LitFunction *function = lit_compile(vm, code);
+
+	if (function == NULL) {
 		return INTERPRET_COMPILE_ERROR;
 	}
 
-	lit_interpret(vm, &chunk);
-	lit_free_chunk(vm, &chunk);
+	lit_push(vm, MAKE_OBJECT_VALUE(function));
+	LitClosure* closure = lit_new_closure(vm, function);
+	lit_pop(vm);
 
-	return INTERPRET_OK;
+	call_value(vm, MAKE_OBJECT_VALUE(closure), 0);
+
+	return lit_interpret(vm);
 }
 
-LitInterpretResult lit_interpret(LitVm* vm, LitChunk* chunk) {
-	vm->chunk = chunk;
-	vm->ip = chunk->code;
+LitInterpretResult lit_interpret(LitVm* vm) {
+	// TODO: store ip in a local var
+	LitFrame* frame = &vm->frames[vm->frame_count - 1];
 
-#define READ_BYTE() (*vm->ip++)
-#define READ_CONSTANT() (vm->chunk->constants.values[READ_BYTE()])
+#define READ_BYTE() (*frame->ip++)
+#define READ_CONSTANT() (frame->closure->function->chunk.constants.values[READ_BYTE()])
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 
 #define BINARY_OP(type, op) \
@@ -125,7 +178,7 @@ LitInterpretResult lit_interpret(LitVm* vm, LitChunk* chunk) {
 			printf("\n");
 		}
 
-		lit_disassemble_instruction(chunk, (int)(vm->ip - vm->chunk->code));
+		lit_disassemble_instruction(&frame->closure->function->chunk, (int) (frame->ip - frame->closure->function->chunk.code));
 #endif
 
 		switch (READ_BYTE()) {
@@ -206,7 +259,23 @@ LitInterpretResult lit_interpret(LitVm* vm, LitChunk* chunk) {
 
 				break;
 			}
-			default: printf("Unhandled instruction %i\n!", *--vm->ip); UNREACHABLE();
+			case OP_SET_UPVALUE: {
+
+			}
+			case OP_GET_UPVALUE: {
+
+			}
+			case OP_GET_LOCAL: {
+				uint8_t slot = READ_BYTE();
+				lit_push(vm, frame->slots[slot]);
+				break;
+			}
+			case OP_SET_LOCAL: {
+				uint8_t slot = READ_BYTE();
+				frame->slots[slot] = lit_peek(vm, 0);
+				break;
+			}
+			default: printf("Unhandled instruction %i\n!", *--frame->ip); UNREACHABLE();
 		}
 	}
 

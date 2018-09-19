@@ -7,10 +7,17 @@
 #include "lit_vm.h"
 #include "lit_debug.h"
 
-void lit_init_compiler(LitCompiler* compiler) {
+void lit_init_compiler(LitVm* vm, LitCompiler* compiler, LitCompiler* enclosing, LitFunctionType type) {
+	compiler->vm = vm;
 	compiler->depth = 0;
 	compiler->depth = 0;
-	compiler->enclosing = NULL;
+	compiler->type = type;
+	compiler->enclosing = enclosing;
+	compiler->function = lit_new_function(vm);
+
+	switch (type) {
+		default: compiler->function->name = NULL;
+	}
 }
 
 void lit_free_compiler(LitCompiler* compiler) {
@@ -96,16 +103,16 @@ static bool match(LitCompiler* compiler, LitTokenType type) {
  */
 
 static inline void emit_byte(LitCompiler* compiler, uint8_t byte) {
-	lit_chunk_write(compiler->vm, compiler->chunk, byte, compiler->lexer.previous.line);
+	lit_chunk_write(compiler->vm, &compiler->function->chunk, byte, compiler->lexer.previous.line);
 }
 
 static void emit_bytes(LitCompiler* compiler, uint8_t a, uint8_t b) {
-	lit_chunk_write(compiler->vm, compiler->chunk, a, compiler->lexer.previous.line);
-	lit_chunk_write(compiler->vm, compiler->chunk, b, compiler->lexer.previous.line);
+	lit_chunk_write(compiler->vm, &compiler->function->chunk, a, compiler->lexer.previous.line);
+	lit_chunk_write(compiler->vm, &compiler->function->chunk, b, compiler->lexer.previous.line);
 }
 
 static uint8_t make_constant(LitCompiler* compiler, LitValue value) {
-	int constant = lit_chunk_add_constant(compiler->vm, compiler->chunk, value);
+	int constant = lit_chunk_add_constant(compiler->vm, &compiler->function->chunk, value);
 
 	if (constant > UINT8_MAX) {
 		error(compiler, "Too many constants in one chunk");
@@ -174,13 +181,13 @@ static int resolve_local(LitCompiler* compiler, LitToken* name, bool inFunction)
 	return -1;
 }
 
-static int add_upvalue(LitCompiler* compiler, uint8_t index, bool isLocal) {
+static int add_upvalue(LitCompiler* compiler, uint8_t index, bool is_local) {
 	int upvalueCount = compiler->function->upvalue_count;
 
 	for (int i = 0; i < upvalueCount; i++) {
-		LitUpvalue* upvalue = &compiler->upvalues[i];
+		LitCompilerUpvalue* upvalue = &compiler->upvalues[i];
 
-		if (upvalue->index == index && upvalue->isLocal == isLocal) {
+		if (upvalue->index == index && upvalue->local == is_local) {
 			return i;
 		}
 	}
@@ -190,7 +197,7 @@ static int add_upvalue(LitCompiler* compiler, uint8_t index, bool isLocal) {
 		return 0;
 	}
 
-	compiler->upvalues[upvalueCount].isLocal = isLocal;
+	compiler->upvalues[upvalueCount].local = is_local;
 	compiler->upvalues[upvalueCount].index = index;
 
 	return compiler->function->upvalue_count++;
@@ -201,7 +208,7 @@ static int resolve_upvalue(LitCompiler* compiler, LitToken* name) {
 		return -1;
 	}
 
-	int local = resolve_local(compiler, compiler->enclosing, name, true);
+	int local = resolve_local(compiler->enclosing, name, true);
 
 	if (local != -1) {
 		compiler->enclosing->locals[local].upvalue = true;
@@ -436,34 +443,39 @@ static void parse_declaration(LitCompiler* compiler) {
 	}
 }
 
-bool lit_compile(LitCompiler* compiler, LitChunk* chunk, const char* code) {
+static LitFunction* end_compiler(LitCompiler *compiler) {
+	emit_byte(compiler, OP_RETURN);
+	LitFunction* function = compiler->function;
+	// compiler = compiler->enclosing;
+
+	return function;
+}
+
+LitFunction *lit_compile(LitVm* vm, const char* code) {
 	if (!inited_parse_rules) {
 		init_parse_rules();
 		inited_parse_rules = true;
 	}
 
-	compiler->lexer.vm = compiler->vm;
-	compiler->chunk = chunk;
+	LitCompiler compiler;
+	lit_init_compiler(vm, &compiler, NULL, TYPE_TOP_LEVEL);
 
-	lit_init_lexer(&compiler->lexer, code);
+	compiler.lexer.vm = vm;
+	lit_init_lexer(&compiler.lexer, code);
 
-	advance(compiler);
+	advance(&compiler);
 
-	if (!match(compiler, TOKEN_EOF)) {
+	if (!match(&compiler, TOKEN_EOF)) {
 		do {
-			parse_declaration(compiler);
-		} while (!match(compiler, TOKEN_EOF));
+			parse_declaration(&compiler);
+		} while (!match(&compiler, TOKEN_EOF));
 	}
 
-	emit_byte(compiler, OP_RETURN);
+	LitFunction* function = end_compiler(&compiler);
+	bool error = compiler.lexer.had_error;
+	lit_free_compiler(&compiler);
 
-#ifdef DEBUG_PRINT_CODE
-	if (!compiler->lexer.had_error) {
-		lit_trace_chunk(compiler->chunk, "code");
-  }
-#endif
-
-	return !compiler->lexer.had_error;
+	return error ? NULL : function;
 }
 
 static void init_parse_rules() {

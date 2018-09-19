@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "lit_chunk.h"
 #include "lit_memory.h"
 

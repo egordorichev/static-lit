@@ -4,6 +4,7 @@
 #include "lit_chunk.h"
 #include "lit_common.h"
 #include "lit_lexer.h"
+#include "lit_object.h"
 
 typedef struct {
 	LitToken name;
@@ -11,13 +12,28 @@ typedef struct {
 	bool upvalue;
 } LitLocal;
 
+typedef struct {
+	uint8_t index;
+	bool local;
+} LitCompilerUpvalue;
+
+typedef enum {
+	TYPE_FUNCTION,
+	TYPE_INITIALIZER,
+	TYPE_METHOD,
+	TYPE_TOP_LEVEL
+} LitFunctionType;
+
 typedef struct sLitCompiler {
 	struct sLitCompiler* enclosing;
 	LitLexer lexer;
-	LitChunk* chunk;
 	LitVm* vm;
+	LitFunction* function;
+	LitFunctionType type;
 
-	LitLocal locals[UINT8_MAX + 1];
+	LitCompilerUpvalue upvalues[UINT8_COUNT];
+	LitLocal locals[UINT8_COUNT];
+
 	int local_count;
 	int depth;
 } LitCompiler;
@@ -44,9 +60,9 @@ typedef struct {
 	LitPrecedence precedence;
 } LitParseRule;
 
-void lit_init_compiler(LitCompiler* compiler);
+void lit_init_compiler(LitVm* vm, LitCompiler* compiler, LitCompiler* enclosing, LitFunctionType type);
 void lit_free_compiler(LitCompiler* compiler);
 
-bool lit_compile(LitCompiler* compiler, LitChunk* chunk, const char* code);
+LitFunction *lit_compile(LitVm* vm, const char* code);
 
 #endif

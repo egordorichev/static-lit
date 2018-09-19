@@ -10,10 +10,8 @@
 void* reallocate(LitVm* vm, void* previous, size_t old_size, size_t new_size) {
 	vm->bytes_allocated += new_size - old_size;
 
-	if (new_size > old_size) {
-		if (vm->bytes_allocated > vm->next_gc) {
-			lit_collect_garbage(vm);
-		}
+	if (new_size > old_size && vm->bytes_allocated > vm->next_gc) {
+		lit_collect_garbage(vm);
 	}
 
 	if (new_size == 0) {
@@ -65,7 +63,24 @@ static void blacken_object(LitVm* vm, LitObject* object) {
 #endif
 
 	switch (object->type) {
-		case OBJECT_STRING: break;
+		case OBJECT_FUNCTION: {
+			LitFunction* function = (LitFunction*) object;
+			lit_gray_object(vm, (LitObject*) function->name);
+			gray_array(vm, &function->chunk.constants);
+			break;
+		}
+		case OBJECT_CLOSURE: {
+			LitClosure* closure = (LitClosure*) object;
+			lit_gray_object(vm, (LitObject*) closure->function);
+
+			for (int i = 0; i < closure->upvalue_count; i++) {
+				lit_gray_object(vm, (LitObject*) closure->upvalues[i]);
+			}
+
+			break;
+		}
+		case OBJECT_UPVALUE: lit_gray_value(vm, ((LitUpvalue*) object)->closed); break;
+		case OBJECT_NATIVE: case OBJECT_STRING: break;
 	}
 }
 
@@ -81,6 +96,20 @@ static void free_object(LitVm* vm, LitObject* object) {
 			FREE(vm, LitObject, object);
 			break;
 		}
+		case OBJECT_CLOSURE: {
+			LitClosure* closure = (LitClosure*) object;
+			FREE_ARRAY(vm, LitValue, closure->upvalues, closure->upvalue_count);
+			FREE(vm, LitClosure, object);
+			break;
+		}
+		case OBJECT_FUNCTION: {
+			LitFunction* function = (LitFunction*) object;
+			lit_free_chunk(vm, &function->chunk);
+			FREE(vm, LitFunction, object);
+			break;
+		}
+		case OBJECT_NATIVE: FREE(vm, LitNative, object); break;
+		case OBJECT_UPVALUE: FREE(vm, LitUpvalue, object); break;
 		default: UNREACHABLE();
 	}
 }

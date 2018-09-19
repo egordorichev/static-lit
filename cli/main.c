@@ -103,7 +103,7 @@ int main(/*int argc, char** argv*/) {
 
 	LitVm vm;
 	lit_init_vm(&vm);
-	LitInterpretResult result = lit_execute(&vm, "var i = 10 i = i + 20 print i");
+	LitInterpretResult result = lit_execute(&vm, "{ var i = 10 i = i + 20 { print i } }");
 	lit_free_vm(&vm);
 	return result == INTERPRET_OK ? 0 : -2;
 }

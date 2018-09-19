@@ -28,6 +28,41 @@ LitUpvalue* lit_new_upvalue(LitVm* vm, LitValue* slot) {
 	return upvalue;
 }
 
+LitUpvalue* lit_new_closure(LitVm* vm, LitFunction* function) {
+	LitUpvalue** upvalues = ALLOCATE(vm, LitUpvalue*, function->upvalue_count);
+
+	for (int i = 0; i < function->upvalue_count; i++) {
+		upvalues[i] = NULL;
+	}
+
+	LitClosure* closure = ALLOCATE_OBJECT(vm, LitClosure, OBJECT_CLOSURE);
+
+	closure->function = function;
+	closure->upvalues = upvalues;
+	closure->upvalue_count = function->upvalue_count;
+
+	return closure;
+}
+
+LitFunction* lit_new_function(LitVm* vm) {
+	LitFunction* function = ALLOCATE_OBJECT(vm, LitFunction, OBJECT_FUNCTION);
+
+	function->arity = 0;
+	function->upvalue_count = 0;
+	function->name = NULL;
+
+	lit_init_chunk(&function->chunk);
+
+	return function;
+}
+
+LitNative* lit_new_native(LitVm* vm, LitNativeFn function) {
+	LitNative* native = ALLOCATE_OBJECT(vm, LitNative, OBJECT_NATIVE);
+	native->function = function;
+
+	return native;
+}
+
 static LitString* allocate_string(LitVm* vm, char* chars, int length, uint32_t hash) {
 	LitString* string = ALLOCATE_OBJECT(vm, LitString, OBJECT_STRING);
 
