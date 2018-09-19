@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <lit_object.h>
 
 #include "lit_value.h"
 #include "lit_memory.h"
@@ -16,7 +17,10 @@ char *lit_to_string(LitValue value) {
 	} else if (IS_NIL(value)) {
 		return "nil";
 	} else if (IS_OBJECT(value)) {
-		// TODO
+		switch (AS_OBJECT(value)->type) {
+			case OBJECT_STRING: return AS_CSTRING(value);
+			default: UNREACHABLE();
+		}
 	}
 
 	UNREACHABLE()

@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <lit_object.h>
 
 #include "lit_compiler.h"
 #include "lit_vm.h"
@@ -180,6 +181,10 @@ static void parse_literal(LitCompiler* compiler) {
 	}
 }
 
+static void parse_string(LitCompiler* compiler) {
+	emit_constant(compiler, MAKE_OBJECT_VALUE(lit_copy_string(compiler->vm, compiler->lexer.previous.start + 1, compiler->lexer.previous.length - 2)));
+}
+
 static void parse_precedence(LitCompiler* compiler, LitPrecedence precedence) {
 	advance(compiler);
 	LitParseFn prefix = get_parse_rule(compiler->lexer.previous.type)->prefix;
@@ -262,4 +267,5 @@ static void init_parse_rules() {
 	parse_rules[TOKEN_GREATER_EQUAL] = (LitParseRule) { NULL, parse_binary, PREC_COMPARISON };
 	parse_rules[TOKEN_LESS_EQUAL] = (LitParseRule) { NULL, parse_binary, PREC_COMPARISON };
 	parse_rules[TOKEN_BANG_EQUAL] = (LitParseRule) { NULL, parse_binary, PREC_EQUALITY };
+	parse_rules[TOKEN_STRING] = (LitParseRule) { parse_string, NULL, PREC_NONE };
 }

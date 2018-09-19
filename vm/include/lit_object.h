@@ -29,7 +29,7 @@ struct sLitString {
 };
 
 LitString* lit_make_string(LitVm* vm, char* chars, int length);
-LitString* lit_copy_String(LitVm* vm, const char* chars, int length);
+LitString* lit_copy_string(LitVm* vm, const char* chars, int length);
 
 static inline bool lit_is_object_type(LitValue value, LitObjectType type) {
 	return IS_OBJECT(value) && AS_OBJECT(value)->type == type;

@@ -16,8 +16,14 @@ void lit_init_vm(LitVm* vm) {
 	lit_init_table(&vm->strings);
 
 	vm->compiler = NULL;
+
 	vm->bytes_allocated = 0;
 	vm->next_gc = 1024 * 1024;
+	vm->objects = NULL;
+
+	vm->gray_capacity = 0;
+	vm->gray_count = 0;
+	vm->gray_stack = NULL;
 }
 
 void lit_free_vm(LitVm* vm) {

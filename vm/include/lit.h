@@ -18,6 +18,10 @@ typedef struct _LitVm {
 
 	size_t bytes_allocated;
 	size_t next_gc;
+
+	int gray_count;
+	int gray_capacity;
+	LitObject** gray_stack;
 };
 
 void lit_init_vm(LitVm* vm);
