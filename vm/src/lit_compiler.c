@@ -14,6 +14,7 @@ void lit_init_compiler(LitVm* vm, LitCompiler* compiler, LitCompiler* enclosing,
 	compiler->type = type;
 	compiler->enclosing = enclosing;
 	compiler->function = lit_new_function(vm);
+	compiler->local_count = 0;
 
 	switch (type) {
 		default: compiler->function->name = NULL;
