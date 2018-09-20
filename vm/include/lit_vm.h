@@ -4,8 +4,6 @@
 #include "lit_common.h"
 #include "lit_value.h"
 
-#define STACK_MAX 256
-
 typedef enum {
 	INTERPRET_OK,
 	INTERPRET_COMPILE_ERROR,

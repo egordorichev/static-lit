@@ -8,6 +8,7 @@
 
 #define FRAMES_MAX 64
 #define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
+#define VM_STACK_MAX 256
 
 typedef struct {
 	LitClosure* closure;
@@ -16,7 +17,7 @@ typedef struct {
 } LitFrame;
 
 typedef struct _LitVm {
-	LitValue stack[STACK_MAX];
+	LitValue stack[VM_STACK_MAX];
 	LitValue* stack_top;
 	LitObject* objects;
 	LitTable strings;

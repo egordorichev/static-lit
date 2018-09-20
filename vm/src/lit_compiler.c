@@ -14,6 +14,7 @@ void lit_init_compiler(LitVm* vm, LitCompiler* compiler, LitCompiler* enclosing,
 	compiler->type = type;
 	compiler->enclosing = enclosing;
 	compiler->function = lit_new_function(vm);
+	compiler->local_count = 0;
 
 	switch (type) {
 		default: compiler->function->name = NULL;
@@ -259,6 +260,7 @@ static void declare_variable(LitCompiler* compiler) {
 
 	add_local(compiler, *name);
 }
+
 static uint8_t parse_variable(LitCompiler* compiler, const char* errorMessage) {
 	consume(compiler, TOKEN_IDENTIFIER, errorMessage);
 
@@ -314,9 +316,9 @@ static void named_variable(LitCompiler* compiler, LitToken name, bool can_assign
 
 	if (can_assign && match(compiler, TOKEN_EQUAL)) {
 		parse_expression(compiler);
-		emit_bytes(compiler, setOp, (uint8_t)arg);
+		emit_bytes(compiler, setOp, (uint8_t) arg);
 	} else {
-		emit_bytes(compiler, getOp, (uint8_t)arg);
+		emit_bytes(compiler, getOp, (uint8_t) arg);
 	}
 }
 
@@ -391,6 +393,7 @@ static void parse_var_declaration(LitCompiler* compiler) {
 
 	if (match(compiler, TOKEN_EQUAL)) {
 		parse_expression(compiler);
+		emit_bytes(compiler, OP_SET_LOCAL, global);
 	} else {
 		emit_byte(compiler, OP_NIL);
 	}
@@ -414,6 +417,11 @@ static void parse_precedence(LitCompiler* compiler, LitPrecedence precedence) {
 	while (precedence <= get_parse_rule(compiler->lexer.current.type)->precedence) {
 		advance(compiler);
 		get_parse_rule(compiler->lexer.previous.type)->infix(compiler, can_assign);
+	}
+
+	if (can_assign && match(compiler, TOKEN_EQUAL)) {
+		error(compiler, "Invalid assignment target");
+		parse_expression(compiler);
 	}
 }
 
@@ -445,6 +453,11 @@ static void parse_declaration(LitCompiler* compiler) {
 
 static LitFunction* end_compiler(LitCompiler *compiler) {
 	emit_byte(compiler, OP_RETURN);
+
+#ifdef DEBUG_PRINT_CODE
+	lit_trace_chunk(&compiler->function->chunk, "code");
+#endif
+
 	LitFunction* function = compiler->function;
 	// compiler = compiler->enclosing;
 
