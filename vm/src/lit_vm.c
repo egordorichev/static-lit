@@ -122,6 +122,7 @@ static bool call_value(LitVm* vm, LitValue callee, int arg_count) {
 				int count = AS_NATIVE(callee)(vm);
 				return true;
 			}
+			case OBJECT_FUNCTION: UNREACHABLE();
 		}
 	}
 
@@ -150,8 +151,24 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 #define READ_STRING(frame) AS_STRING(READ_CONSTANT(frame))
 #define READ_SHORT(frame) (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
 
-static void op_return(LitVm* vm) {
-	lit_pop(vm);
+static void close_upvalues(LitVm* vm, LitValue* last) {
+	while (vm->open_upvalues != NULL && vm->open_upvalues->value >= last) {
+		LitUpvalue* upvalue = vm->open_upvalues;
+
+		upvalue->closed = *upvalue->value;
+		upvalue->value = &upvalue->closed;
+		vm->open_upvalues = upvalue->next;
+	}
+}
+
+static void op_return(LitVm* vm, LitFrame* frame) {
+	LitValue result = lit_pop(vm);
+	close_upvalues(vm, frame->slots);
+
+	vm->frame_count--;
+
+	vm->stack_top = frame->slots;
+	lit_push(vm, result);
 }
 
 static void op_constant(LitVm* vm, LitFrame* frame) {
@@ -296,16 +313,6 @@ static void op_not_equal(LitVm* vm) {
 	vm->stack_top[-2] = MAKE_BOOL_VALUE(!lit_are_values_equal(lit_pop(vm), vm->stack_top[-2]));
 }
 
-static void close_upvalues(LitVm* vm, LitValue* last) {
-	while (vm->open_upvalues != NULL && vm->open_upvalues->value >= last) {
-		LitUpvalue* upvalue = vm->open_upvalues;
-
-		upvalue->closed = *upvalue->value;
-		upvalue->value = &upvalue->closed;
-		vm->open_upvalues = upvalue->next;
-	}
-}
-
 static void op_close_upvalue(LitVm* vm) {
 	close_upvalues(vm, vm->stack_top - 1);
 }
@@ -367,9 +374,65 @@ static void op_loop(LitVm* vm, LitFrame* frame) {
 	frame->ip -= READ_SHORT(frame);
 }
 
+static LitUpvalue* capture_upvalue(LitVm* vm, LitValue* local) {
+	if (vm->open_upvalues == NULL) {
+		vm->open_upvalues = lit_new_upvalue(vm, local);
+		return vm->open_upvalues;
+	}
+
+	LitUpvalue* prev_upvalue = NULL;
+	LitUpvalue* upvalue = vm->open_upvalues;
+
+	while (upvalue != NULL && upvalue->value > local) {
+		prev_upvalue = upvalue;
+		upvalue = upvalue->next;
+	}
+
+	if (upvalue != NULL && upvalue->value == local) {
+		return upvalue;
+	}
+
+	LitUpvalue* created_upvalue = lit_new_upvalue(vm, local);
+	created_upvalue->next = upvalue;
+
+	if (prev_upvalue == NULL) {
+		vm->open_upvalues = created_upvalue;
+	} else {
+		prev_upvalue->next = created_upvalue;
+	}
+
+	return created_upvalue;
+}
+
+static void op_closure(LitVm* vm, LitFrame* frame) {
+	LitFunction* function = AS_FUNCTION(READ_CONSTANT(frame));
+
+	LitClosure* closure = lit_new_closure(vm, function);
+	lit_push(vm, MAKE_OBJECT_VALUE(closure));
+
+	for (int i = 0; i < closure->upvalue_count; i++) {
+		uint8_t isLocal = READ_BYTE(frame);
+		uint8_t index = READ_BYTE(frame);
+
+		if (isLocal) {
+			closure->upvalues[i] = capture_upvalue(vm, frame->slots + index);
+		} else {
+			closure->upvalues[i] = frame->closure->upvalues[index];
+		}
+	}
+}
+
+static void op_call(LitVm* vm) {
+	int arg_count = 0;
+
+	if (!call_value(vm, lit_peek(vm, arg_count), arg_count)) {
+		vm->abort = true;
+	}
+}
+
 typedef void (*LitOpFn)(LitVm*, LitFrame*);
 
-static LitOpFn functions[OP_LOOP + 1];
+static LitOpFn functions[OP_CALL + 1];
 static bool inited_functions;
 
 LitInterpretResult lit_interpret(LitVm* vm) {
@@ -408,6 +471,8 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		functions[OP_JUMP] = (LitOpFn) op_jump;
 		functions[OP_JUMP_IF_FALSE] = (LitOpFn) op_jump_if_false;
 		functions[OP_LOOP] = (LitOpFn) op_loop;
+		functions[OP_CLOSURE] = (LitOpFn) op_closure;
+		functions[OP_CALL] = (LitOpFn) op_call;
 	}
 
 #ifdef DEBUG_TRACE_EXECUTION
@@ -429,145 +494,22 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		lit_disassemble_instruction(&frame->closure->function->chunk, (int) (frame->ip - frame->closure->function->chunk.code));
 #endif
 
-		if (vm->abort || *frame->ip == OP_RETURN) {
+		if (vm->abort) {
 			break;
 		}
 
 		functions[*frame->ip++](vm, frame);
+
+		if (frame->ip[-1] == OP_CALL) {
+			frame = &vm->frames[vm->frame_count - 1];
+		} else if (frame->ip[-1] == OP_RETURN) {
+			if (vm->frame_count == 0) {
+				break;
+			} else {
+				frame = &vm->frames[vm->frame_count - 1];
+			}
+		}
 	}
 
 	return vm->abort ? INTERPRET_RUNTIME_ERROR : INTERPRET_OK;
-
-	/*
-#define READ_BYTE() (*frame->ip++)
-#define READ_CONSTANT() (frame->closure->function->chunk.constants.values[READ_BYTE()])
-#define READ_STRING() AS_STRING(READ_CONSTANT())
-
-#define BINARY_OP(type, op) \
-   do { \
-    if (!IS_NUMBER(lit_peek(vm, 0)) || !IS_NUMBER(lit_peek(vm, 1))) { \
-      runtime_error(vm, "Operands must be numbers"); \
-      return INTERPRET_RUNTIME_ERROR; \
-    } \
-    \
-    double b = AS_NUMBER(lit_pop(vm)); \
-    double a = AS_NUMBER(lit_pop(vm)); \
-    lit_push(vm, type(a op b)); \
-  } while (false)
-
-	for (;;) {
-#ifdef DEBUG_TRACE_EXECUTION
-		if (vm->stack != vm->stack_top) {
-			for (LitValue* slot = vm->stack; slot < vm->stack_top; slot++) {
-				printf("[ %s ]", lit_to_string(*slot));
-			}
-
-			printf("\n");
-		}
-
-		lit_disassemble_instruction(&frame->closure->function->chunk, (int) (frame->ip - frame->closure->function->chunk.code));
-#endif
-
-		switch (READ_BYTE()) {
-			case OP_RETURN: //lit_pop(vm); return INTERPRET_OK;
-			case OP_CONSTANT: lit_push(vm, READ_CONSTANT()); break;
-			case OP_PRINT: printf("%s\n", lit_to_string(lit_pop(vm))); break;
-			case OP_NEGATE: {
-				if (!IS_NUMBER(lit_peek(vm, 0))) {
-					runtime_error(vm, "Operand must be a number");
-					return INTERPRET_RUNTIME_ERROR;
-				}
-
-				lit_push(vm, MAKE_NUMBER_VALUE(-AS_NUMBER(lit_pop(vm))));
-				break;
-			}
-			case OP_ADD: {
-				LitValue b = lit_pop(vm);
-				LitValue a = lit_pop(vm);
-
-				if (IS_NUMBER(a) && IS_NUMBER(b)) {
-					lit_push(vm, MAKE_NUMBER_VALUE(AS_NUMBER(a) + AS_NUMBER(b)));
-				} else {
-					char *as = lit_to_string(a);
-					char *bs = lit_to_string(b);
-
-					int al = strlen(as);
-					int bl = strlen(bs);
-					int length = al + bl;
-
-					char* chars = ALLOCATE(vm, char, length + 1);
-
-					memcpy(chars, as, al);
-					memcpy(chars + al, bs, bl);
-					chars[length] = '\0';
-
-					lit_push(vm, MAKE_OBJECT_VALUE(lit_make_string(vm, chars, length)));
-				}
-				break;
-			}
-			case OP_SUBTRACT: BINARY_OP(MAKE_NUMBER_VALUE, -); break;
-			case OP_MULTIPLY: BINARY_OP(MAKE_NUMBER_VALUE, *); break;
-			case OP_DIVIDE: BINARY_OP(MAKE_NUMBER_VALUE, /); break;
-			case OP_LESS: BINARY_OP(MAKE_BOOL_VALUE, <); break;
-			case OP_LESS_EQUAL: BINARY_OP(MAKE_BOOL_VALUE, <=); break;
-			case OP_GREATER: BINARY_OP(MAKE_BOOL_VALUE, >); break;
-			case OP_GREATER_EQUAL: BINARY_OP(MAKE_BOOL_VALUE, >=); break;
-			case OP_POP: lit_pop(vm); break;
-			case OP_NOT: lit_push(vm, MAKE_BOOL_VALUE(lit_is_false(lit_pop(vm)))); break;
-			case OP_NIL: lit_push(vm, NIL_VALUE); break;
-			case OP_TRUE: lit_push(vm, TRUE_VALUE); break;
-			case OP_FALSE: lit_push(vm, FALSE_VALUE); break;
-			case OP_EQUAL: lit_push(vm, MAKE_BOOL_VALUE(lit_are_values_equal(lit_pop(vm), lit_pop(vm)))); break;
-			case OP_DEFINE_GLOBAL: {
-				LitString* name = READ_STRING();
-				lit_table_set(vm, &vm->globals, name, lit_peek(vm, 0));
-				lit_pop(vm);
-				break;
-			}
-			case OP_GET_GLOBAL: {
-				LitString* name = READ_STRING();
-				LitValue value;
-
-				if (!lit_table_get(&vm->globals, name, &value)) {
-					runtime_error(vm, "Undefined variable '%s'", name->chars);
-					return INTERPRET_RUNTIME_ERROR;
-				}
-
-				lit_push(vm, value);
-				break;
-			}
-			case OP_SET_GLOBAL: {
-				LitString* name = READ_STRING();
-
-				if (lit_table_set(vm, &vm->globals, name, lit_peek(vm, 0))) {
-					runtime_error(vm, "Undefined variable '%s'", name->chars);
-					return INTERPRET_RUNTIME_ERROR;
-				}
-
-				break;
-			}
-			case OP_SET_UPVALUE: {
-
-			}
-			case OP_GET_UPVALUE: {
-
-			}
-			case OP_GET_LOCAL: {
-				uint8_t slot = READ_BYTE();
-				lit_push(vm, frame->slots[slot]);
-				break;
-			}
-			case OP_SET_LOCAL: {
-				uint8_t slot = READ_BYTE();
-				frame->slots[slot] = lit_peek(vm, 0);
-				break;
-			}
-			default: printf("Unhandled instruction %i\n!", *--frame->ip); UNREACHABLE();
-		}
-	}
-
-#undef READ_BYTE
-#undef READ_CONSTANT
-#undef READ_STRING
-#undef BINARY_OP*/
 }

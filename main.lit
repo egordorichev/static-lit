@@ -1,5 +1,8 @@
-for (i = 0 .. 10, 2) {
-    print i
+fun test() {
+    print "IT WORKS!"
 }
 
-print "Done!"
+test()
+test()
+test()
+test()

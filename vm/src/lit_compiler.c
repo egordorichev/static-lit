@@ -9,15 +9,15 @@
 
 void lit_init_compiler(LitVm* vm, LitCompiler* compiler, LitCompiler* enclosing, LitFunctionType type) {
 	compiler->vm = vm;
-	compiler->depth = 0;
-	compiler->depth = 0;
+	compiler->depth = enclosing == NULL ? 0 : enclosing->depth + 1;
 	compiler->type = type;
 	compiler->enclosing = enclosing;
 	compiler->function = lit_new_function(vm);
 	compiler->local_count = 0;
 
 	switch (type) {
-		default: compiler->function->name = NULL;
+		case TYPE_FUNCTION: compiler->function->name = lit_copy_string(vm, compiler->lexer.previous.start, compiler->lexer.previous.length); break;
+		case TYPE_TOP_LEVEL: compiler->function->name = NULL; break;
 	}
 }
 
@@ -132,6 +132,18 @@ static int emit_jump(LitCompiler* compiler, uint8_t instruction) {
 	emit_bytes(compiler, 0xff, 0xff);
 
 	return compiler->function->chunk.count - 2;
+}
+
+static LitFunction* end_compiler(LitCompiler *compiler) {
+	emit_byte(compiler, OP_RETURN);
+
+#ifdef DEBUG_PRINT_CODE
+	if (!compiler->lexer.had_error) {
+		lit_trace_chunk(&compiler->function->chunk, compiler->function->name == NULL ? "<top>" : compiler->function->name->chars);
+	}
+#endif
+
+	return compiler->function;
 }
 
 static void patch_jump(LitCompiler* compiler, int offset) {
@@ -366,16 +378,35 @@ static void parse_block(LitCompiler* compiler) {
 	consume(compiler, TOKEN_RIGHT_BRACE, "Expected '}' after block");
 }
 
-static void parse_number(LitCompiler* compiler, bool can_assign) {
+static void parse_number(LitCompiler* compiler) {
 	emit_constant(compiler, MAKE_NUMBER_VALUE(strtod(compiler->lexer.previous.start, NULL)));
 }
 
-static void parse_grouping(LitCompiler* compiler, bool can_assign) {
+static void parse_grouping(LitCompiler* compiler) {
 	parse_expression(compiler);
 	consume(compiler, TOKEN_RIGHT_PAREN, "Expected ')' after expression");
 }
 
-static void parse_unary(LitCompiler* compiler, bool can_assign) {
+static uint8_t parse_argument_list(LitCompiler* compiler) {
+	uint8_t arg_count = 0;
+
+	if (!check(compiler, TOKEN_RIGHT_PAREN)) {
+		do {
+			parse_expression(compiler);
+			arg_count++;
+		} while (match(compiler, TOKEN_COMMA));
+	}
+
+	consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after arguments.");
+	return arg_count;
+}
+
+static void parse_call(LitCompiler* compiler) {
+	uint8_t arg_count = parse_argument_list(compiler);
+	emit_byte(compiler, OP_CALL);
+}
+
+static void parse_unary(LitCompiler* compiler) {
 	LitTokenType operatorType = compiler->lexer.previous.type;
 	parse_precedence(compiler, PREC_UNARY);
 
@@ -386,7 +417,7 @@ static void parse_unary(LitCompiler* compiler, bool can_assign) {
 	}
 }
 
-static void parse_binary(LitCompiler* compiler, bool can_assign) {
+static void parse_binary(LitCompiler* compiler) {
 	LitTokenType operator_type = compiler->lexer.previous.type;
 
 	LitParseRule* rule = get_parse_rule(operator_type);
@@ -529,6 +560,42 @@ static void parse_for(LitCompiler* compiler) {
 	end_scope(compiler);
 }
 
+static void parse_function(LitCompiler* cmp, LitFunctionType type) {
+	LitCompiler compiler;
+	compiler.lexer = cmp->lexer;
+	lit_init_compiler(cmp->vm, &compiler, cmp, type);
+
+	consume(&compiler, TOKEN_LEFT_PAREN, "Expected '(' after function name");
+
+	if (!check(&compiler, TOKEN_RIGHT_PAREN)) {
+		do {
+			define_variable(&compiler, parse_variable(&compiler, "Expected parameter name"));
+
+			compiler.function->arity++;
+		} while (match(&compiler, TOKEN_COMMA));
+	}
+
+	consume(&compiler, TOKEN_RIGHT_PAREN, "Expected ')' after parameters");
+	consume(&compiler, TOKEN_LEFT_BRACE, "Expected '{' before function body");
+
+	parse_block(&compiler);
+	end_scope(&compiler);
+
+	LitFunction* function = end_compiler(&compiler);
+	cmp->lexer = compiler.lexer;
+	emit_bytes(cmp, OP_CLOSURE, make_constant(cmp, MAKE_OBJECT_VALUE(function)));
+
+	for (int i = 0; i < function->upvalue_count; i++) {
+		emit_bytes(cmp, compiler.upvalues[i].local ? 1 : 0, compiler.upvalues[i].index);
+	}
+}
+
+static void parse_function_declaration(LitCompiler* compiler) {
+	uint8_t global = parse_variable(compiler, "Expected function name");
+	parse_function(compiler, TYPE_FUNCTION);
+	define_variable(compiler, global);
+}
+
 static void parse_precedence(LitCompiler* compiler, LitPrecedence precedence) {
 	advance(compiler);
 	LitParseFn prefix = get_parse_rule(compiler->lexer.previous.type)->prefix;
@@ -588,25 +655,15 @@ static void parse_statement(LitCompiler* compiler) {
 static void parse_declaration(LitCompiler* compiler) {
 	LitTokenType token = compiler->lexer.current.type;
 
-	if (token == TOKEN_VAR) {
+	if (token == TOKEN_FUN) {
+		advance(compiler);
+		parse_function_declaration(compiler);
+	} else if (token == TOKEN_VAR) {
 		advance(compiler);
 		parse_var_declaration(compiler);
 	} else {
 		parse_statement(compiler);
 	}
-}
-
-static LitFunction* end_compiler(LitCompiler *compiler) {
-	emit_byte(compiler, OP_RETURN);
-
-#ifdef DEBUG_PRINT_CODE
-	lit_trace_chunk(&compiler->function->chunk, "code");
-#endif
-
-	LitFunction* function = compiler->function;
-	// compiler = compiler->enclosing;
-
-	return function;
 }
 
 LitFunction *lit_compile(LitVm* vm, const char* code) {
@@ -637,7 +694,7 @@ LitFunction *lit_compile(LitVm* vm, const char* code) {
 }
 
 static void init_parse_rules() {
-	parse_rules[TOKEN_LEFT_PAREN] = (LitParseRule) { parse_grouping, NULL, PREC_CALL };
+	parse_rules[TOKEN_LEFT_PAREN] = (LitParseRule) { parse_grouping, parse_call, PREC_CALL };
 	parse_rules[TOKEN_MINUS] = (LitParseRule) { parse_unary, parse_binary, PREC_TERM };
 	parse_rules[TOKEN_PLUS] = (LitParseRule) { NULL, parse_binary, PREC_TERM };
 	parse_rules[TOKEN_SLASH] = (LitParseRule) { NULL, parse_binary, PREC_FACTOR };

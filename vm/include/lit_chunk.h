@@ -37,7 +37,9 @@ typedef enum {
 	OP_SET_UPVALUE = 26,
 	OP_JUMP = 27,
 	OP_JUMP_IF_FALSE = 28,
-	OP_LOOP = 29
+	OP_LOOP = 29,
+	OP_CLOSURE = 30,
+	OP_CALL = 31
 } LitOpCode;
 
 typedef struct {
