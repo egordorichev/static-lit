@@ -148,10 +148,214 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 	return lit_interpret(vm);
 }
 
+#define READ_BYTE(frame) (*frame->ip++)
+#define READ_CONSTANT(frame) (frame->closure->function->chunk.constants.values[READ_BYTE(frame)])
+
+static void op_return() {
+
+}
+
+static void op_constant(LitVm* vm, LitFrame* frame) {
+	lit_push(vm, READ_CONSTANT(frame));
+}
+
+static void op_print(LitVm* vm) {
+	printf("%s\n", lit_to_string(lit_pop(vm)));
+}
+
+static void op_negate(LitVm* vm) {
+	if (!IS_NUMBER(vm->stack_top[-1])) {
+		runtime_error(vm, "Operand must be a number!\n");
+		return;
+	}
+
+	vm->stack_top[-1] = MAKE_NUMBER_VALUE(-AS_NUMBER(vm->stack_top[-1]));
+}
+
+static void op_add(LitVm* vm) {
+	LitValue b = lit_pop(vm);
+	LitValue a = lit_pop(vm);
+
+	if (IS_NUMBER(a) && IS_NUMBER(b)) {
+		lit_push(vm, MAKE_NUMBER_VALUE(AS_NUMBER(a) + AS_NUMBER(b)));
+	} else {
+		char *as = lit_to_string(a);
+		char *bs = lit_to_string(b);
+
+		size_t al = strlen(as);
+		size_t bl = strlen(bs);
+		size_t length = al + bl;
+
+		char* chars = ALLOCATE(vm, char, length + 1);
+
+		memcpy(chars, as, al);
+		memcpy(chars + al, bs, bl);
+		chars[length] = '\0';
+
+		lit_push(vm, MAKE_OBJECT_VALUE(lit_make_string(vm, chars, length)));
+	}
+}
+
+static void op_subtract(LitVm* vm) {
+	LitValue b = lit_pop(vm);
+	LitValue a = lit_pop(vm);
+
+	if (IS_NUMBER(a) && IS_NUMBER(b)) {
+		lit_push(vm, MAKE_NUMBER_VALUE(AS_NUMBER(a) - AS_NUMBER(b)));
+	} else {
+		runtime_error(vm, "Operands must be two numbers");
+	}
+}
+
+
+static void op_multiply(LitVm* vm) {
+	LitValue b = lit_pop(vm);
+	LitValue a = lit_pop(vm);
+
+	if (IS_NUMBER(a) && IS_NUMBER(b)) {
+		lit_push(vm, MAKE_NUMBER_VALUE(AS_NUMBER(a) * AS_NUMBER(b)));
+	} else {
+		runtime_error(vm, "Operands must be two numbers");
+	}
+}
+
+static void op_divide(LitVm* vm) {
+	LitValue b = lit_pop(vm);
+	LitValue a = lit_pop(vm);
+
+	if (IS_NUMBER(a) && IS_NUMBER(b)) {
+		lit_push(vm, MAKE_NUMBER_VALUE(AS_NUMBER(a) / AS_NUMBER(b)));
+	} else {
+		runtime_error(vm, "Operands must be two numbers");
+	}
+}
+
+static void op_pop(LitVm* vm) {
+	lit_pop(vm);
+}
+
+static void op_not(LitVm* vm) {
+	vm->stack_top[-1] = MAKE_BOOL_VALUE(lit_is_false(vm->stack_top[-1]));
+}
+
+static void op_nil(LitVm* vm) {
+	lit_push(vm, NIL_VALUE);
+}
+
+static void op_true(LitVm* vm) {
+	lit_push(vm, TRUE_VALUE);
+}
+
+static void op_false(LitVm* vm) {
+	lit_push(vm, FALSE_VALUE);
+}
+
+static void op_equal(LitVm* vm) {
+	vm->stack_top[-2] = MAKE_BOOL_VALUE(lit_are_values_equal(lit_pop(vm), vm->stack_top[-2]));
+}
+
+static void op_greater(LitVm* vm) {
+	LitValue a = lit_pop(vm);
+
+	if (IS_NUMBER(a) && IS_NUMBER(vm->stack_top[-1])) {
+		vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) <= AS_NUMBER(vm->stack_top[-1]));
+	} else {
+		runtime_error(vm, "Operands must be two numbers");
+	}
+}
+
+static void op_less(LitVm* vm) {
+	LitValue a = lit_pop(vm);
+
+	if (IS_NUMBER(a) && IS_NUMBER(vm->stack_top[-1])) {
+		vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) >= AS_NUMBER(vm->stack_top[-1]));
+	} else {
+		runtime_error(vm, "Operands must be two numbers");
+	}
+}
+
+static void op_greater_equal(LitVm* vm) {
+	LitValue a = lit_pop(vm);
+
+	if (IS_NUMBER(a) && IS_NUMBER(vm->stack_top[-1])) {
+		vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) < AS_NUMBER(vm->stack_top[-1]));
+	} else {
+		runtime_error(vm, "Operands must be two numbers");
+	}
+}
+
+static void op_less_equal(LitVm* vm) {
+	LitValue a = lit_pop(vm);
+
+	if (IS_NUMBER(a) && IS_NUMBER(vm->stack_top[-1])) {
+		vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) > AS_NUMBER(vm->stack_top[-1]));
+	} else {
+		runtime_error(vm, "Operands must be two numbers");
+	}
+}
+
+static void op_not_equal(LitVm* vm) {
+	vm->stack_top[-2] = MAKE_BOOL_VALUE(!lit_are_values_equal(lit_pop(vm), vm->stack_top[-2]));
+}
+
+typedef void (*LitOpFn)(LitVm*, LitFrame*);
+
+static LitOpFn functions[OP_SET_UPVALUE + 1];
+static bool inited_functions;
+
 LitInterpretResult lit_interpret(LitVm* vm) {
-	// TODO: store ip in a local var
+	if (!inited_functions) {
+		inited_functions = true;
+
+		functions[OP_RETURN] = (LitOpFn) op_return;
+		functions[OP_CONSTANT] = (LitOpFn) op_constant;
+		functions[OP_PRINT] = (LitOpFn) op_print;
+		functions[OP_NEGATE] = (LitOpFn) op_negate;
+		functions[OP_ADD] = (LitOpFn) op_add;
+		functions[OP_SUBTRACT] = (LitOpFn) op_subtract;
+		functions[OP_MULTIPLY] = (LitOpFn) op_multiply;
+		functions[OP_DIVIDE] = (LitOpFn) op_divide;
+		functions[OP_POP] = (LitOpFn) op_pop;
+		functions[OP_NOT] = (LitOpFn) op_not;
+		functions[OP_NIL] = (LitOpFn) op_nil;
+		functions[OP_TRUE] = (LitOpFn) op_true;
+		functions[OP_FALSE] = (LitOpFn) op_false;
+		functions[OP_EQUAL] = (LitOpFn) op_equal;
+		functions[OP_GREATER] = (LitOpFn) op_greater;
+		functions[OP_LESS] = (LitOpFn) op_less;
+		functions[OP_GREATER_EQUAL] = (LitOpFn) op_greater_equal;
+		functions[OP_LESS_EQUAL] = (LitOpFn) op_less_equal;
+		functions[OP_NOT_EQUAL] = (LitOpFn) op_not_equal;
+	}
+
+
+#ifdef DEBUG_TRACE_EXECUTION
+	printf("== start vm ==\n");
+#endif
+
 	LitFrame* frame = &vm->frames[vm->frame_count - 1];
 
+	while (true) {
+#ifdef DEBUG_TRACE_EXECUTION
+		if (vm->stack != vm->stack_top) {
+			for (LitValue* slot = vm->stack; slot < vm->stack_top; slot++) {
+				printf("[ %s ]", lit_to_string(*slot));
+			}
+
+			printf("\n");
+		}
+
+		lit_disassemble_instruction(&frame->closure->function->chunk, (int) (frame->ip - frame->closure->function->chunk.code));
+#endif
+
+		if (*frame->ip == OP_RETURN) {
+			break;
+		}
+
+		functions[*frame->ip++](vm, frame);
+	}
+
+	/*
 #define READ_BYTE() (*frame->ip++)
 #define READ_CONSTANT() (frame->closure->function->chunk.constants.values[READ_BYTE()])
 #define READ_STRING() AS_STRING(READ_CONSTANT())
@@ -182,7 +386,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 #endif
 
 		switch (READ_BYTE()) {
-			case OP_RETURN: /*lit_pop(vm);*/ return INTERPRET_OK;
+			case OP_RETURN: //lit_pop(vm); return INTERPRET_OK;
 			case OP_CONSTANT: lit_push(vm, READ_CONSTANT()); break;
 			case OP_PRINT: printf("%s\n", lit_to_string(lit_pop(vm))); break;
 			case OP_NEGATE: {
@@ -282,5 +486,5 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 #undef READ_BYTE
 #undef READ_CONSTANT
 #undef READ_STRING
-#undef BINARY_OP
+#undef BINARY_OP*/
 }
