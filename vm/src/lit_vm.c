@@ -91,6 +91,7 @@ static void runtime_error(LitVm* vm, const char* format, ...) {
 	}
 
 	reset_stack(vm);
+	vm->abort = true;
 }
 
 static bool call(LitVm* vm, LitClosure* closure, int arg_count) {
@@ -118,11 +119,7 @@ static bool call_value(LitVm* vm, LitValue callee, int arg_count) {
 		switch (OBJECT_TYPE(callee)) {
 			case OBJECT_CLOSURE: return call(vm, AS_CLOSURE(callee), arg_count);
 			case OBJECT_NATIVE: {
-				/*LitNativeFn native = AS_NATIVE(callee);
-				Value result = native(argCount, vm.stackTop - argCount);
-				vm.stackTop -= argCount + 1;
-				push(result);*/
-
+				int count = AS_NATIVE(callee)(vm);
 				return true;
 			}
 		}
@@ -150,6 +147,7 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 
 #define READ_BYTE(frame) (*frame->ip++)
 #define READ_CONSTANT(frame) (frame->closure->function->chunk.constants.values[READ_BYTE(frame)])
+#define READ_STRING(frame) AS_STRING(READ_CONSTANT(frame))
 
 static void op_return() {
 
@@ -206,7 +204,6 @@ static void op_subtract(LitVm* vm) {
 		runtime_error(vm, "Operands must be two numbers");
 	}
 }
-
 
 static void op_multiply(LitVm* vm) {
 	LitValue b = lit_pop(vm);
@@ -298,12 +295,69 @@ static void op_not_equal(LitVm* vm) {
 	vm->stack_top[-2] = MAKE_BOOL_VALUE(!lit_are_values_equal(lit_pop(vm), vm->stack_top[-2]));
 }
 
+static void close_upvalues(LitVm* vm, LitValue* last) {
+	while (vm->open_upvalues != NULL && vm->open_upvalues->value >= last) {
+		LitUpvalue* upvalue = vm->open_upvalues;
+
+		upvalue->closed = *upvalue->value;
+		upvalue->value = &upvalue->closed;
+		vm->open_upvalues = upvalue->next;
+	}
+}
+
+static void op_close_upvalue(LitVm* vm) {
+	close_upvalues(vm, vm->stack_top - 1);
+}
+
+static void op_define_global(LitVm* vm, LitFrame* frame) {
+	LitString* name = READ_STRING(frame);
+	lit_table_set(vm, &vm->globals, name, vm->stack_top[-1]);
+	lit_pop(vm);
+}
+
+static void op_get_global(LitVm* vm, LitFrame* frame) {
+	LitString* name = READ_STRING(frame);
+	LitValue value;
+
+	if (!lit_table_get(&vm->globals, name, &value)) {
+		runtime_error(vm, "Undefined variable '%s'", name->chars);
+	}
+
+	lit_push(vm, value);
+}
+
+static void op_set_global(LitVm* vm, LitFrame* frame) {
+	LitString* name = READ_STRING(frame);
+
+	if (lit_table_set(vm, &vm->globals, name, lit_peek(vm, 0))) {
+		runtime_error(vm, "Undefined variable '%s'", name->chars);
+	}
+}
+
+static void op_get_local(LitVm* vm, LitFrame* frame) {
+	lit_push(vm, frame->slots[READ_BYTE(frame)]);
+}
+
+static void op_set_local(LitVm* vm, LitFrame* frame) {
+	frame->slots[READ_BYTE(frame)] = vm->stack_top[-1];
+}
+
+static void op_get_upvalue(LitVm* vm, LitFrame* frame) {
+	lit_push(vm, *frame->closure->upvalues[READ_BYTE(frame)]->value);
+}
+
+static void op_set_upvalue(LitVm* vm, LitFrame* frame) {
+	*frame->closure->upvalues[READ_BYTE(frame)]->value = vm->stack_top[-1];
+}
+
 typedef void (*LitOpFn)(LitVm*, LitFrame*);
 
 static LitOpFn functions[OP_SET_UPVALUE + 1];
 static bool inited_functions;
 
 LitInterpretResult lit_interpret(LitVm* vm) {
+	vm->abort = false;
+
 	if (!inited_functions) {
 		inited_functions = true;
 
@@ -326,8 +380,15 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		functions[OP_GREATER_EQUAL] = (LitOpFn) op_greater_equal;
 		functions[OP_LESS_EQUAL] = (LitOpFn) op_less_equal;
 		functions[OP_NOT_EQUAL] = (LitOpFn) op_not_equal;
+		functions[OP_CLOSE_UPVALUE] = (LitOpFn) op_close_upvalue;
+		functions[OP_DEFINE_GLOBAL] = (LitOpFn) op_define_global;
+		functions[OP_GET_GLOBAL] = (LitOpFn) op_get_global;
+		functions[OP_SET_GLOBAL] = (LitOpFn) op_set_global;
+		functions[OP_GET_LOCAL] = (LitOpFn) op_get_local;
+		functions[OP_SET_LOCAL] = (LitOpFn) op_set_local;
+		functions[OP_GET_UPVALUE] = (LitOpFn) op_get_upvalue;
+		functions[OP_SET_UPVALUE] = (LitOpFn) op_set_upvalue;
 	}
-
 
 #ifdef DEBUG_TRACE_EXECUTION
 	printf("== start vm ==\n");
@@ -348,12 +409,14 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		lit_disassemble_instruction(&frame->closure->function->chunk, (int) (frame->ip - frame->closure->function->chunk.code));
 #endif
 
-		if (*frame->ip == OP_RETURN) {
+		if (vm->abort || *frame->ip == OP_RETURN) {
 			break;
 		}
 
 		functions[*frame->ip++](vm, frame);
 	}
+
+	return vm->abort ? INTERPRET_RUNTIME_ERROR : INTERPRET_OK;
 
 	/*
 #define READ_BYTE() (*frame->ip++)

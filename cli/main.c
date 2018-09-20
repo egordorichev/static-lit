@@ -104,7 +104,7 @@ int main(/*int argc, char** argv*/) {
 	LitVm vm;
 	lit_init_vm(&vm);
 	// FIXME: set local not called
-	LitInterpretResult result = lit_execute(&vm, "print 10 == 10");
+	LitInterpretResult result = lit_execute(&vm, "var i = 10 print i == 10");
 	lit_free_vm(&vm);
 	return result == INTERPRET_OK ? 0 : -2;
 }

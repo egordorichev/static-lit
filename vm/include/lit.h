@@ -25,6 +25,7 @@ typedef struct _LitVm {
 
 	LitFrame frames[FRAMES_MAX];
 	int frame_count;
+	bool abort;
 
 	LitUpvalue* open_upvalues;
 
