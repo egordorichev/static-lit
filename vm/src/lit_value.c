@@ -22,6 +22,7 @@ char *lit_to_string(LitValue value) {
 			case OBJECT_NATIVE: return "<native fn>";
 			case OBJECT_FUNCTION: return "<fn>";
 			case OBJECT_UPVALUE: return "upvalue";
+			case OBJECT_CLOSURE: return "closure";
 			default: UNREACHABLE();
 		}
 	}

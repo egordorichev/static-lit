@@ -148,9 +148,10 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 #define READ_BYTE(frame) (*frame->ip++)
 #define READ_CONSTANT(frame) (frame->closure->function->chunk.constants.values[READ_BYTE(frame)])
 #define READ_STRING(frame) AS_STRING(READ_CONSTANT(frame))
+#define READ_SHORT(frame) (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
 
-static void op_return() {
-
+static void op_return(LitVm* vm) {
+	lit_pop(vm);
 }
 
 static void op_constant(LitVm* vm, LitFrame* frame) {
@@ -248,7 +249,7 @@ static void op_false(LitVm* vm) {
 }
 
 static void op_equal(LitVm* vm) {
-	vm->stack_top[-2] = MAKE_BOOL_VALUE(lit_are_values_equal(lit_pop(vm), vm->stack_top[-2]));
+	vm->stack_top[-1] = MAKE_BOOL_VALUE(lit_are_values_equal(lit_pop(vm), vm->stack_top[-2]));
 }
 
 static void op_greater(LitVm* vm) {
@@ -329,7 +330,7 @@ static void op_get_global(LitVm* vm, LitFrame* frame) {
 static void op_set_global(LitVm* vm, LitFrame* frame) {
 	LitString* name = READ_STRING(frame);
 
-	if (lit_table_set(vm, &vm->globals, name, lit_peek(vm, 0))) {
+	if (lit_table_set(vm, &vm->globals, name, lit_pop(vm))) {
 		runtime_error(vm, "Undefined variable '%s'", name->chars);
 	}
 }
@@ -350,9 +351,25 @@ static void op_set_upvalue(LitVm* vm, LitFrame* frame) {
 	*frame->closure->upvalues[READ_BYTE(frame)]->value = vm->stack_top[-1];
 }
 
+static void op_jump(LitVm* vm, LitFrame* frame) {
+	frame->ip += READ_SHORT(frame);
+}
+
+static void op_jump_if_false(LitVm* vm, LitFrame* frame) {
+	uint16_t offset = READ_SHORT(frame);
+
+	if (lit_is_false(lit_peek(vm, 0))) {
+		frame->ip += offset;
+	}
+}
+
+static void op_loop(LitVm* vm, LitFrame* frame) {
+	frame->ip -= READ_SHORT(frame);
+}
+
 typedef void (*LitOpFn)(LitVm*, LitFrame*);
 
-static LitOpFn functions[OP_SET_UPVALUE + 1];
+static LitOpFn functions[OP_LOOP + 1];
 static bool inited_functions;
 
 LitInterpretResult lit_interpret(LitVm* vm) {
@@ -388,6 +405,9 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		functions[OP_SET_LOCAL] = (LitOpFn) op_set_local;
 		functions[OP_GET_UPVALUE] = (LitOpFn) op_get_upvalue;
 		functions[OP_SET_UPVALUE] = (LitOpFn) op_set_upvalue;
+		functions[OP_JUMP] = (LitOpFn) op_jump;
+		functions[OP_JUMP_IF_FALSE] = (LitOpFn) op_jump_if_false;
+		functions[OP_LOOP] = (LitOpFn) op_loop;
 	}
 
 #ifdef DEBUG_TRACE_EXECUTION

@@ -198,7 +198,7 @@ LitToken lit_lexer_next_token(LitLexer* lexer) {
 		case '}': return make_token(lexer, TOKEN_RIGHT_BRACE);
 		case ';': return make_token(lexer, TOKEN_SEMICOLON);
 		case ',': return make_token(lexer, TOKEN_COMMA);
-		case '.': return make_token(lexer, TOKEN_DOT);
+		case '.': return make_token(lexer, match(lexer, '.') ? TOKEN_RANGE : TOKEN_DOT);
 		case '-': return make_token(lexer, TOKEN_MINUS);
 		case '+': return make_token(lexer, TOKEN_PLUS);
 		case '/': return make_token(lexer, TOKEN_SLASH);

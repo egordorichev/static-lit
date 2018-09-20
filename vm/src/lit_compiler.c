@@ -127,6 +127,37 @@ static inline void emit_constant(LitCompiler* compiler, LitValue value) {
 	emit_bytes(compiler, OP_CONSTANT, make_constant(compiler, value));
 }
 
+static int emit_jump(LitCompiler* compiler, uint8_t instruction) {
+	emit_byte(compiler, instruction);
+	emit_bytes(compiler, 0xff, 0xff);
+
+	return compiler->function->chunk.count - 2;
+}
+
+static void patch_jump(LitCompiler* compiler, int offset) {
+	LitChunk chunk = compiler->function->chunk;
+	int jump = chunk.count - offset - 2;
+
+	if (jump > UINT16_MAX) {
+		error(compiler, "Too much code to jump over");
+	}
+
+	chunk.code[offset] = (jump >> 8) & 0xff;
+	chunk.code[offset + 1] = jump & 0xff;
+}
+
+static void emit_loop(LitCompiler* compiler, int loopStart) {
+	emit_byte(compiler, OP_LOOP);
+
+	int offset = compiler->function->chunk.count - loopStart + 2;
+
+	if (offset > UINT16_MAX) {
+		error(compiler, "Loop body is too large");
+	}
+
+	emit_bytes(compiler, (offset >> 8) & 0xff, offset & 0xff);
+}
+
 /*
  * Actuall compilation
  */
@@ -288,6 +319,7 @@ static void define_variable(LitCompiler* compiler, uint8_t global) {
 static void parse_expression(LitCompiler* compiler);
 static void parse_precedence(LitCompiler* compiler, LitPrecedence precedence);
 static void parse_declaration(LitCompiler* compiler);
+static void parse_statement(LitCompiler* compiler);
 
 static void init_parse_rules();
 static LitParseRule parse_rules[TOKEN_EOF + 1];
@@ -388,19 +420,114 @@ static void parse_string(LitCompiler* compiler, bool can_assign) {
 	emit_constant(compiler, MAKE_OBJECT_VALUE(lit_copy_string(compiler->vm, compiler->lexer.previous.start + 1, compiler->lexer.previous.length - 2)));
 }
 
-static void parse_var_declaration(LitCompiler* compiler) {
+static uint8_t parse_var_declaration(LitCompiler* compiler) {
 	uint8_t global = parse_variable(compiler, "Expected variable name");
 
 	if (match(compiler, TOKEN_EQUAL)) {
 		parse_expression(compiler);
-		emit_bytes(compiler, OP_SET_LOCAL, global);
+
+		if (compiler->depth > 0) {
+			emit_bytes(compiler, OP_SET_LOCAL, global);
+		}
 	} else {
 		emit_byte(compiler, OP_NIL);
 	}
 
 	define_variable(compiler, global);
+	return global;
 }
 
+static void parse_if(LitCompiler* compiler) {
+	consume(compiler, TOKEN_LEFT_PAREN, "Expected '(' after 'if'");
+	parse_expression(compiler);
+	consume(compiler, TOKEN_RIGHT_PAREN, "Expected ')' after condition");
+
+	int else_jump = emit_jump(compiler, OP_JUMP_IF_FALSE);
+
+	emit_byte(compiler, OP_POP);
+	parse_statement(compiler);
+
+	int end_jump = emit_jump(compiler, OP_JUMP);
+
+	patch_jump(compiler, else_jump);
+	emit_byte(compiler, OP_POP);
+
+	if (match(compiler, TOKEN_ELSE)) {
+		parse_statement(compiler);
+	}
+
+	patch_jump(compiler, end_jump);
+}
+
+static void parse_while(LitCompiler* compiler) {
+	int loop_start = compiler->function->chunk.count;
+
+	consume(compiler, TOKEN_LEFT_PAREN, "Expected '(' after 'while'");
+	parse_expression(compiler);
+	consume(compiler, TOKEN_RIGHT_PAREN, "Expected ')' after condition");
+
+	int exit_jump = emit_jump(compiler, OP_JUMP_IF_FALSE);
+
+	emit_byte(compiler, OP_POP);
+	parse_statement(compiler);
+
+	emit_loop(compiler, loop_start);
+	patch_jump(compiler, exit_jump);
+	emit_byte(compiler, OP_POP);
+}
+
+static void parse_for(LitCompiler* compiler) {
+	begin_scope(compiler);
+
+	consume(compiler, TOKEN_LEFT_PAREN, "Expected '(' after 'for'.");
+	uint8_t var = parse_var_declaration(compiler);
+
+	int loop_start = compiler->function->chunk.count;
+	int exit_jump = -1;
+
+	if (match(compiler, TOKEN_RANGE)) {
+		emit_bytes(compiler, OP_GET_LOCAL, var);
+		parse_expression(compiler);
+		emit_byte(compiler, OP_LESS);
+
+		exit_jump = emit_jump(compiler, OP_JUMP_IF_FALSE);
+		emit_byte(compiler, OP_POP);
+	}
+
+	bool has = match(compiler, TOKEN_COMMA);
+
+	int body_jump = emit_jump(compiler, OP_JUMP);
+	int increment_start = compiler->function->chunk.count;
+
+	emit_bytes(compiler, OP_GET_LOCAL, var);
+
+	if (has) {
+		parse_expression(compiler);
+	} else {
+		emit_constant(compiler, MAKE_NUMBER_VALUE(1));
+	}
+
+	emit_byte(compiler, OP_ADD);
+	emit_bytes(compiler, OP_SET_LOCAL, var);
+	emit_byte(compiler, OP_POP);
+	consume(compiler, TOKEN_RIGHT_PAREN, "Expected ')' after for loop");
+
+	emit_loop(compiler, loop_start);
+	loop_start = increment_start;
+
+	patch_jump(compiler, body_jump);
+
+	parse_statement(compiler);
+
+	emit_loop(compiler, loop_start);
+
+	if (exit_jump != -1) {
+		patch_jump(compiler, exit_jump);
+		emit_byte(compiler, OP_POP);
+	}
+
+	end_scope(compiler);
+}
 
 static void parse_precedence(LitCompiler* compiler, LitPrecedence precedence) {
 	advance(compiler);
@@ -430,10 +557,25 @@ static void parse_expression(LitCompiler* compiler) {
 }
 
 static void parse_statement(LitCompiler* compiler) {
-	if (match(compiler, TOKEN_PRINT)) {
+	LitTokenType token = compiler->lexer.current.type;
+
+	if (token == TOKEN_IF) {
+		advance(compiler);
+		parse_if(compiler);
+	} else if (token == TOKEN_WHILE) {
+		advance(compiler);
+		parse_while(compiler);
+	} else if (token == TOKEN_FOR) {
+		advance(compiler);
+		parse_for(compiler);
+	} else if (token == TOKEN_PRINT) {
+		advance(compiler);
+
 		parse_expression(compiler);
 		emit_byte(compiler, OP_PRINT);
-	}	else if (match(compiler, TOKEN_LEFT_BRACE)) {
+	}	else if (token == TOKEN_LEFT_BRACE) {
+		advance(compiler);
+
 		begin_scope(compiler);
 		parse_block(compiler);
 		end_scope(compiler);
@@ -444,7 +586,10 @@ static void parse_statement(LitCompiler* compiler) {
 }
 
 static void parse_declaration(LitCompiler* compiler) {
-	if (match(compiler, TOKEN_VAR)) {
+	LitTokenType token = compiler->lexer.current.type;
+
+	if (token == TOKEN_VAR) {
+		advance(compiler);
 		parse_var_declaration(compiler);
 	} else {
 		parse_statement(compiler);
