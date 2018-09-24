@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <zconf.h>
 #include <string.h>
+#include <time.h>
 
 #include "lit_vm.h"
 #include "lit_compiler.h"
@@ -113,12 +114,17 @@ static bool call(LitVm* vm, LitClosure* closure, int arg_count) {
 	return true;
 }
 
+static bool last_native;
+
 static bool call_value(LitVm* vm, LitValue callee, int arg_count) {
+	last_native = false;
+
 	if (IS_OBJECT(callee)) {
 		switch (OBJECT_TYPE(callee)) {
 			case OBJECT_CLOSURE: return call(vm, AS_CLOSURE(callee), arg_count);
 			case OBJECT_NATIVE: {
-				int count = AS_NATIVE(callee)(vm);
+				last_native = true;
+				AS_NATIVE(callee)(vm);
 				return true;
 			}
 			default: UNREACHABLE();
@@ -129,8 +135,14 @@ static bool call_value(LitVm* vm, LitValue callee, int arg_count) {
 	return false;
 }
 
+static void time_function(LitVm* vm) {
+	lit_push(vm, MAKE_NUMBER_VALUE((double) clock() / CLOCKS_PER_SEC));
+}
+
 LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 	LitFunction *function = lit_compile(vm, code);
+
+	define_native(vm, "time", time_function);
 
 	if (function == NULL) {
 		return INTERPRET_COMPILE_ERROR;
@@ -546,8 +558,11 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 				return INTERPRET_RUNTIME_ERROR;
 			}
 
-			frame = &vm->frames[vm->frame_count - 1];
-			ip = frame->ip;
+			if (!last_native) {
+				frame = &vm->frames[vm->frame_count - 1];
+				ip = frame->ip;
+			}
+
 			continue;
 		};
 	}

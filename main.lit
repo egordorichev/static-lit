@@ -1,5 +1,1 @@
-fun test(a) {
-	print a
-}
-
-test(10)
+print(time())

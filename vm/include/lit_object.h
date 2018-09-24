@@ -23,7 +23,10 @@ typedef enum {
 	OBJECT_UPVALUE,
 	OBJECT_FUNCTION,
 	OBJECT_NATIVE,
-	OBJECT_CLOSURE
+	OBJECT_CLOSURE,
+	OBJ_BOUND_METHOD,
+	OBJ_CLASS,
+	OBJ_INSTANCE
 } LitObjectType;
 
 struct sLitObject {
@@ -55,7 +58,7 @@ typedef struct {
 	LitString* name;
 } LitFunction;
 
-typedef int (*LitNativeFn)(LitVm *vm);
+typedef void (*LitNativeFn)(LitVm *vm);
 
 typedef struct {
 	LitObject object;
