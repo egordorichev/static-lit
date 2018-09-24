@@ -91,7 +91,6 @@ static void runtime_error(LitVm* vm, const char* format, ...) {
 	}
 
 	reset_stack(vm);
-	vm->abort = true;
 }
 
 static bool call(LitVm* vm, LitClosure* closure, int arg_count) {
@@ -109,7 +108,7 @@ static bool call(LitVm* vm, LitClosure* closure, int arg_count) {
 
 	frame->closure = closure;
 	frame->ip = closure->function->chunk.code;
-	frame->slots = vm->stack_top - (arg_count + 1);
+	frame->slots = vm->stack_top - (arg_count);
 
 	return true;
 }
@@ -122,7 +121,7 @@ static bool call_value(LitVm* vm, LitValue callee, int arg_count) {
 				int count = AS_NATIVE(callee)(vm);
 				return true;
 			}
-			case OBJECT_FUNCTION: UNREACHABLE();
+			default: UNREACHABLE();
 		}
 	}
 
@@ -146,11 +145,6 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 	return lit_interpret(vm);
 }
 
-#define READ_BYTE(frame) (*frame->ip++)
-#define READ_CONSTANT(frame) (frame->closure->function->chunk.constants.values[READ_BYTE(frame)])
-#define READ_STRING(frame) AS_STRING(READ_CONSTANT(frame))
-#define READ_SHORT(frame) (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
-
 static void close_upvalues(LitVm* vm, LitValue* last) {
 	while (vm->open_upvalues != NULL && vm->open_upvalues->value >= last) {
 		LitUpvalue* upvalue = vm->open_upvalues;
@@ -159,219 +153,6 @@ static void close_upvalues(LitVm* vm, LitValue* last) {
 		upvalue->value = &upvalue->closed;
 		vm->open_upvalues = upvalue->next;
 	}
-}
-
-static void op_return(LitVm* vm, LitFrame* frame) {
-	LitValue result = lit_pop(vm);
-	close_upvalues(vm, frame->slots);
-
-	vm->frame_count--;
-
-	vm->stack_top = frame->slots;
-	lit_push(vm, result);
-}
-
-static void op_constant(LitVm* vm, LitFrame* frame) {
-	lit_push(vm, READ_CONSTANT(frame));
-}
-
-static void op_print(LitVm* vm) {
-	printf("%s\n", lit_to_string(lit_pop(vm)));
-}
-
-static void op_negate(LitVm* vm) {
-	if (!IS_NUMBER(vm->stack_top[-1])) {
-		runtime_error(vm, "Operand must be a number!\n");
-		return;
-	}
-
-	vm->stack_top[-1] = MAKE_NUMBER_VALUE(-AS_NUMBER(vm->stack_top[-1]));
-}
-
-static void op_add(LitVm* vm) {
-	LitValue b = lit_pop(vm);
-	LitValue a = lit_pop(vm);
-
-	if (IS_NUMBER(a) && IS_NUMBER(b)) {
-		lit_push(vm, MAKE_NUMBER_VALUE(AS_NUMBER(a) + AS_NUMBER(b)));
-	} else {
-		char *as = lit_to_string(a);
-		char *bs = lit_to_string(b);
-
-		size_t al = strlen(as);
-		size_t bl = strlen(bs);
-		size_t length = al + bl;
-
-		char* chars = ALLOCATE(vm, char, length + 1);
-
-		memcpy(chars, as, al);
-		memcpy(chars + al, bs, bl);
-		chars[length] = '\0';
-
-		lit_push(vm, MAKE_OBJECT_VALUE(lit_make_string(vm, chars, length)));
-	}
-}
-
-static void op_subtract(LitVm* vm) {
-	LitValue b = lit_pop(vm);
-	LitValue a = lit_pop(vm);
-
-	if (IS_NUMBER(a) && IS_NUMBER(b)) {
-		lit_push(vm, MAKE_NUMBER_VALUE(AS_NUMBER(a) - AS_NUMBER(b)));
-	} else {
-		runtime_error(vm, "Operands must be two numbers");
-	}
-}
-
-static void op_multiply(LitVm* vm) {
-	LitValue b = lit_pop(vm);
-	LitValue a = lit_pop(vm);
-
-	if (IS_NUMBER(a) && IS_NUMBER(b)) {
-		lit_push(vm, MAKE_NUMBER_VALUE(AS_NUMBER(a) * AS_NUMBER(b)));
-	} else {
-		runtime_error(vm, "Operands must be two numbers");
-	}
-}
-
-static void op_divide(LitVm* vm) {
-	LitValue b = lit_pop(vm);
-	LitValue a = lit_pop(vm);
-
-	if (IS_NUMBER(a) && IS_NUMBER(b)) {
-		lit_push(vm, MAKE_NUMBER_VALUE(AS_NUMBER(a) / AS_NUMBER(b)));
-	} else {
-		runtime_error(vm, "Operands must be two numbers");
-	}
-}
-
-static void op_pop(LitVm* vm) {
-	lit_pop(vm);
-}
-
-static void op_not(LitVm* vm) {
-	vm->stack_top[-1] = MAKE_BOOL_VALUE(lit_is_false(vm->stack_top[-1]));
-}
-
-static void op_nil(LitVm* vm) {
-	lit_push(vm, NIL_VALUE);
-}
-
-static void op_true(LitVm* vm) {
-	lit_push(vm, TRUE_VALUE);
-}
-
-static void op_false(LitVm* vm) {
-	lit_push(vm, FALSE_VALUE);
-}
-
-static void op_equal(LitVm* vm) {
-	vm->stack_top[-1] = MAKE_BOOL_VALUE(lit_are_values_equal(lit_pop(vm), vm->stack_top[-2]));
-}
-
-static void op_greater(LitVm* vm) {
-	LitValue a = lit_pop(vm);
-
-	if (IS_NUMBER(a) && IS_NUMBER(vm->stack_top[-1])) {
-		vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) <= AS_NUMBER(vm->stack_top[-1]));
-	} else {
-		runtime_error(vm, "Operands must be two numbers");
-	}
-}
-
-static void op_less(LitVm* vm) {
-	LitValue a = lit_pop(vm);
-
-	if (IS_NUMBER(a) && IS_NUMBER(vm->stack_top[-1])) {
-		vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) >= AS_NUMBER(vm->stack_top[-1]));
-	} else {
-		runtime_error(vm, "Operands must be two numbers");
-	}
-}
-
-static void op_greater_equal(LitVm* vm) {
-	LitValue a = lit_pop(vm);
-
-	if (IS_NUMBER(a) && IS_NUMBER(vm->stack_top[-1])) {
-		vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) < AS_NUMBER(vm->stack_top[-1]));
-	} else {
-		runtime_error(vm, "Operands must be two numbers");
-	}
-}
-
-static void op_less_equal(LitVm* vm) {
-	LitValue a = lit_pop(vm);
-
-	if (IS_NUMBER(a) && IS_NUMBER(vm->stack_top[-1])) {
-		vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) > AS_NUMBER(vm->stack_top[-1]));
-	} else {
-		runtime_error(vm, "Operands must be two numbers");
-	}
-}
-
-static void op_not_equal(LitVm* vm) {
-	vm->stack_top[-2] = MAKE_BOOL_VALUE(!lit_are_values_equal(lit_pop(vm), vm->stack_top[-2]));
-}
-
-static void op_close_upvalue(LitVm* vm) {
-	close_upvalues(vm, vm->stack_top - 1);
-}
-
-static void op_define_global(LitVm* vm, LitFrame* frame) {
-	LitString* name = READ_STRING(frame);
-	lit_table_set(vm, &vm->globals, name, vm->stack_top[-1]);
-	lit_pop(vm);
-}
-
-static void op_get_global(LitVm* vm, LitFrame* frame) {
-	LitString* name = READ_STRING(frame);
-	LitValue value;
-
-	if (!lit_table_get(&vm->globals, name, &value)) {
-		runtime_error(vm, "Undefined variable '%s'", name->chars);
-	}
-
-	lit_push(vm, value);
-}
-
-static void op_set_global(LitVm* vm, LitFrame* frame) {
-	LitString* name = READ_STRING(frame);
-
-	if (lit_table_set(vm, &vm->globals, name, lit_pop(vm))) {
-		runtime_error(vm, "Undefined variable '%s'", name->chars);
-	}
-}
-
-static void op_get_local(LitVm* vm, LitFrame* frame) {
-	lit_push(vm, frame->slots[READ_BYTE(frame)]);
-}
-
-static void op_set_local(LitVm* vm, LitFrame* frame) {
-	frame->slots[READ_BYTE(frame)] = vm->stack_top[-1];
-}
-
-static void op_get_upvalue(LitVm* vm, LitFrame* frame) {
-	lit_push(vm, *frame->closure->upvalues[READ_BYTE(frame)]->value);
-}
-
-static void op_set_upvalue(LitVm* vm, LitFrame* frame) {
-	*frame->closure->upvalues[READ_BYTE(frame)]->value = vm->stack_top[-1];
-}
-
-static void op_jump(LitVm* vm, LitFrame* frame) {
-	frame->ip += READ_SHORT(frame);
-}
-
-static void op_jump_if_false(LitVm* vm, LitFrame* frame) {
-	uint16_t offset = READ_SHORT(frame);
-
-	if (lit_is_false(lit_peek(vm, 0))) {
-		frame->ip += offset;
-	}
-}
-
-static void op_loop(LitVm* vm, LitFrame* frame) {
-	frame->ip -= READ_SHORT(frame);
 }
 
 static LitUpvalue* capture_upvalue(LitVm* vm, LitValue* local) {
@@ -404,75 +185,45 @@ static LitUpvalue* capture_upvalue(LitVm* vm, LitValue* local) {
 	return created_upvalue;
 }
 
-static void op_closure(LitVm* vm, LitFrame* frame) {
-	LitFunction* function = AS_FUNCTION(READ_CONSTANT(frame));
-
-	LitClosure* closure = lit_new_closure(vm, function);
-	lit_push(vm, MAKE_OBJECT_VALUE(closure));
-
-	for (int i = 0; i < closure->upvalue_count; i++) {
-		uint8_t isLocal = READ_BYTE(frame);
-		uint8_t index = READ_BYTE(frame);
-
-		if (isLocal) {
-			closure->upvalues[i] = capture_upvalue(vm, frame->slots + index);
-		} else {
-			closure->upvalues[i] = frame->closure->upvalues[index];
-		}
-	}
-}
-
-static void op_call(LitVm* vm) {
-	int arg_count = 0;
-
-	if (!call_value(vm, lit_peek(vm, arg_count), arg_count)) {
-		vm->abort = true;
-	}
-}
-
-typedef void (*LitOpFn)(LitVm*, LitFrame*);
-
-static LitOpFn functions[OP_CALL + 1];
+static void *functions[OP_CALL + 1];
 static bool inited_functions;
 
 LitInterpretResult lit_interpret(LitVm* vm) {
-	vm->abort = false;
-
 	if (!inited_functions) {
 		inited_functions = true;
 
-		functions[OP_RETURN] = (LitOpFn) op_return;
-		functions[OP_CONSTANT] = (LitOpFn) op_constant;
-		functions[OP_PRINT] = (LitOpFn) op_print;
-		functions[OP_NEGATE] = (LitOpFn) op_negate;
-		functions[OP_ADD] = (LitOpFn) op_add;
-		functions[OP_SUBTRACT] = (LitOpFn) op_subtract;
-		functions[OP_MULTIPLY] = (LitOpFn) op_multiply;
-		functions[OP_DIVIDE] = (LitOpFn) op_divide;
-		functions[OP_POP] = (LitOpFn) op_pop;
-		functions[OP_NOT] = (LitOpFn) op_not;
-		functions[OP_NIL] = (LitOpFn) op_nil;
-		functions[OP_TRUE] = (LitOpFn) op_true;
-		functions[OP_FALSE] = (LitOpFn) op_false;
-		functions[OP_EQUAL] = (LitOpFn) op_equal;
-		functions[OP_GREATER] = (LitOpFn) op_greater;
-		functions[OP_LESS] = (LitOpFn) op_less;
-		functions[OP_GREATER_EQUAL] = (LitOpFn) op_greater_equal;
-		functions[OP_LESS_EQUAL] = (LitOpFn) op_less_equal;
-		functions[OP_NOT_EQUAL] = (LitOpFn) op_not_equal;
-		functions[OP_CLOSE_UPVALUE] = (LitOpFn) op_close_upvalue;
-		functions[OP_DEFINE_GLOBAL] = (LitOpFn) op_define_global;
-		functions[OP_GET_GLOBAL] = (LitOpFn) op_get_global;
-		functions[OP_SET_GLOBAL] = (LitOpFn) op_set_global;
-		functions[OP_GET_LOCAL] = (LitOpFn) op_get_local;
-		functions[OP_SET_LOCAL] = (LitOpFn) op_set_local;
-		functions[OP_GET_UPVALUE] = (LitOpFn) op_get_upvalue;
-		functions[OP_SET_UPVALUE] = (LitOpFn) op_set_upvalue;
-		functions[OP_JUMP] = (LitOpFn) op_jump;
-		functions[OP_JUMP_IF_FALSE] = (LitOpFn) op_jump_if_false;
-		functions[OP_LOOP] = (LitOpFn) op_loop;
-		functions[OP_CLOSURE] = (LitOpFn) op_closure;
-		functions[OP_CALL] = (LitOpFn) op_call;
+		functions[OP_RETURN] = &&op_return;
+		functions[OP_CONSTANT] = &&op_constant;
+		functions[OP_PRINT] = &&op_print;
+		functions[OP_NEGATE] = &&op_negate;
+		functions[OP_ADD] = &&op_add;
+		functions[OP_SUBTRACT] = &&op_subtract;
+		functions[OP_MULTIPLY] = &&op_multiply;
+		functions[OP_DIVIDE] = &&op_divide;
+		functions[OP_POP] = &&op_pop;
+		functions[OP_NOT] = &&op_not;
+		functions[OP_NIL] = &&op_nil;
+		functions[OP_TRUE] = &&op_true;
+		functions[OP_FALSE] = &&op_false;
+		functions[OP_EQUAL] = &&op_equal;
+		functions[OP_GREATER] = &&op_greater;
+		functions[OP_LESS] = &&op_less;
+		functions[OP_GREATER_EQUAL] = &&op_greater_equal;
+		functions[OP_LESS_EQUAL] = &&op_less_equal;
+		functions[OP_NOT_EQUAL] = &&op_not_equal;
+		functions[OP_CLOSE_UPVALUE] = &&op_close_upvalue;
+		functions[OP_DEFINE_GLOBAL] = &&op_define_global;
+		functions[OP_GET_GLOBAL] = &&op_get_global;
+		functions[OP_SET_GLOBAL] = &&op_set_global;
+		functions[OP_GET_LOCAL] = &&op_get_local;
+		functions[OP_SET_LOCAL] = &&op_set_local;
+		functions[OP_GET_UPVALUE] = &&op_get_upvalue;
+		functions[OP_SET_UPVALUE] = &&op_set_upvalue;
+		functions[OP_JUMP] = &&op_jump;
+		functions[OP_JUMP_IF_FALSE] = &&op_jump_if_false;
+		functions[OP_LOOP] = &&op_loop;
+		functions[OP_CLOSURE] = &&op_closure;
+		functions[OP_CALL] = &&op_call;
 	}
 
 #ifdef DEBUG_TRACE_EXECUTION
@@ -480,36 +231,334 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 #endif
 
 	LitFrame* frame = &vm->frames[vm->frame_count - 1];
+	u_int8_t* ip = frame->ip;
+	LitValue* stack = vm->stack;
+
+#define READ_BYTE() (*ip++)
+#define READ_CONSTANT() (frame->closure->function->chunk.constants.values[READ_BYTE()])
+#define READ_STRING() AS_STRING(READ_CONSTANT())
+#define READ_SHORT() (ip += 2, (uint16_t) ((ip[-2] << 8) | ip[-1]))
+#define PUSH(value) { *vm->stack_top = value; vm->stack_top++; }
+#define POP() ({ assert(vm->stack_top > stack); vm->stack_top--; *vm->stack_top; })
+#define PEEK(depth) (vm->stack_top[-1 - depth])
 
 	while (true) {
 #ifdef DEBUG_TRACE_EXECUTION
 		if (vm->stack != vm->stack_top) {
 			for (LitValue* slot = vm->stack; slot < vm->stack_top; slot++) {
-				printf("[ %s ]", lit_to_string(*slot));
+				printf("[ %s ]", lit_to_string(vm, *slot));
 			}
 
 			printf("\n");
 		}
 
-		lit_disassemble_instruction(&frame->closure->function->chunk, (int) (frame->ip - frame->closure->function->chunk.code));
+		lit_disassemble_instruction(vm, &frame->closure->function->chunk, (int) (ip - frame->closure->function->chunk.code));
 #endif
 
-		if (vm->abort) {
-			break;
-		}
+		goto *functions[*ip++];
 
-		functions[*frame->ip++](vm, frame);
+		op_constant: {
+			PUSH(READ_CONSTANT());
+			continue;
+		};
 
-		if (frame->ip[-1] == OP_CALL) {
-			frame = &vm->frames[vm->frame_count - 1];
-		} else if (frame->ip[-1] == OP_RETURN) {
+		op_return: {
+			LitValue result = POP();
+			close_upvalues(vm, frame->slots);
+
+			vm->frame_count--;
+
 			if (vm->frame_count == 0) {
-				break;
-			} else {
-				frame = &vm->frames[vm->frame_count - 1];
+				return INTERPRET_OK;
 			}
-		}
+
+			vm->stack_top = frame->slots;
+			PUSH(result);
+			frame = &vm->frames[vm->frame_count - 1];
+			ip = frame->ip;
+			break;
+		};
+
+		op_print: {
+			printf("%s\n", lit_to_string(vm, POP()));
+			continue;
+		};
+
+		op_negate: {
+			if (!IS_NUMBER(vm->stack_top[-1])) {
+				runtime_error(vm, "Operand must be a number!\n");
+				return INTERPRET_RUNTIME_ERROR;
+			}
+
+			vm->stack_top[-1] = MAKE_NUMBER_VALUE(-AS_NUMBER(vm->stack_top[-1]));
+			continue;
+		};
+
+		op_add: {
+			LitValue b = POP();
+			LitValue a = POP();
+
+			if (IS_NUMBER(a) && IS_NUMBER(b)) {
+				PUSH(MAKE_NUMBER_VALUE(AS_NUMBER(a) + AS_NUMBER(b)));
+			} else {
+				char *as = lit_to_string(vm, a);
+				char *bs = lit_to_string(vm, b);
+
+				size_t al = strlen(as);
+				size_t bl = strlen(bs);
+				size_t length = al + bl;
+
+				char* chars = ALLOCATE(vm, char, length + 1);
+
+				memcpy(chars, as, al);
+				memcpy(chars + al, bs, bl);
+				chars[length] = '\0';
+
+				PUSH(MAKE_OBJECT_VALUE(lit_make_string(vm, chars, length)));
+			}
+			continue;
+		};
+
+		op_subtract: {
+			LitValue b = POP();
+			LitValue a = POP();
+
+			if (IS_NUMBER(a) && IS_NUMBER(b)) {
+				PUSH(MAKE_NUMBER_VALUE(AS_NUMBER(a) - AS_NUMBER(b)));
+			} else {
+				runtime_error(vm, "Operands must be two numbers");
+				return INTERPRET_RUNTIME_ERROR;
+			}
+			continue;
+		};
+
+		op_multiply: {
+			LitValue b = POP();
+			LitValue a = POP();
+
+			if (IS_NUMBER(a) && IS_NUMBER(b)) {
+				PUSH(MAKE_NUMBER_VALUE(AS_NUMBER(a) * AS_NUMBER(b)));
+			} else {
+				runtime_error(vm, "Operands must be two numbers");
+				return INTERPRET_RUNTIME_ERROR;
+			}
+			continue;
+		};
+
+		op_divide: {
+			LitValue b = POP();
+			LitValue a = POP();
+
+			if (IS_NUMBER(a) && IS_NUMBER(b)) {
+				PUSH(MAKE_NUMBER_VALUE(AS_NUMBER(a) / AS_NUMBER(b)));
+			} else {
+				runtime_error(vm, "Operands must be two numbers");
+				return INTERPRET_RUNTIME_ERROR;
+			}
+			continue;
+		};
+
+		op_not: {
+			vm->stack_top[-1] = MAKE_BOOL_VALUE(lit_is_false(vm->stack_top[-1]));
+			continue;
+		};
+
+		op_nil: {
+			PUSH(NIL_VALUE);
+			continue;
+		};
+
+		op_true: {
+			PUSH(TRUE_VALUE);
+			continue;
+		};
+
+		op_false: {
+			PUSH(FALSE_VALUE);
+			continue;
+		};
+
+		op_equal: {
+			vm->stack_top[-1] = MAKE_BOOL_VALUE(lit_are_values_equal(POP(), vm->stack_top[-2]));
+			continue;
+		};
+
+		op_greater: {
+			LitValue a = POP();
+
+			if (IS_NUMBER(a) && IS_NUMBER(vm->stack_top[-1])) {
+				vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) <= AS_NUMBER(vm->stack_top[-1]));
+			} else {
+				runtime_error(vm, "Operands must be two numbers");
+				return INTERPRET_RUNTIME_ERROR;
+			}
+			continue;
+		};
+
+		op_less: {
+			LitValue a = POP();
+
+			if (IS_NUMBER(a) && IS_NUMBER(vm->stack_top[-1])) {
+				vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) >= AS_NUMBER(vm->stack_top[-1]));
+			} else {
+				runtime_error(vm, "Operands must be two numbers");
+				return INTERPRET_RUNTIME_ERROR;
+			}
+
+			continue;
+		};
+
+		op_greater_equal: {
+			LitValue a = POP();
+
+			if (IS_NUMBER(a) && IS_NUMBER(vm->stack_top[-1])) {
+				vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) < AS_NUMBER(vm->stack_top[-1]));
+			} else {
+				runtime_error(vm, "Operands must be two numbers");
+				return INTERPRET_RUNTIME_ERROR;
+			}
+
+			continue;
+		};
+
+		op_less_equal: {
+			LitValue a = POP();
+
+			if (IS_NUMBER(a) && IS_NUMBER(vm->stack_top[-1])) {
+				vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) > AS_NUMBER(vm->stack_top[-1]));
+			} else {
+				runtime_error(vm, "Operands must be two numbers");
+				return INTERPRET_RUNTIME_ERROR;
+			}
+
+			continue;
+		};
+
+		op_not_equal: {
+			vm->stack_top[-2] = MAKE_BOOL_VALUE(!lit_are_values_equal(POP(), vm->stack_top[-2]));
+			continue;
+		};
+
+		op_pop: {
+			POP();
+			continue;
+		};
+
+		op_close_upvalue: {
+			close_upvalues(vm, vm->stack_top - 1);
+			continue;
+		};
+
+		op_define_global: {
+			lit_table_set(vm, &vm->globals, READ_STRING(), vm->stack_top[-1]);
+			POP();
+			continue;
+		};
+
+		op_get_global: {
+			LitString* name = READ_STRING();
+			LitValue value;
+
+			if (!lit_table_get(&vm->globals, name, &value)) {
+				runtime_error(vm, "Undefined variable '%s'", name->chars);
+				return INTERPRET_RUNTIME_ERROR;
+			}
+
+			PUSH(value);
+			continue;
+		};
+
+		op_set_global: {
+			LitString* name = READ_STRING();
+
+			if (lit_table_set(vm, &vm->globals, name, POP())) {
+				runtime_error(vm, "Undefined variable '%s'", name->chars);
+				return INTERPRET_RUNTIME_ERROR;
+			}
+
+			continue;
+		};
+
+		op_get_local: {
+			PUSH(frame->slots[READ_BYTE()]);
+			continue;
+		};
+
+		op_set_local: {
+			frame->slots[READ_BYTE()] = vm->stack_top[-1];
+			continue;
+		};
+
+		op_get_upvalue: {
+			PUSH(*frame->closure->upvalues[READ_BYTE()]->value);
+			continue;
+		};
+
+		op_set_upvalue: {
+			*frame->closure->upvalues[READ_BYTE()]->value = vm->stack_top[-1];
+			continue;
+		};
+
+		op_jump: {
+			ip += READ_SHORT();
+			continue;
+		};
+
+		op_jump_if_false: {
+			uint16_t offset = READ_SHORT();
+
+			if (lit_is_false(PEEK(0))) {
+				ip += offset;
+			}
+
+			continue;
+		};
+
+		op_loop: {
+			ip -= READ_SHORT();
+			continue;
+		};
+
+		op_closure: {
+			LitFunction* function = AS_FUNCTION(READ_CONSTANT());
+
+			LitClosure* closure = lit_new_closure(vm, function);
+			PUSH(MAKE_OBJECT_VALUE(closure));
+
+			for (int i = 0; i < closure->upvalue_count; i++) {
+				uint8_t is_local = READ_BYTE();
+				uint8_t index = READ_BYTE();
+
+				if (is_local) {
+					closure->upvalues[i] = capture_upvalue(vm, frame->slots + index);
+				} else {
+					closure->upvalues[i] = frame->closure->upvalues[index];
+				}
+			}
+
+			continue;
+		};
+
+		op_call: {
+			int arg_count = AS_NUMBER(POP());
+
+			if (!call_value(vm, PEEK(arg_count), arg_count)) {
+				return INTERPRET_RUNTIME_ERROR;
+			}
+
+			frame = &vm->frames[vm->frame_count - 1];
+			ip = frame->ip;
+			continue;
+		};
 	}
 
-	return vm->abort ? INTERPRET_RUNTIME_ERROR : INTERPRET_OK;
+#undef READ_BYTE
+#undef READ_CONSTANT
+#undef READ_STRING
+#undef READ_SHORT
+#undef PUSH
+#undef POP
+#undef PEEK
+
+	return INTERPRET_OK;
 }

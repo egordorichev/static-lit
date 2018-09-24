@@ -403,6 +403,7 @@ static uint8_t parse_argument_list(LitCompiler* compiler) {
 
 static void parse_call(LitCompiler* compiler) {
 	uint8_t arg_count = parse_argument_list(compiler);
+	emit_constant(compiler, MAKE_NUMBER_VALUE(arg_count));
 	emit_byte(compiler, OP_CALL);
 }
 

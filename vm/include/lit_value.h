@@ -50,7 +50,6 @@ static inline LitValue lit_num_to_value(double num) {
 	return data.bits64;
 }
 
-char *lit_to_string(LitValue value);
 bool lit_is_false(LitValue value);
 bool lit_are_values_equal(LitValue a, LitValue b);
 

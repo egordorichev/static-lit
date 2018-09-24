@@ -11,5 +11,6 @@ typedef enum {
 } LitInterpretResult;
 
 typedef struct _LitVm LitVm;
+char *lit_to_string(LitVm* vm, LitValue value);
 
 #endif

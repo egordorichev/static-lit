@@ -32,7 +32,7 @@ void lit_gray_object(LitVm* vm, LitObject* object) {
 	}
 
 #ifdef DEBUG_TRACE_GC
-	printf("%p gray %s\n", object, lit_to_string(MAKE_OBJECT_VALUE(object)));
+	printf("%p gray %s\n", object, lit_to_string(vm, MAKE_OBJECT_VALUE(object)));
 #endif
 
 	object->dark = true;
@@ -59,7 +59,7 @@ static void gray_array(LitVm* vm, LitArray* array) {
 
 static void blacken_object(LitVm* vm, LitObject* object) {
 #ifdef DEBUG_TRACE_GC
-	printf("%p blacken %s\n", object, lit_to_string(MAKE_OBJECT_VALUE(object)));
+	printf("%p blacken %s\n", object, lit_to_string(vm, MAKE_OBJECT_VALUE(object)));
 #endif
 
 	switch (object->type) {
@@ -86,7 +86,7 @@ static void blacken_object(LitVm* vm, LitObject* object) {
 
 static void free_object(LitVm* vm, LitObject* object) {
 #ifdef DEBUG_TRACE_GC
-	printf("%p free %s\n", object, lit_to_string(MAKE_OBJECT_VALUE(object)));
+	printf("%p free %s\n", object, lit_to_string(vm, MAKE_OBJECT_VALUE(object)));
 #endif
 
 	switch (object->type) {

@@ -70,7 +70,7 @@ typedef struct {
 } LitClosure;
 
 LitUpvalue* lit_new_upvalue(LitVm* vm, LitValue* slot);
-LitUpvalue* lit_new_closure(LitVm* vm, LitFunction* function);
+LitClosure* lit_new_closure(LitVm* vm, LitFunction* function);
 LitFunction* lit_new_function(LitVm* vm);
 LitNative* lit_new_native(LitVm* vm, LitNativeFn function);
 

@@ -3,8 +3,8 @@
 
 #include "lit_chunk.h"
 
-void lit_trace_chunk(LitChunk* chunk, const char* name);
-int lit_disassemble_instruction(LitChunk* chunk, int offset);
+void lit_trace_chunk(LitVm* vm, LitChunk* chunk, const char* name);
+int lit_disassemble_instruction(LitVm* vm, LitChunk* chunk, int offset);
 
 // #define DEBUG_TRACE_EXECUTION
 // #define DEBUG_PRINT_CODE

@@ -1,8 +1,5 @@
-fun test() {
-    print "IT WORKS!"
+fun hey(a, b, c) {
+    print a + b + c
 }
 
-test()
-test()
-test()
-test()
+hey("Hey", " : ", 10)

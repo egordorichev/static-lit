@@ -1,12 +1,13 @@
 #include <stdio.h>
-#include <lit_object.h>
+#include <memory.h>
 
 #include "lit_value.h"
 #include "lit_memory.h"
+#include "lit_object.h"
 
 static char output[21];
 
-char *lit_to_string(LitValue value) {
+char *lit_to_string(LitVm* vm, LitValue value) {
 	if (IS_BOOL(value)) {
 		return AS_BOOL(value) ? "true" : "false";
 	} else if (IS_NUMBER(value)) {
@@ -20,9 +21,29 @@ char *lit_to_string(LitValue value) {
 		switch (AS_OBJECT(value)->type) {
 			case OBJECT_STRING: return AS_CSTRING(value);
 			case OBJECT_NATIVE: return "<native fn>";
-			case OBJECT_FUNCTION: return "<fn>";
+			case OBJECT_FUNCTION: {
+				char *name = AS_FUNCTION(value)->name->chars;
+				int len = strlen(name);
+				char* buffer = ALLOCATE(vm, char, len + 5);
+
+				sprintf(buffer, "<fn %s", name);
+				buffer[len + 4] = '>';
+				buffer[len + 5] = '\0';
+
+				return buffer;
+			}
 			case OBJECT_UPVALUE: return "upvalue";
-			case OBJECT_CLOSURE: return "closure";
+			case OBJECT_CLOSURE: {
+				char *name = AS_CLOSURE(value)->function->name->chars;
+				int len = strlen(name);
+				char* buffer = ALLOCATE(vm, char, len + 5);
+
+				sprintf(buffer, "<fn %s", name);
+				buffer[len + 4] = '>';
+				buffer[len + 5] = '\0';
+
+				return buffer;
+			}
 			default: UNREACHABLE();
 		}
 	}

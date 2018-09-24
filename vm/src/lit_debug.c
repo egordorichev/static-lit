@@ -4,11 +4,11 @@
 #include "lit_debug.h"
 #include "lit_value.h"
 
-void lit_trace_chunk(LitChunk* chunk, const char* name) {
+void lit_trace_chunk(LitVm* vm, LitChunk* chunk, const char* name) {
 	printf("== %s ==\n", name);
 
 	for (int i = 0; i < chunk->count;) {
-		i = lit_disassemble_instruction(chunk, i);
+		i = lit_disassemble_instruction(vm, chunk, i);
 	}
 }
 
@@ -17,9 +17,9 @@ static int simple_instruction(const char* name, int offset) {
 	return offset + 1;
 }
 
-static int constant_instruction(const char* name, LitChunk* chunk, int offset) {
+static int constant_instruction(LitVm* vm, const char* name, LitChunk* chunk, int offset) {
 	uint8_t constant = chunk->code[offset + 1];
-	printf("%-16s %4d '%s'\n", name, constant, lit_to_string(chunk->constants.values[constant]));
+	printf("%-16s %4d '%s'\n", name, constant, lit_to_string(vm, chunk->constants.values[constant]));
 	return offset + 2;
 }
 
@@ -36,7 +36,7 @@ static int jump_instruction(const char* name, int sign, LitChunk* chunk, int off
 	return offset + 3;
 }
 
-int lit_disassemble_instruction(LitChunk* chunk, int offset) {
+int lit_disassemble_instruction(LitVm* vm, LitChunk* chunk, int offset) {
 	printf("%04d ", offset);
 
 	if (offset > 0 && chunk->lines[offset] == chunk->lines[offset - 1]) {
@@ -67,21 +67,21 @@ int lit_disassemble_instruction(LitChunk* chunk, int offset) {
 		case OP_GREATER_EQUAL: return simple_instruction("OP_GREATER_EQUAL", offset);
 		case OP_LESS_EQUAL: return simple_instruction("OP_LESS_EQUAL", offset);
 		case OP_CALL: return simple_instruction("OP_CALL", offset);
-		case OP_DEFINE_GLOBAL: return constant_instruction("OP_DEFINE_GLOBAL", chunk, offset);
-		case OP_GET_GLOBAL: return constant_instruction("OP_GET_GLOBAL", chunk, offset);
-		case OP_SET_GLOBAL: return constant_instruction("OP_SET_GLOBAL", chunk, offset);
+		case OP_DEFINE_GLOBAL: return constant_instruction(vm, "OP_DEFINE_GLOBAL", chunk, offset);
+		case OP_GET_GLOBAL: return constant_instruction(vm, "OP_GET_GLOBAL", chunk, offset);
+		case OP_SET_GLOBAL: return constant_instruction(vm, "OP_SET_GLOBAL", chunk, offset);
 		case OP_GET_LOCAL: return byte_instruction("OP_GET_LOCAL", chunk, offset);
 		case OP_SET_LOCAL: return byte_instruction("OP_SET_LOCAL", chunk,offset);
 		case OP_GET_UPVALUE: return byte_instruction("OP_GET_UPVALUE", chunk, offset);
 		case OP_SET_UPVALUE: return byte_instruction("OP_SET_UPVALUE", chunk, offset);
-		case OP_CONSTANT: return constant_instruction("OP_CONSTANT", chunk, offset);
+		case OP_CONSTANT: return constant_instruction(vm, "OP_CONSTANT", chunk, offset);
 		case OP_JUMP: return jump_instruction("OP_JUMP", 1, chunk, offset);
 		case OP_JUMP_IF_FALSE: return jump_instruction("OP_JUMP_IF_FALSE", 1, chunk, offset);
 		case OP_LOOP: return jump_instruction("OP_LOOP", -1, chunk, offset);
 		case OP_CLOSURE: {
 			offset++;
 			uint8_t constant = chunk->code[offset++];
-			printf("%-16s %4d %s\n", "OP_CLOSURE", constant, lit_to_string(chunk->constants.values[constant]));
+			printf("%-16s %4d %s\n", "OP_CLOSURE", constant, lit_to_string(vm, chunk->constants.values[constant]));
 
 			LitFunction* function = AS_FUNCTION(chunk->constants.values[constant]);
 

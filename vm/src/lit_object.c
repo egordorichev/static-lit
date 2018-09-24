@@ -28,7 +28,7 @@ LitUpvalue* lit_new_upvalue(LitVm* vm, LitValue* slot) {
 	return upvalue;
 }
 
-LitUpvalue* lit_new_closure(LitVm* vm, LitFunction* function) {
+LitClosure* lit_new_closure(LitVm* vm, LitFunction* function) {
 	LitUpvalue** upvalues = ALLOCATE(vm, LitUpvalue*, function->upvalue_count);
 
 	for (int i = 0; i < function->upvalue_count; i++) {
