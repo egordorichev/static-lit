@@ -108,7 +108,7 @@ static bool call(LitVm* vm, LitClosure* closure, int arg_count) {
 
 	frame->closure = closure;
 	frame->ip = closure->function->chunk.code;
-	frame->slots = vm->stack_top - (arg_count);
+	frame->slots = vm->stack_top - (arg_count + 1);
 
 	return true;
 }
@@ -246,7 +246,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 #ifdef DEBUG_TRACE_EXECUTION
 		if (vm->stack != vm->stack_top) {
 			for (LitValue* slot = vm->stack; slot < vm->stack_top; slot++) {
-				printf("[ %s ]", lit_to_string(vm, *slot));
+				printf("[%s]", lit_to_string(vm, *slot));
 			}
 
 			printf("\n");

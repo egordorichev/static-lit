@@ -18,6 +18,19 @@ void lit_init_compiler(LitVm* vm, LitCompiler* compiler, LitCompiler* enclosing,
 	switch (type) {
 		case TYPE_FUNCTION: compiler->function->name = lit_copy_string(vm, compiler->lexer.previous.start, compiler->lexer.previous.length); break;
 		case TYPE_TOP_LEVEL: compiler->function->name = NULL; break;
+		default: break;
+	}
+
+	LitLocal* local = &compiler->locals[compiler->local_count++];
+	local->depth = compiler->depth;
+	local->upvalue = false;
+
+	if (type != TYPE_FUNCTION) {
+		local->name.start = "this";
+		local->name.length = 4;
+	} else {
+		local->name.start = "";
+		local->name.length = 0;
 	}
 }
 
@@ -134,12 +147,22 @@ static int emit_jump(LitCompiler* compiler, uint8_t instruction) {
 	return compiler->function->chunk.count - 2;
 }
 
-static LitFunction* end_compiler(LitCompiler *compiler) {
+static void emit_return(LitCompiler* compiler) {
+	if (compiler->type == TYPE_INITIALIZER) {
+		emit_bytes(compiler, OP_GET_LOCAL, 0);
+	} else {
+		emit_byte(compiler, OP_NIL);
+	}
+
 	emit_byte(compiler, OP_RETURN);
+}
+
+static LitFunction* end_compiler(LitCompiler *compiler) {
+	emit_return(compiler);
 
 #ifdef DEBUG_PRINT_CODE
 	if (!compiler->lexer.had_error) {
-		lit_trace_chunk(&compiler->function->chunk, compiler->function->name == NULL ? "<top>" : compiler->function->name->chars);
+		lit_trace_chunk(compiler->vm, &compiler->function->chunk, compiler->function->name == NULL ? "<top>" : compiler->function->name->chars);
 	}
 #endif
 
@@ -210,14 +233,15 @@ static void end_scope(LitCompiler* compiler) {
 	}
 }
 
-static int resolve_local(LitCompiler* compiler, LitToken* name, bool inFunction) {
+static int resolve_local(LitCompiler* compiler, LitToken* name, bool in_function) {
 	for (int i = compiler->local_count - 1; i >= 0; i--) {
 		LitLocal* local = &compiler->locals[i];
 
 		if (identifiers_equal(name, &local->name)) {
-			if (!inFunction && local->depth == -1) {
+			if (!in_function && local->depth == -1) {
 				error(compiler, "Cannot read local variable in its own initializer");
 			}
+
 			return i;
 		}
 	}
@@ -342,27 +366,27 @@ static inline LitParseRule* get_parse_rule(LitTokenType type) {
 }
 
 static void named_variable(LitCompiler* compiler, LitToken name, bool can_assign) {
-	uint8_t getOp, setOp;
+	uint8_t get, set;
 	int arg = resolve_local(compiler, &name, false);
 
 	// TODO: can be speeded up via removing vars
 	if (arg != -1) {
-		getOp = OP_GET_LOCAL;
-		setOp = OP_SET_LOCAL;
+		get = OP_GET_LOCAL;
+		set = OP_SET_LOCAL;
 	} else if ((arg = resolve_upvalue(compiler, &name)) != -1) {
-		getOp = OP_GET_UPVALUE;
-		setOp = OP_SET_UPVALUE;
+		get = OP_GET_UPVALUE;
+		set = OP_SET_UPVALUE;
 	} else {
 		arg = make_identifier_constant(compiler, &name);
-		getOp = OP_GET_GLOBAL;
-		setOp = OP_SET_GLOBAL;
+		get = OP_GET_GLOBAL;
+		set = OP_SET_GLOBAL;
 	}
 
 	if (can_assign && match(compiler, TOKEN_EQUAL)) {
 		parse_expression(compiler);
-		emit_bytes(compiler, setOp, (uint8_t) arg);
+		emit_bytes(compiler, set, (uint8_t) arg);
 	} else {
-		emit_bytes(compiler, getOp, (uint8_t) arg);
+		emit_bytes(compiler, get, (uint8_t) arg);
 	}
 }
 
