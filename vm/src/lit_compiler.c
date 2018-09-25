@@ -569,6 +569,10 @@ static void parse_function(LitCompiler* cmp, LitFunctionType type) {
 	}
 }
 
+static void parse_anonym(LitCompiler* compiler) {
+	parse_function(compiler, TYPE_FUNCTION);
+}
+
 static void parse_method(LitCompiler* compiler) {
 	consume(compiler, TOKEN_IDENTIFIER, "Expected method name");
 	uint8_t constant = make_identifier_constant(compiler, &compiler->lexer.previous);
@@ -845,4 +849,5 @@ static void init_parse_rules() {
 	parse_rules[TOKEN_IDENTIFIER] = (LitParseRule) { parse_variable_usage, NULL, PREC_NONE };
 	parse_rules[TOKEN_DOT] = (LitParseRule) { NULL, parse_dot, PREC_CALL };
 	parse_rules[TOKEN_THIS] = (LitParseRule) { parse_this, NULL, PREC_CALL };
+	parse_rules[TOKEN_FUN] = (LitParseRule) { parse_anonym, NULL, PREC_CALL };
 }

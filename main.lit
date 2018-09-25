@@ -1,25 +1,7 @@
-class Awesome {
-    init(k) {
-        this.m = k
-    }
-
-    do() {
-        print this.m
-    }
-
-    hi() {
-        this.do()
-    }
+fun do(lambda) {
+    lambda()
 }
 
-var c = Awesome(10)
-c.hi()
-
-class Better < Awesome {
-    do() {
-        print "I'm BETTER! " + this.m
-    }
-}
-
-var m = Better(30)
-m.hi()
+do(fun() {
+    print "YAY"
+})
