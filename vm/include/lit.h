@@ -22,9 +22,11 @@ typedef struct _LitVm {
 	LitObject* objects;
 	LitTable strings;
 	LitTable globals;
+	LitString *init_string;
 
 	LitFrame frames[FRAMES_MAX];
 	int frame_count;
+	bool abort;
 
 	LitUpvalue* open_upvalues;
 	LitCompiler *compiler;

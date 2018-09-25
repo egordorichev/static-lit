@@ -130,7 +130,27 @@ static void free_object(LitVm* vm, LitObject* object) {
 		}
 		case OBJECT_NATIVE: FREE(vm, LitNative, object); break;
 		case OBJECT_UPVALUE: FREE(vm, LitUpvalue, object); break;
+		case OBJECT_BOUND_METHOD: FREE(vm, LitMethod, object); break;
+		case OBJECT_CLASS: {
+			lit_free_table(vm, &((LitClass*) object)->methods);
+			FREE(vm, LitClass, object);
+			break;
+		}
+		case OBJECT_INSTANCE: {
+			lit_free_table(vm, &((LitInstance*) object)->fields);
+			FREE(vm, LitInstance, object);
+			break;
+		}
 		default: UNREACHABLE();
+	}
+}
+
+void gray_compiler_roots(LitVm* vm) {
+	LitCompiler* compiler = vm->compiler;
+
+	while (compiler != NULL) {
+		lit_gray_object(vm, (LitObject*) compiler->function);
+		compiler = compiler->enclosing;
 	}
 }
 
@@ -144,20 +164,18 @@ void lit_collect_garbage(LitVm* vm) {
 		lit_gray_value(vm, *slot);
 	}
 
-	/*for (int i = 0; i < vm.frameCount; i++) {
-		grayObject((Obj*)vm.frames[i].closure);
-	}*/
+	for (int i = 0; i < vm->frame_count; i++) {
+		lit_gray_object(vm, (LitObject*) vm->frames[i].closure);
+	}
 
-	/*for (ObjUpvalue* upvalue = vm.openUpvalues;
-	     upvalue != NULL;
-	     upvalue = upvalue->next) {
-		grayObject((Obj*)upvalue);
-	}*/
+	for (LitUpvalue* upvalue = vm->open_upvalues; upvalue != NULL; upvalue = upvalue->next) {
+		lit_gray_object(vm, (LitObject*) upvalue);
+	}
 
 	lit_table_gray(vm, &vm->globals);
-	//grayCompilerRoots();
+	gray_compiler_roots(vm);
 
-	// grayObject((Obj*)vm.initString);
+	lit_gray_object(vm, (LitObject*) vm->init_string);
 
 	while (vm->gray_count > 0) {
 		LitObject* object = vm->gray_stack[--vm->gray_count];

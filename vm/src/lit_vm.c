@@ -39,6 +39,8 @@ void lit_init_vm(LitVm* vm) {
 	vm->gray_capacity = 0;
 	vm->gray_count = 0;
 	vm->gray_stack = NULL;
+
+	vm->init_string = lit_copy_string(vm, "init", 4);
 }
 
 void lit_free_vm(LitVm* vm) {
@@ -50,6 +52,8 @@ void lit_free_vm(LitVm* vm) {
 	}
 
 	lit_free_objects(vm);
+
+	vm->init_string = NULL;
 }
 
 void lit_push(LitVm* vm, LitValue value) {
@@ -91,6 +95,7 @@ static void runtime_error(LitVm* vm, const char* format, ...) {
 		}
 	}
 
+	vm->abort = true;
 	reset_stack(vm);
 }
 
@@ -127,11 +132,31 @@ static bool call_value(LitVm* vm, LitValue callee, int arg_count) {
 				AS_NATIVE(callee)(vm);
 				return true;
 			}
-			default: UNREACHABLE();
+			case OBJECT_BOUND_METHOD: {
+				LitMethod* bound = AS_METHOD(callee);
+
+				vm->stack_top[-arg_count - 1] = bound->receiver;
+				return call(vm, bound->method, arg_count);
+			}
+			case OBJECT_CLASS: {
+				LitClass* class = AS_CLASS(callee);
+				vm->stack_top[-arg_count - 1] = MAKE_OBJECT_VALUE(lit_new_instance(vm, class));
+				LitValue initializer;
+
+				if (lit_table_get(&class->methods, vm->init_string, &initializer)) {
+					return call(vm, AS_CLOSURE(initializer), arg_count);
+				} else if (arg_count != 0) {
+					runtime_error(vm, "Expected 0 arguments but got %d", arg_count);
+					return false;
+				}
+
+				last_native = true;
+				return true;
+			}
 		}
 	}
 
-	runtime_error(vm, "Can only call functions and classes.");
+	runtime_error(vm, "Can only call functions and classes");
 	return false;
 }
 
@@ -140,6 +165,7 @@ static void time_function(LitVm* vm) {
 }
 
 LitInterpretResult lit_execute(LitVm* vm, const char* code) {
+	vm->abort = false;
 	LitFunction *function = lit_compile(vm, code);
 
 	define_native(vm, "time", time_function);
@@ -214,7 +240,52 @@ static void define_method(LitVm* vm, LitString* name) {
 	lit_pop(vm);
 }
 
-static void *functions[OP_METHOD + 1];
+static bool invoke_from_class(LitVm* vm, LitClass* klass, LitString* name, int arg_count) {
+	LitValue method;
+
+	if (!lit_table_get(&klass->methods, name, &method)) {
+		runtime_error(vm, "Undefined property '%s'", name->chars);
+		return false;
+	}
+
+	return call(vm, AS_CLOSURE(method), arg_count);
+}
+
+static bool invoke(LitVm* vm, LitString* name, int arg_count) {
+	LitValue receiver = lit_peek(vm, arg_count);
+
+	if (!IS_INSTANCE(receiver)) {
+		runtime_error(vm, "Only instances have methods");
+		return false;
+	}
+
+	LitInstance* instance = AS_INSTANCE(receiver);
+	LitValue value;
+
+	if (lit_table_get(&instance->fields, name, &value)) {
+		vm->stack_top[-arg_count] = value;
+		return call_value(vm, value, arg_count);
+	}
+
+	return invoke_from_class(vm, instance->type, name, arg_count);
+}
+
+static bool bind_method(LitVm* vm, LitClass* klass, LitString* name) {
+	LitValue method;
+
+	if (!lit_table_get(&klass->methods, name, &method)) {
+		runtime_error("Undefined property '%s'", name->chars);
+		return false;
+	}
+
+	LitMethod* bound = lit_new_bound_method(vm, lit_peek(vm, 0), AS_CLOSURE(method));
+	lit_pop(vm);
+	lit_push(vm, MAKE_OBJECT_VALUE(bound));
+
+	return true;
+}
+
+static void *functions[OP_INVOKE + 1];
 static bool inited_functions;
 
 LitInterpretResult lit_interpret(LitVm* vm) {
@@ -256,6 +327,9 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		functions[OP_SUBCLASS] = &&op_subclass;
 		functions[OP_CLASS] = &&op_class;
 		functions[OP_METHOD] = &&op_method;
+		functions[OP_GET_PROPERTY] = &&op_get_property;
+		functions[OP_SET_PROPERTY] = &&op_set_property;
+		functions[OP_INVOKE] = &&op_invoke;
 	}
 
 #ifdef DEBUG_TRACE_EXECUTION
@@ -263,18 +337,21 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 #endif
 
 	LitFrame* frame = &vm->frames[vm->frame_count - 1];
-	u_int8_t* ip = frame->ip;
 	LitValue* stack = vm->stack;
 
-#define READ_BYTE() (*ip++)
+#define READ_BYTE() (*frame->ip++)
 #define READ_CONSTANT() (frame->closure->function->chunk.constants.values[READ_BYTE()])
 #define READ_STRING() AS_STRING(READ_CONSTANT())
-#define READ_SHORT() (ip += 2, (uint16_t) ((ip[-2] << 8) | ip[-1]))
+#define READ_SHORT() (frame->ip += 2, (uint16_t) ((frame->ip[-2] << 8) | frame->ip[-1]))
 #define PUSH(value) { *vm->stack_top = value; vm->stack_top++; }
 #define POP() ({ assert(vm->stack_top > stack); vm->stack_top--; *vm->stack_top; })
 #define PEEK(depth) (vm->stack_top[-1 - depth])
 
 	while (true) {
+		if (vm->abort) {
+			return INTERPRET_RUNTIME_ERROR;
+		}
+
 #ifdef DEBUG_TRACE_EXECUTION
 		if (vm->stack != vm->stack_top) {
 			for (LitValue* slot = vm->stack; slot < vm->stack_top; slot++) {
@@ -284,10 +361,10 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 			printf("\n");
 		}
 
-		lit_disassemble_instruction(vm, &frame->closure->function->chunk, (int) (ip - frame->closure->function->chunk.code));
+		lit_disassemble_instruction(vm, &frame->closure->function->chunk, (int) (frame->ip - frame->closure->function->chunk.code));
 #endif
 
-		goto *functions[*ip++];
+		goto *functions[*frame->ip++];
 
 		op_constant: {
 			PUSH(READ_CONSTANT());
@@ -307,8 +384,8 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 			vm->stack_top = frame->slots;
 			PUSH(result);
 			frame = &vm->frames[vm->frame_count - 1];
-			ip = frame->ip;
-			break;
+			// ip = frame->ip;
+			continue;
 		};
 
 		op_print: {
@@ -532,7 +609,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		};
 
 		op_jump: {
-			ip += READ_SHORT();
+			frame->ip += READ_SHORT();
 			continue;
 		};
 
@@ -540,14 +617,14 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 			uint16_t offset = READ_SHORT();
 
 			if (lit_is_false(PEEK(0))) {
-				ip += offset;
+				frame->ip += offset;
 			}
 
 			continue;
 		};
 
 		op_loop: {
-			ip -= READ_SHORT();
+			frame->ip -= READ_SHORT();
 			continue;
 		};
 
@@ -580,7 +657,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 
 			if (!last_native) {
 				frame = &vm->frames[vm->frame_count - 1];
-				ip = frame->ip;
+				// ip = frame->ip;
 			}
 
 			continue;
@@ -605,6 +682,56 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 
 		op_method: {
 			define_method(vm, READ_STRING());
+			continue;
+		};
+
+		op_get_property: {
+			if (!IS_INSTANCE(PEEK(0))) {
+				runtime_error(vm, "Only instances have properties");
+				return INTERPRET_RUNTIME_ERROR;
+			}
+
+			LitInstance* instance = AS_INSTANCE(PEEK(0));
+			LitString* name = READ_STRING();
+			LitValue value;
+
+			if (lit_table_get(&instance->fields, name, &value)) {
+				POP();
+				PUSH(value);
+				continue;
+			}
+
+			if (!bind_method(vm, instance->type, name)) {
+				return INTERPRET_RUNTIME_ERROR;
+			}
+
+			continue;
+		};
+
+		op_set_property: {
+			if (!IS_INSTANCE(PEEK(1))) {
+				runtime_error(vm, "Only instances have fields");
+				return INTERPRET_RUNTIME_ERROR;
+			}
+
+			LitInstance* instance = AS_INSTANCE(PEEK(1));
+			lit_table_set(vm, &instance->fields, READ_STRING(), PEEK(0));
+			LitValue value = POP();
+			POP();
+			PUSH(value);
+
+			continue;
+		};
+
+		op_invoke: {
+			int arg_count = AS_NUMBER(POP());
+			LitString* method = READ_STRING();
+
+			if (!invoke(vm, method, arg_count)) {
+				return INTERPRET_RUNTIME_ERROR;
+			}
+
+			frame = &vm->frames[vm->frame_count - 1];
 			continue;
 		};
 	}

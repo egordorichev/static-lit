@@ -42,7 +42,10 @@ typedef enum {
 	OP_CALL = 31,
 	OP_SUBCLASS = 32,
 	OP_CLASS = 33,
-	OP_METHOD = 34
+	OP_METHOD = 34,
+	OP_GET_PROPERTY = 35,
+	OP_SET_PROPERTY = 36,
+	OP_INVOKE = 37
 } LitOpCode;
 
 typedef struct {

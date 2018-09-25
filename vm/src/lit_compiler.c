@@ -477,6 +477,30 @@ static void parse_binary(LitCompiler* compiler) {
 	}
 }
 
+static void parse_dot(LitCompiler* compiler, bool can_assign) {
+	consume(compiler, TOKEN_IDENTIFIER, "Expected property name after '.'");
+	uint8_t name = make_identifier_constant(compiler, &compiler->lexer.previous);
+
+	if (can_assign && match(compiler, TOKEN_EQUAL)) {
+		parse_expression(compiler);
+		emit_bytes(compiler, OP_SET_PROPERTY, name);
+	} else if (match(compiler, TOKEN_LEFT_PAREN)) {
+		uint8_t arg_count = parse_argument_list(compiler);
+		emit_constant(compiler, arg_count);
+		emit_bytes(compiler, OP_INVOKE, name);
+	} else {
+		emit_bytes(compiler, OP_GET_PROPERTY, name);
+	}
+}
+
+static void parse_this(LitCompiler* compiler) {
+	if (compiler->vm->class == NULL) {
+		error(compiler, "Cannot use 'this' outside of a class");
+	} else {
+		parse_variable_usage(compiler, false);
+	}
+}
+
 static void parse_literal(LitCompiler* compiler, bool can_assign) {
 	switch (compiler->lexer.previous.type) {
 		case TOKEN_NIL: emit_byte(compiler, OP_NIL); break;
@@ -819,4 +843,6 @@ static void init_parse_rules() {
 	parse_rules[TOKEN_BANG_EQUAL] = (LitParseRule) { NULL, parse_binary, PREC_EQUALITY };
 	parse_rules[TOKEN_STRING] = (LitParseRule) { parse_string, NULL, PREC_NONE };
 	parse_rules[TOKEN_IDENTIFIER] = (LitParseRule) { parse_variable_usage, NULL, PREC_NONE };
+	parse_rules[TOKEN_DOT] = (LitParseRule) { NULL, parse_dot, PREC_CALL };
+	parse_rules[TOKEN_THIS] = (LitParseRule) { parse_this, NULL, PREC_CALL };
 }

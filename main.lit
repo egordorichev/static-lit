@@ -1,3 +1,16 @@
 class Awesome {
+    init(k) {
+        this.m = k
+    }
 
+    do() {
+        print this.m
+    }
+
+    hi() {
+        this.do()
+    }
 }
+
+var c = Awesome(10)
+c.hi()

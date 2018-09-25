@@ -80,6 +80,10 @@ int lit_disassemble_instruction(LitVm* vm, LitChunk* chunk, int offset) {
 		case OP_LOOP: return jump_instruction("OP_LOOP", -1, chunk, offset);
 		case OP_CLASS: return constant_instruction(vm, "OP_CLASS", chunk, offset);
 		case OP_SUBCLASS: return constant_instruction(vm, "OP_SUBCLASS", chunk, offset);
+		case OP_METHOD: return constant_instruction(vm, "OP_METHOD", chunk, offset);
+		case OP_GET_PROPERTY: return constant_instruction(vm, "OP_GET_PROPERTY", chunk, offset);
+		case OP_SET_PROPERTY: return constant_instruction(vm, "OP_SET_PROPERTY", chunk, offset);
+		case OP_INVOKE: return constant_instruction(vm, "OP_INVOKE", chunk, offset);
 		case OP_CLOSURE: {
 			offset++;
 			uint8_t constant = chunk->code[offset++];

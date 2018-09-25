@@ -92,6 +92,7 @@ int main(int argc, char** argv) {
 			  lit_init_vm(&vm);
 			  LitInterpretResult result = lit_execute(&vm, read_file(arg));
 			  lit_free_vm(&vm);
+
 			  return result == INTERPRET_OK ? 0 : -2;
 		  }
 	  }
