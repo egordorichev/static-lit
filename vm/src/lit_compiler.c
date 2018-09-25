@@ -16,6 +16,7 @@ void lit_init_compiler(LitVm* vm, LitCompiler* compiler, LitCompiler* enclosing,
 	compiler->enclosing = enclosing;
 	compiler->function = lit_new_function(vm);
 	compiler->local_count = 0;
+	compiler->loop = NULL;
 
 	switch (type) {
 		case TYPE_FUNCTION: compiler->function->name = lit_copy_string(vm, compiler->lexer.previous.start, compiler->lexer.previous.length); break;
@@ -653,13 +654,20 @@ static void parse_if(LitCompiler* compiler) {
 }
 
 static void parse_while(LitCompiler* compiler) {
+	LitLoop loop;
 	int loop_start = compiler->function->chunk.count;
+
+	loop.enclosing = compiler->loop;
+	compiler->loop = &loop;
+
+	loop.start = loop_start;
 
 	consume(compiler, TOKEN_LEFT_PAREN, "Expected '(' after 'while'");
 	parse_expression(compiler);
 	consume(compiler, TOKEN_RIGHT_PAREN, "Expected ')' after condition");
 
 	int exit_jump = emit_jump(compiler, OP_JUMP_IF_FALSE);
+	compiler->loop->exit_jump = exit_jump - 1;
 
 	emit_byte(compiler, OP_POP);
 	parse_statement(compiler);
@@ -667,6 +675,8 @@ static void parse_while(LitCompiler* compiler) {
 	emit_loop(compiler, loop_start);
 	patch_jump(compiler, exit_jump);
 	emit_byte(compiler, OP_POP);
+
+	compiler->loop = loop.enclosing;
 }
 
 static void parse_for(LitCompiler* compiler) {
@@ -755,6 +765,24 @@ static void parse_expression(LitCompiler* compiler) {
 	parse_precedence(compiler, PREC_ASSIGNMENT);
 }
 
+static void parse_break(LitCompiler* compiler) {
+	if (compiler->loop == NULL) {
+		error_at_compiler(compiler, "Can't use break outside of the loop");
+	}
+
+	emit_byte(compiler, OP_FALSE);
+	emit_loop(compiler, compiler->loop->exit_jump);
+}
+
+static void parse_continue(LitCompiler* compiler) {
+	if (compiler->loop == NULL) {
+		error_at_compiler(compiler, "Can't use continue outside of the loop");
+	}
+
+	emit_byte(compiler, OP_FALSE);
+	emit_loop(compiler, compiler->loop->start);
+}
+
 static void parse_statement(LitCompiler* compiler) {
 	LitTokenType token = compiler->lexer.current.type;
 
@@ -772,6 +800,12 @@ static void parse_statement(LitCompiler* compiler) {
 
 		parse_expression(compiler);
 		emit_byte(compiler, OP_PRINT);
+	} else if (token == TOKEN_BREAK) {
+		advance(compiler);
+		parse_break(compiler);
+	} else if (token == TOKEN_CONTINUE) {
+		advance(compiler);
+		parse_continue(compiler);
 	}	else if (token == TOKEN_LEFT_BRACE) {
 		advance(compiler);
 

@@ -24,6 +24,14 @@ typedef enum {
 	TYPE_TOP_LEVEL
 } LitFunctionType;
 
+typedef struct sLitLoop {
+	int start;
+	int exit_jump;
+	int body;
+	int depth;
+	struct sLitLoop* enclosing;
+} LitLoop;
+
 typedef struct LitClassCompiler {
 	struct LitClassCompiler* enclosing;
 
@@ -37,6 +45,7 @@ typedef struct sLitCompiler {
 	LitVm* vm;
 	LitFunction* function;
 	LitFunctionType type;
+	LitLoop *loop;
 
 	LitCompilerUpvalue upvalues[UINT8_COUNT];
 	LitLocal locals[UINT8_COUNT];

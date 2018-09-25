@@ -180,7 +180,11 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 
 	call_value(vm, MAKE_OBJECT_VALUE(closure), 0);
 
+#ifdef DEBUG_NO_EXECUTE
+	return INTERPRET_OK;
+#else
 	return lit_interpret(vm);
+#endif
 }
 
 static void close_upvalues(LitVm* vm, LitValue* last) {
@@ -496,7 +500,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 			LitValue a = POP();
 
 			if (IS_NUMBER(a) && IS_NUMBER(vm->stack_top[-1])) {
-				vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) <= AS_NUMBER(vm->stack_top[-1]));
+				vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) < AS_NUMBER(vm->stack_top[-1]));
 			} else {
 				runtime_error(vm, "Operands must be two numbers");
 				return INTERPRET_RUNTIME_ERROR;
@@ -508,7 +512,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 			LitValue a = POP();
 
 			if (IS_NUMBER(a) && IS_NUMBER(vm->stack_top[-1])) {
-				vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) >= AS_NUMBER(vm->stack_top[-1]));
+				vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) > AS_NUMBER(vm->stack_top[-1]));
 			} else {
 				runtime_error(vm, "Operands must be two numbers");
 				return INTERPRET_RUNTIME_ERROR;
@@ -521,7 +525,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 			LitValue a = POP();
 
 			if (IS_NUMBER(a) && IS_NUMBER(vm->stack_top[-1])) {
-				vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) < AS_NUMBER(vm->stack_top[-1]));
+				vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) <= AS_NUMBER(vm->stack_top[-1]));
 			} else {
 				runtime_error(vm, "Operands must be two numbers");
 				return INTERPRET_RUNTIME_ERROR;
@@ -534,7 +538,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 			LitValue a = POP();
 
 			if (IS_NUMBER(a) && IS_NUMBER(vm->stack_top[-1])) {
-				vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) > AS_NUMBER(vm->stack_top[-1]));
+				vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) >= AS_NUMBER(vm->stack_top[-1]));
 			} else {
 				runtime_error(vm, "Operands must be two numbers");
 				return INTERPRET_RUNTIME_ERROR;

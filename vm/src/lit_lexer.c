@@ -1,5 +1,6 @@
 #include <string.h>
 #include <lit_lexer.h>
+#include <stdio.h>
 #include "lit_lexer.h"
 #include "lit_common.h"
 
@@ -99,6 +100,20 @@ static void skip_whitespace(LitLexer* lexer) {
 					while (peek(lexer) != '\n' && !is_at_end(lexer)) {
 						advance(lexer);
 					}
+				} else if (peek_next(lexer) == '*') {
+					advance(lexer);
+					advance(lexer);
+
+					while (peek(lexer) != '*' && peek_next(lexer) != '/' && !is_at_end(lexer)) {
+						if (peek(lexer) == '\n') {
+							lexer->line++;
+						}
+
+						advance(lexer);
+					}
+
+					advance(lexer);
+					advance(lexer);
 				} else {
 					return;
 				}
@@ -122,7 +137,17 @@ static LitTokenType check_keyword(LitLexer* lexer, int start, int length, const 
 static LitTokenType find_identifier_type(LitLexer* lexer) {
 	switch (lexer->start[0]) {
 		case 'a': return check_keyword(lexer, 1, 2, "nd", TOKEN_AND);
-		case 'c': return check_keyword(lexer, 1, 4, "lass", TOKEN_CLASS);
+		case 'b': return check_keyword(lexer, 1, 4, "reak", TOKEN_BREAK);
+		case 'c': {
+			if (lexer->current_code - lexer->start > 1) {
+				switch (lexer->start[1]) {
+					case 'l': return check_keyword(lexer, 2, 4, "ass", TOKEN_CLASS);
+					case 'o': return check_keyword(lexer, 2, 6, "ntinue", TOKEN_CONTINUE);
+				}
+			}
+
+			break;
+		}
 		case 'e': return check_keyword(lexer, 1, 3, "lse", TOKEN_ELSE);
 		case 'i': return check_keyword(lexer, 1, 1, "f", TOKEN_IF);
 		case 'n': return check_keyword(lexer, 1, 2, "il", TOKEN_NIL);
