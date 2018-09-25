@@ -32,8 +32,28 @@ char *lit_to_string(LitVm* vm, LitValue value) {
 
 				return buffer;
 			}
+			case OBJECT_INSTANCE: {
+				char *name = AS_INSTANCE(value)->type->name->chars;
+				int len = strlen(name);
+				char* buffer = ALLOCATE(vm, char, len + 10);
+
+				sprintf(buffer, "instance %s", name);
+				buffer[len + 10] = '\0';
+
+				return buffer;
+			}
+			case OBJECT_CLASS: {
+				char *name = AS_CLASS(value)->name->chars;
+				int len = strlen(name);
+				char* buffer = ALLOCATE(vm, char, len + 7);
+
+				sprintf(buffer, "class %s", name);
+				buffer[len + 7] = '\0';
+
+				return buffer;
+			}
 			case OBJECT_UPVALUE: return "upvalue";
-			case OBJECT_CLOSURE: {
+			case OBJECT_CLOSURE: case OBJECT_BOUND_METHOD: {
 				char *name = AS_CLOSURE(value)->function->name->chars;
 				int len = strlen(name);
 				char* buffer = ALLOCATE(vm, char, len + 5);

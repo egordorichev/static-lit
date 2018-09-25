@@ -81,6 +81,26 @@ static void blacken_object(LitVm* vm, LitObject* object) {
 		}
 		case OBJECT_UPVALUE: lit_gray_value(vm, ((LitUpvalue*) object)->closed); break;
 		case OBJECT_NATIVE: case OBJECT_STRING: break;
+		case OBJECT_CLASS: {
+			LitClass* class = (LitClass*) object;
+			lit_gray_object(vm, (LitObject*) class->name);
+			lit_gray_object(vm, (LitObject*) class->super);
+			lit_table_gray(vm, &class->methods);
+			break;
+		}
+		case OBJECT_INSTANCE: {
+			LitInstance* instance = (LitInstance*) object;
+			lit_gray_object(vm, (LitObject*) instance->type);
+			lit_table_gray(vm, &instance->fields);
+			break;
+		}
+		case OBJECT_BOUND_METHOD: {
+			LitMethod* bound = (LitMethod*) object;
+			lit_gray_value(vm, bound->receiver);
+			lit_gray_object(vm, (LitObject*) bound->method);
+			break;
+		}
+		default: UNREACHABLE();
 	}
 }
 

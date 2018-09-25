@@ -6,6 +6,8 @@
 #include "lit_compiler.h"
 #include "lit_vm.h"
 #include "lit_debug.h"
+#include "lit_memory.h"
+#include "lit.h"
 
 void lit_init_compiler(LitVm* vm, LitCompiler* compiler, LitCompiler* enclosing, LitFunctionType type) {
 	compiler->vm = vm;
@@ -18,7 +20,19 @@ void lit_init_compiler(LitVm* vm, LitCompiler* compiler, LitCompiler* enclosing,
 	switch (type) {
 		case TYPE_FUNCTION: compiler->function->name = lit_copy_string(vm, compiler->lexer.previous.start, compiler->lexer.previous.length); break;
 		case TYPE_TOP_LEVEL: compiler->function->name = NULL; break;
-		default: break;
+		case TYPE_INITIALIZER:
+		case TYPE_METHOD: {
+			int length = vm->class->name.length + enclosing->lexer.previous.length + 1;
+			char* chars = ALLOCATE(vm, char, length + 1);
+
+			memcpy(chars, vm->class->name.start, vm->class->name.length);
+			chars[vm->class->name.length] = '.';
+			memcpy(chars + vm->class->name.length + 1, enclosing->lexer.previous.start, enclosing->lexer.previous.length);
+			chars[length] = '\0';
+			compiler->function->name = lit_make_string(vm, chars, length);
+
+			break;
+		}
 	}
 
 	LitLocal* local = &compiler->locals[compiler->local_count++];
@@ -43,12 +57,12 @@ void lit_free_compiler(LitCompiler* compiler) {
  */
 
 static void error_at(LitCompiler* compiler, LitToken* token, const char* message) {
-	compiler->lexer.panic_mode = true;
-
 	if (compiler->lexer.panic_mode) {
 		// Skip errors till we get to normal
 		return;
 	}
+
+	compiler->lexer.panic_mode = true;
 
 	fprintf(stderr, "[line %d] Error", token->line);
 
@@ -493,6 +507,101 @@ static uint8_t parse_var_declaration(LitCompiler* compiler) {
 	return global;
 }
 
+static LitToken make_synthetic_token(const char* text) {
+	LitToken token;
+	token.start = text;
+	token.length = (int)strlen(text);
+
+	return token;
+}
+
+static void parse_function(LitCompiler* cmp, LitFunctionType type) {
+	LitCompiler compiler;
+	compiler.lexer = cmp->lexer;
+	lit_init_compiler(cmp->vm, &compiler, cmp, type);
+
+	consume(&compiler, TOKEN_LEFT_PAREN, "Expected '(' after function name");
+
+	if (!check(&compiler, TOKEN_RIGHT_PAREN)) {
+		do {
+			define_variable(&compiler, parse_variable(&compiler, "Expected parameter name"));
+
+			compiler.function->arity++;
+		} while (match(&compiler, TOKEN_COMMA));
+	}
+
+	consume(&compiler, TOKEN_RIGHT_PAREN, "Expected ')' after parameters");
+	consume(&compiler, TOKEN_LEFT_BRACE, "Expected '{' before function body");
+
+	parse_block(&compiler);
+	end_scope(&compiler);
+
+	LitFunction* function = end_compiler(&compiler);
+	cmp->lexer = compiler.lexer;
+	emit_bytes(cmp, OP_CLOSURE, make_constant(cmp, MAKE_OBJECT_VALUE(function)));
+
+	for (int i = 0; i < function->upvalue_count; i++) {
+		emit_bytes(cmp, compiler.upvalues[i].local ? 1 : 0, compiler.upvalues[i].index);
+	}
+}
+
+static void parse_method(LitCompiler* compiler) {
+	consume(compiler, TOKEN_IDENTIFIER, "Expected method name");
+	uint8_t constant = make_identifier_constant(compiler, &compiler->lexer.previous);
+
+	LitFunctionType type = TYPE_METHOD;
+
+	if (compiler->lexer.previous.length == 4 && memcmp(compiler->lexer.previous.start, "init", 4) == 0) {
+		type = TYPE_INITIALIZER;
+	}
+
+	parse_function(compiler, type);
+	emit_bytes(compiler, OP_METHOD, constant);
+}
+
+static void parse_class_declaration(LitCompiler* compiler) {
+	consume(compiler, TOKEN_IDENTIFIER, "Expected class name");
+
+	uint8_t name_constant = make_identifier_constant(compiler, &compiler->lexer.previous);
+	declare_variable(compiler);
+
+	LitClassCompiler class_compiler;
+
+	class_compiler.name = compiler->lexer.previous;
+	class_compiler.has_super = false;
+	class_compiler.enclosing = compiler->vm->class;
+
+	compiler->vm->class = &class_compiler;
+
+	if (match(compiler, TOKEN_LESS)) {
+		consume(compiler, TOKEN_IDENTIFIER, "Expected super name");
+		class_compiler.has_super = true;
+
+		begin_scope(compiler);
+		parse_variable_usage(compiler, false);
+		add_local(compiler, make_synthetic_token("super"));
+
+		emit_bytes(compiler, OP_SUBCLASS, name_constant);
+	} else {
+		emit_bytes(compiler, OP_CLASS, name_constant);
+	}
+
+	consume(compiler, TOKEN_LEFT_BRACE, "Expected '{' before class body");
+
+	while (!check(compiler, TOKEN_RIGHT_BRACE) && !check(compiler, TOKEN_EOF)) {
+		parse_method(compiler);
+	}
+
+	consume(compiler, TOKEN_RIGHT_BRACE, "Expected '}' after class body");
+
+	if (class_compiler.has_super) {
+		end_scope(compiler);
+	}
+
+	define_variable(compiler, name_constant);
+	compiler->vm->class = compiler->vm->class->enclosing;
+}
+
 static void parse_if(LitCompiler* compiler) {
 	consume(compiler, TOKEN_LEFT_PAREN, "Expected '(' after 'if'");
 	parse_expression(compiler);
@@ -585,36 +694,6 @@ static void parse_for(LitCompiler* compiler) {
 	end_scope(compiler);
 }
 
-static void parse_function(LitCompiler* cmp, LitFunctionType type) {
-	LitCompiler compiler;
-	compiler.lexer = cmp->lexer;
-	lit_init_compiler(cmp->vm, &compiler, cmp, type);
-
-	consume(&compiler, TOKEN_LEFT_PAREN, "Expected '(' after function name");
-
-	if (!check(&compiler, TOKEN_RIGHT_PAREN)) {
-		do {
-			define_variable(&compiler, parse_variable(&compiler, "Expected parameter name"));
-
-			compiler.function->arity++;
-		} while (match(&compiler, TOKEN_COMMA));
-	}
-
-	consume(&compiler, TOKEN_RIGHT_PAREN, "Expected ')' after parameters");
-	consume(&compiler, TOKEN_LEFT_BRACE, "Expected '{' before function body");
-
-	parse_block(&compiler);
-	end_scope(&compiler);
-
-	LitFunction* function = end_compiler(&compiler);
-	cmp->lexer = compiler.lexer;
-	emit_bytes(cmp, OP_CLOSURE, make_constant(cmp, MAKE_OBJECT_VALUE(function)));
-
-	for (int i = 0; i < function->upvalue_count; i++) {
-		emit_bytes(cmp, compiler.upvalues[i].local ? 1 : 0, compiler.upvalues[i].index);
-	}
-}
-
 static void parse_function_declaration(LitCompiler* compiler) {
 	uint8_t global = parse_variable(compiler, "Expected function name");
 	parse_function(compiler, TYPE_FUNCTION);
@@ -686,6 +765,9 @@ static void parse_declaration(LitCompiler* compiler) {
 	} else if (token == TOKEN_VAR) {
 		advance(compiler);
 		parse_var_declaration(compiler);
+	} else if (token == TOKEN_CLASS) {
+		advance(compiler);
+		parse_class_declaration(compiler);
 	} else {
 		parse_statement(compiler);
 	}

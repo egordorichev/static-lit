@@ -197,7 +197,24 @@ static LitUpvalue* capture_upvalue(LitVm* vm, LitValue* local) {
 	return created_upvalue;
 }
 
-static void *functions[OP_CALL + 1];
+static void create_class(LitVm* vm, LitString* name, LitClass* super) {
+	LitClass* class = lit_new_class(vm, name, super);
+	lit_push(vm, MAKE_OBJECT_VALUE(class));
+
+	if (super != NULL) {
+		lit_table_add_all(vm, &class->methods, &super->methods);
+	}
+}
+
+static void define_method(LitVm* vm, LitString* name) {
+	LitValue method = lit_peek(vm, 0);
+	LitClass* class = AS_CLASS(lit_peek(vm, 1));
+
+	lit_table_set(vm, &class->methods, name, method);
+	lit_pop(vm);
+}
+
+static void *functions[OP_METHOD + 1];
 static bool inited_functions;
 
 LitInterpretResult lit_interpret(LitVm* vm) {
@@ -236,6 +253,9 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		functions[OP_LOOP] = &&op_loop;
 		functions[OP_CLOSURE] = &&op_closure;
 		functions[OP_CALL] = &&op_call;
+		functions[OP_SUBCLASS] = &&op_subclass;
+		functions[OP_CLASS] = &&op_class;
+		functions[OP_METHOD] = &&op_method;
 	}
 
 #ifdef DEBUG_TRACE_EXECUTION
@@ -563,6 +583,28 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 				ip = frame->ip;
 			}
 
+			continue;
+		};
+
+		op_class: {
+			create_class(vm, READ_STRING(), NULL);
+			continue;
+		};
+
+		op_subclass: {
+			LitValue super = PEEK(0);
+
+			if (!IS_CLASS(super)) {
+				runtime_error(vm, "Superclass must be a class");
+				return INTERPRET_RUNTIME_ERROR;
+			}
+
+			create_class(vm, READ_STRING(), AS_CLASS(super));
+			continue;
+		};
+
+		op_method: {
+			define_method(vm, READ_STRING());
 			continue;
 		};
 	}

@@ -5,16 +5,23 @@
 #include "lit_value.h"
 #include "lit_vm.h"
 #include "lit_chunk.h"
+#include "lit_table.h"
 
 #define OBJECT_TYPE(value) (AS_OBJECT(value)->type)
 #define IS_STRING(value) lit_is_object_type(value, OBJECT_STRING)
 #define IS_CLOSURE(value) lit_is_object_type(value, OBJECT_CLOSURE)
 #define IS_FUNCTION(value) lit_is_object_type(value, OBJECT_FUNCTION)
 #define IS_NATIVE(value) lit_is_object_type(value, OBJECT_NATIVE)
+#define IS_METHOD(value) lit_is_object_type(value, OBJECT_BOUND_METHOD)
+#define IS_CLASS(value) lit_is_object_type(value, OBJECT_CLASS)
+#define IS_INSTANCE(value) lit_is_object_type(value, OBJECT_INSTANCE)
 
 #define AS_CLOSURE(value) ((LitClosure*) AS_OBJECT(value))
 #define AS_FUNCTION(value) ((LitFunction*) AS_OBJECT(value))
 #define AS_NATIVE(value) (((LitNative*) AS_OBJECT(value))->function)
+#define AS_METHOD(value) ((LitMethod*) AS_OBJECT(value))
+#define AS_CLASS(value) ((LitClass*) AS_OBJECT(value))
+#define AS_INSTANCE(value) ((LitInstance*) AS_OBJECT(value))
 #define AS_STRING(value) ((LitString*) AS_OBJECT(value))
 #define AS_CSTRING(value) (((LitString*) AS_OBJECT(value))->chars)
 
@@ -24,9 +31,9 @@ typedef enum {
 	OBJECT_FUNCTION,
 	OBJECT_NATIVE,
 	OBJECT_CLOSURE,
-	OBJ_BOUND_METHOD,
-	OBJ_CLASS,
-	OBJ_INSTANCE
+	OBJECT_BOUND_METHOD,
+	OBJECT_CLASS,
+	OBJECT_INSTANCE
 } LitObjectType;
 
 struct sLitObject {
@@ -72,10 +79,32 @@ typedef struct {
 	int upvalue_count;
 } LitClosure;
 
+typedef struct sLitClass {
+	LitObject object;
+	LitString* name;
+	struct sLitClass* super;
+	LitTable methods;
+} LitClass;
+
+typedef struct {
+	LitObject object;
+	LitClass* type;
+	LitTable fields;
+} LitInstance;
+
+typedef struct {
+	LitObject object;
+	LitValue receiver;
+	LitClosure* method;
+} LitMethod;
+
 LitUpvalue* lit_new_upvalue(LitVm* vm, LitValue* slot);
 LitClosure* lit_new_closure(LitVm* vm, LitFunction* function);
 LitFunction* lit_new_function(LitVm* vm);
 LitNative* lit_new_native(LitVm* vm, LitNativeFn function);
+LitMethod* lit_new_bound_method(LitVm* vm, LitValue receiver, LitClosure* method);
+LitClass* lit_new_class(LitVm* vm, LitString* name, LitClass* super);
+LitInstance* lit_new_instance(LitVm* vm, LitClass* klass);
 
 LitString* lit_make_string(LitVm* vm, char* chars, int length);
 LitString* lit_copy_string(LitVm* vm, const char* chars, int length);

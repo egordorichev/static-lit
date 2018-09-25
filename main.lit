@@ -1,1 +1,3 @@
-print(time())
+class Awesome {
+
+}

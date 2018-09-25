@@ -35,6 +35,8 @@ typedef struct _LitVm {
 	int gray_count;
 	int gray_capacity;
 	LitObject** gray_stack;
+
+	LitClassCompiler *class;
 } _LitVm;
 
 void lit_init_vm(LitVm* vm);

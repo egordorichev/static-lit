@@ -24,6 +24,13 @@ typedef enum {
 	TYPE_TOP_LEVEL
 } LitFunctionType;
 
+typedef struct LitClassCompiler {
+	struct LitClassCompiler* enclosing;
+
+	LitToken name;
+	bool has_super;
+} LitClassCompiler;
+
 typedef struct sLitCompiler {
 	struct sLitCompiler* enclosing;
 	LitLexer lexer;

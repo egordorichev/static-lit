@@ -78,6 +78,8 @@ int lit_disassemble_instruction(LitVm* vm, LitChunk* chunk, int offset) {
 		case OP_JUMP: return jump_instruction("OP_JUMP", 1, chunk, offset);
 		case OP_JUMP_IF_FALSE: return jump_instruction("OP_JUMP_IF_FALSE", 1, chunk, offset);
 		case OP_LOOP: return jump_instruction("OP_LOOP", -1, chunk, offset);
+		case OP_CLASS: return constant_instruction(vm, "OP_CLASS", chunk, offset);
+		case OP_SUBCLASS: return constant_instruction(vm, "OP_SUBCLASS", chunk, offset);
 		case OP_CLOSURE: {
 			offset++;
 			uint8_t constant = chunk->code[offset++];

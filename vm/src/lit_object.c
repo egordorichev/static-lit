@@ -63,6 +63,35 @@ LitNative* lit_new_native(LitVm* vm, LitNativeFn function) {
 	return native;
 }
 
+LitMethod* lit_new_bound_method(LitVm* vm, LitValue receiver, LitClosure* method) {
+	LitMethod* bound = ALLOCATE_OBJECT(vm, LitMethod, OBJECT_BOUND_METHOD);
+
+	bound->receiver = receiver;
+	bound->method = method;
+
+	return bound;
+}
+
+LitClass* lit_new_class(LitVm* vm, LitString* name, LitClass* super) {
+	LitClass* klass = ALLOCATE_OBJECT(vm, LitClass, OBJECT_CLASS);
+
+	klass->name = name;
+	klass->super = super;
+
+	lit_init_table(&klass->methods);
+
+	return klass;
+}
+
+LitInstance* lit_new_instance(LitVm* vm, LitClass* klass) {
+	LitInstance* instance = ALLOCATE_OBJECT(vm, LitInstance, OBJECT_INSTANCE);
+
+	instance->type = klass;
+	lit_init_table(&instance->fields);
+
+	return instance;
+}
+
 static LitString* allocate_string(LitVm* vm, char* chars, int length, uint32_t hash) {
 	LitString* string = ALLOCATE_OBJECT(vm, LitString, OBJECT_STRING);
 
