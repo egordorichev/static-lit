@@ -66,7 +66,11 @@ int lit_disassemble_instruction(LitVm* vm, LitChunk* chunk, int offset) {
 		case OP_NOT_EQUAL: return simple_instruction("OP_NOT_EQUAL", offset);
 		case OP_GREATER_EQUAL: return simple_instruction("OP_GREATER_EQUAL", offset);
 		case OP_LESS_EQUAL: return simple_instruction("OP_LESS_EQUAL", offset);
-		case OP_CALL: return simple_instruction("OP_CALL", offset);
+		case OP_CALL_0: return simple_instruction("OP_CALL_0", offset);
+		case OP_CALL_1: return simple_instruction("OP_CALL_1", offset);
+		case OP_CALL_2: return simple_instruction("OP_CALL_2", offset);
+		case OP_CALL_3: return simple_instruction("OP_CALL_3", offset);
+		case OP_CALL_4: return simple_instruction("OP_CALL_4", offset);
 		case OP_DEFINE_GLOBAL: return constant_instruction(vm, "OP_DEFINE_GLOBAL", chunk, offset);
 		case OP_GET_GLOBAL: return constant_instruction(vm, "OP_GET_GLOBAL", chunk, offset);
 		case OP_SET_GLOBAL: return constant_instruction(vm, "OP_SET_GLOBAL", chunk, offset);

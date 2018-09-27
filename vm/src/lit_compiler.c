@@ -375,6 +375,7 @@ static void parse_statement(LitCompiler* compiler);
 static void init_parse_rules();
 static LitParseRule parse_rules[TOKEN_EOF + 1];
 static bool inited_parse_rules = false;
+// static LitParseRule null_rule = (LitParseRule) { NULL, NULL, PREC_NONE };
 
 static inline LitParseRule* get_parse_rule(LitTokenType type) {
 	return &parse_rules[type];
@@ -442,8 +443,8 @@ static uint8_t parse_argument_list(LitCompiler* compiler) {
 
 static void parse_call(LitCompiler* compiler) {
 	uint8_t arg_count = parse_argument_list(compiler);
-	emit_constant(compiler, MAKE_NUMBER_VALUE(arg_count));
-	emit_byte(compiler, OP_CALL);
+	// emit_constant(compiler, MAKE_NUMBER_VALUE(arg_count));
+	emit_byte(compiler, OP_CALL_0 + arg_count);
 }
 
 static void parse_unary(LitCompiler* compiler) {
@@ -752,7 +753,11 @@ static void parse_precedence(LitCompiler* compiler, LitPrecedence precedence) {
 
 	while (precedence <= get_parse_rule(compiler->lexer.current.type)->precedence) {
 		advance(compiler);
-		get_parse_rule(compiler->lexer.previous.type)->infix(compiler, can_assign);
+		LitParseFn infix = get_parse_rule(compiler->lexer.previous.type)->infix;
+
+		if (infix != NULL) {
+			infix(compiler, can_assign);
+		}
 	}
 
 	if (can_assign && match(compiler, TOKEN_EQUAL)) {
@@ -783,6 +788,66 @@ static void parse_continue(LitCompiler* compiler) {
 	emit_loop(compiler, compiler->loop->start);
 }
 
+static void parse_switch(LitCompiler* compiler) {
+	consume(compiler, TOKEN_LEFT_PAREN, "Expected '(' after 'switch'");
+	parse_expression(compiler);
+	consume(compiler, TOKEN_RIGHT_PAREN, "Expected ')' after condition");
+	consume(compiler, TOKEN_LEFT_BRACE, "Expected '{' before switch body");
+
+	/*
+	consume(compiler, TOKEN_LEFT_PAREN, "Expected '(' after 'if'");
+	parse_expression(compiler);
+	consume(compiler, TOKEN_RIGHT_PAREN, "Expected ')' after condition");
+
+	int else_jump = emit_jump(compiler, OP_JUMP_IF_FALSE);
+
+	emit_byte(compiler, OP_POP);
+	parse_statement(compiler);
+
+	int end_jump = emit_jump(compiler, OP_JUMP);
+
+	patch_jump(compiler, else_jump);
+	emit_byte(compiler, OP_POP);
+
+	if (match(compiler, TOKEN_ELSE)) {
+		parse_statement(compiler);
+	}
+
+	patch_jump(compiler, end_jump);
+	 */
+
+	while (!match(compiler, TOKEN_RIGHT_BRACE)) {
+		if (match(compiler, TOKEN_EOF)) {
+			error_at_compiler(compiler, "Unclosed switch body");
+			return;
+		}
+
+		parse_expression(compiler);
+
+		emit_byte(compiler, OP_POP);
+
+		consume(compiler, TOKEN_COLLUMN, "Expected ':' after expression");
+		parse_statement(compiler);
+	}
+}
+
+static void parse_return(LitCompiler* compiler) {
+	if (compiler->type == TYPE_TOP_LEVEL) {
+		error(compiler, "Cannot return from top-level code");
+	}
+
+	if (match(compiler, TOKEN_RIGHT_BRACE)) {
+		emit_return(compiler);
+	} else {
+		if (compiler->type == TYPE_INITIALIZER) {
+			error(compiler, "Cannot return a value from an initializer");
+		}
+
+		parse_expression(compiler);
+		emit_byte(compiler, OP_RETURN);
+	}
+}
+
 static void parse_statement(LitCompiler* compiler) {
 	LitTokenType token = compiler->lexer.current.type;
 
@@ -797,15 +862,20 @@ static void parse_statement(LitCompiler* compiler) {
 		parse_for(compiler);
 	} else if (token == TOKEN_PRINT) {
 		advance(compiler);
-
 		parse_expression(compiler);
 		emit_byte(compiler, OP_PRINT);
+	} else if (token == TOKEN_RETURN) {
+		advance(compiler);
+		parse_return(compiler);
 	} else if (token == TOKEN_BREAK) {
 		advance(compiler);
 		parse_break(compiler);
 	} else if (token == TOKEN_CONTINUE) {
 		advance(compiler);
 		parse_continue(compiler);
+	} else if (token == TOKEN_SWITCH) {
+		advance(compiler);
+		parse_switch(compiler);
 	}	else if (token == TOKEN_LEFT_BRACE) {
 		advance(compiler);
 
@@ -814,7 +884,7 @@ static void parse_statement(LitCompiler* compiler) {
 		end_scope(compiler);
 	} else {
 		parse_expression(compiler);
-		// emit_byte(compiler, OP_POP);
+		emit_byte(compiler, OP_POP);
 	}
 }
 
@@ -882,6 +952,6 @@ static void init_parse_rules() {
 	parse_rules[TOKEN_STRING] = (LitParseRule) { parse_string, NULL, PREC_NONE };
 	parse_rules[TOKEN_IDENTIFIER] = (LitParseRule) { parse_variable_usage, NULL, PREC_NONE };
 	parse_rules[TOKEN_DOT] = (LitParseRule) { NULL, parse_dot, PREC_CALL };
-	parse_rules[TOKEN_THIS] = (LitParseRule) { parse_this, NULL, PREC_CALL };
+	parse_rules[TOKEN_THIS] = (LitParseRule) { parse_this, NULL, PREC_NONE };
 	parse_rules[TOKEN_FUN] = (LitParseRule) { parse_anonym, NULL, PREC_CALL };
 }

@@ -20,15 +20,15 @@ char *lit_to_string(LitVm* vm, LitValue value) {
 	} else if (IS_OBJECT(value)) {
 		switch (AS_OBJECT(value)->type) {
 			case OBJECT_STRING: return AS_CSTRING(value);
-			case OBJECT_NATIVE: return "<native fn>";
+			case OBJECT_NATIVE: return "<native fun>";
 			case OBJECT_FUNCTION: {
 				char *name = AS_FUNCTION(value)->name->chars;
 				int len = strlen(name);
-				char* buffer = ALLOCATE(vm, char, len + 5);
+				char* buffer = ALLOCATE(vm, char, len + 6);
 
-				sprintf(buffer, "<fn %s", name);
-				buffer[len + 4] = '>';
-				buffer[len + 5] = '\0';
+				sprintf(buffer, "<fun %s", name);
+				buffer[len + 5] = '>';
+				buffer[len + 6] = '\0';
 
 				return buffer;
 			}

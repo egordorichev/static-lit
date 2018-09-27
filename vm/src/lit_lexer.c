@@ -141,7 +141,7 @@ static LitTokenType find_identifier_type(LitLexer* lexer) {
 		case 'c': {
 			if (lexer->current_code - lexer->start > 1) {
 				switch (lexer->start[1]) {
-					case 'l': return check_keyword(lexer, 2, 4, "ass", TOKEN_CLASS);
+					case 'l': return check_keyword(lexer, 2, 3, "ass", TOKEN_CLASS);
 					case 'o': return check_keyword(lexer, 2, 6, "ntinue", TOKEN_CONTINUE);
 				}
 			}
@@ -154,7 +154,16 @@ static LitTokenType find_identifier_type(LitLexer* lexer) {
 		case 'o': return check_keyword(lexer, 1, 1, "r", TOKEN_OR);
 		case 'p': return check_keyword(lexer, 1, 4, "rint", TOKEN_PRINT);
 		case 'r': return check_keyword(lexer, 1, 5, "eturn", TOKEN_RETURN);
-		case 's': return check_keyword(lexer, 1, 4, "uper", TOKEN_SUPER);
+		case 's': {
+			if (lexer->current_code - lexer->start > 1) {
+				switch (lexer->start[1]) {
+					case 'u': return check_keyword(lexer, 2, 3, "per", TOKEN_SUPER);
+					case 'w': return check_keyword(lexer, 2, 4, "itch", TOKEN_SWITCH);
+				}
+			}
+
+			break;
+		}
 		case 'v': return check_keyword(lexer, 1, 2, "ar", TOKEN_VAR);
 		case 'w': return check_keyword(lexer, 1, 4, "hile", TOKEN_WHILE);
 		case 'f': {
@@ -228,6 +237,7 @@ LitToken lit_lexer_next_token(LitLexer* lexer) {
 		case '+': return make_token(lexer, TOKEN_PLUS);
 		case '/': return make_token(lexer, TOKEN_SLASH);
 		case '*': return make_token(lexer, TOKEN_STAR);
+		case ':': return make_token(lexer, TOKEN_COLLUMN);
 		case '!': return make_token(lexer, match(lexer, '=') ? TOKEN_BANG_EQUAL : TOKEN_BANG);
 		case '=': return make_token(lexer, match(lexer, '=') ? TOKEN_EQUAL_EQUAL : TOKEN_EQUAL);
 		case '<': return make_token(lexer, match(lexer, '=') ? TOKEN_LESS_EQUAL : TOKEN_LESS);

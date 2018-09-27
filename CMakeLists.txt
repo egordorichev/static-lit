@@ -9,8 +9,8 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 set(CMAKE_C_FLAGS "-Wall -Wextra")
-set(CMAKE_C_FLAGS_DEBUG "-g")
-set(CMAKE_C_FLAGS_RELEASE "-O3")
+set(CMAKE_C_FLAGS_DEBUG "-g -O3 -flto -std=c99")
+set(CMAKE_C_FLAGS_RELEASE "-O3 -flto -std=c99")
 
 file(GLOB_RECURSE SOURCE_FILES cli/*.c vm/src/*.c)
 include_directories(vm/include/)

@@ -129,7 +129,20 @@ static bool call_value(LitVm* vm, LitValue callee, int arg_count) {
 			case OBJECT_CLOSURE: return call(vm, AS_CLOSURE(callee), arg_count);
 			case OBJECT_NATIVE: {
 				last_native = true;
-				AS_NATIVE(callee)(vm);
+				int count = AS_NATIVE(callee)(vm);
+				LitValue values[count];
+
+				for (int i = 0; i < count; i++) {
+					values[i] = lit_pop(vm);
+				}
+
+				lit_pop(vm); // native fn
+
+				for (int i = 0; i < count; i++) {
+					lit_push(vm, values[i]);
+				}
+
+				// vm->stack_top -= arg_count + 1;
 				return true;
 			}
 			case OBJECT_BOUND_METHOD: {
@@ -160,15 +173,14 @@ static bool call_value(LitVm* vm, LitValue callee, int arg_count) {
 	return false;
 }
 
-static void time_function(LitVm* vm) {
+static int time_function(LitVm* vm) {
 	lit_push(vm, MAKE_NUMBER_VALUE((double) clock() / CLOCKS_PER_SEC));
+	return 1;
 }
 
 LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 	vm->abort = false;
 	LitFunction *function = lit_compile(vm, code);
-
-	define_native(vm, "time", time_function);
 
 	if (function == NULL) {
 		return INTERPRET_COMPILE_ERROR;
@@ -183,6 +195,7 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 #ifdef DEBUG_NO_EXECUTE
 	return INTERPRET_OK;
 #else
+	define_native(vm, "time", time_function);
 	return lit_interpret(vm);
 #endif
 }
@@ -289,7 +302,7 @@ static bool bind_method(LitVm* vm, LitClass* klass, LitString* name) {
 	return true;
 }
 
-static void *functions[OP_INVOKE + 1];
+static void *functions[OP_CALL_8 + 1];
 static bool inited_functions;
 
 LitInterpretResult lit_interpret(LitVm* vm) {
@@ -327,7 +340,15 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		functions[OP_JUMP_IF_FALSE] = &&op_jump_if_false;
 		functions[OP_LOOP] = &&op_loop;
 		functions[OP_CLOSURE] = &&op_closure;
-		functions[OP_CALL] = &&op_call;
+		functions[OP_CALL_0] = &&op_call;
+		functions[OP_CALL_1] = &&op_call;
+		functions[OP_CALL_2] = &&op_call;
+		functions[OP_CALL_3] = &&op_call;
+		functions[OP_CALL_4] = &&op_call;
+		functions[OP_CALL_5] = &&op_call;
+		functions[OP_CALL_6] = &&op_call;
+		functions[OP_CALL_7] = &&op_call;
+		functions[OP_CALL_8] = &&op_call;
 		functions[OP_SUBCLASS] = &&op_subclass;
 		functions[OP_CLASS] = &&op_class;
 		functions[OP_METHOD] = &&op_method;
@@ -584,7 +605,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		op_set_global: {
 			LitString* name = READ_STRING();
 
-			if (lit_table_set(vm, &vm->globals, name, POP())) {
+			if (lit_table_set(vm, &vm->globals, name, PEEK(0))) {
 				runtime_error(vm, "Undefined variable '%s'", name->chars);
 				return INTERPRET_RUNTIME_ERROR;
 			}
@@ -653,7 +674,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		};
 
 		op_call: {
-			int arg_count = AS_NUMBER(POP());
+			int arg_count = *(frame->ip - 1) - OP_CALL_0;
 
 			if (!call_value(vm, PEEK(arg_count), arg_count)) {
 				return INTERPRET_RUNTIME_ERROR;
