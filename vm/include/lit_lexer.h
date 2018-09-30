@@ -13,6 +13,8 @@ typedef enum {
 	TOKEN_EQUAL, TOKEN_EQUAL_EQUAL,
 	TOKEN_GREATER, TOKEN_GREATER_EQUAL,
 	TOKEN_LESS, TOKEN_LESS_EQUAL,
+	TOKEN_PLUS_EQUAL, TOKEN_MINUS_EQUAL,
+	TOKEN_STAR_EQUAL, TOKEN_SLASH_EQUAL,
 
 	TOKEN_IDENTIFIER, TOKEN_STRING, TOKEN_NUMBER,
 
@@ -42,6 +44,7 @@ typedef struct {
 
 	LitToken current;
 	LitToken previous;
+	LitToken prev_prev;
 
 	bool had_error;
 	bool panic_mode;

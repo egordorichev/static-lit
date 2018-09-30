@@ -311,7 +311,7 @@ static bool bind_method(LitVm* vm, LitClass* klass, LitString* name) {
 	return true;
 }
 
-static void *functions[OP_CALL_8 + 1];
+static void *functions[OP_CALL + 1];
 static bool inited_functions;
 
 LitInterpretResult lit_interpret(LitVm* vm) {
@@ -349,15 +349,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		functions[OP_JUMP_IF_FALSE] = &&op_jump_if_false;
 		functions[OP_LOOP] = &&op_loop;
 		functions[OP_CLOSURE] = &&op_closure;
-		functions[OP_CALL_0] = &&op_call;
-		functions[OP_CALL_1] = &&op_call;
-		functions[OP_CALL_2] = &&op_call;
-		functions[OP_CALL_3] = &&op_call;
-		functions[OP_CALL_4] = &&op_call;
-		functions[OP_CALL_5] = &&op_call;
-		functions[OP_CALL_6] = &&op_call;
-		functions[OP_CALL_7] = &&op_call;
-		functions[OP_CALL_8] = &&op_call;
+		functions[OP_CALL] = &&op_call;
 		functions[OP_SUBCLASS] = &&op_subclass;
 		functions[OP_CLASS] = &&op_class;
 		functions[OP_METHOD] = &&op_method;
@@ -683,7 +675,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		};
 
 		op_call: {
-			int arg_count = *(frame->ip - 1) - OP_CALL_0;
+			int arg_count = AS_NUMBER(POP());
 
 			if (!call_value(vm, PEEK(arg_count), arg_count)) {
 				return INTERPRET_RUNTIME_ERROR;

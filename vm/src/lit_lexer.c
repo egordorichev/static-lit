@@ -232,10 +232,10 @@ LitToken lit_lexer_next_token(LitLexer* lexer) {
 		case ';': return make_token(lexer, TOKEN_SEMICOLON);
 		case ',': return make_token(lexer, TOKEN_COMMA);
 		case '.': return make_token(lexer, match(lexer, '.') ? TOKEN_RANGE : TOKEN_DOT);
-		case '-': return make_token(lexer, TOKEN_MINUS);
-		case '+': return make_token(lexer, TOKEN_PLUS);
-		case '/': return make_token(lexer, TOKEN_SLASH);
-		case '*': return make_token(lexer, TOKEN_STAR);
+		case '-': return make_token(lexer, match(lexer, '=') ? TOKEN_MINUS_EQUAL : TOKEN_MINUS);
+		case '+': return make_token(lexer, match(lexer, '=') ? TOKEN_PLUS_EQUAL : TOKEN_PLUS);
+		case '/': return make_token(lexer, match(lexer, '=') ? TOKEN_SLASH_EQUAL : TOKEN_SLASH);
+		case '*': return make_token(lexer, match(lexer, '=') ? TOKEN_STAR_EQUAL : TOKEN_STAR);
 		case ':': return make_token(lexer, TOKEN_COLLUMN);
 		case '!': return make_token(lexer, match(lexer, '=') ? TOKEN_BANG_EQUAL : TOKEN_BANG);
 		case '=': return make_token(lexer, match(lexer, '=') ? TOKEN_EQUAL_EQUAL : TOKEN_EQUAL);

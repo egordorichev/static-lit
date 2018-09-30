@@ -90,6 +90,7 @@ static inline void error_at_compiler(LitCompiler* compiler, const char* message)
  */
 
 static void advance(LitCompiler* compiler) {
+	compiler->lexer.prev_prev = compiler->lexer.previous;
 	compiler->lexer.previous = compiler->lexer.current;
 
 	for (;;) {
@@ -443,17 +444,38 @@ static uint8_t parse_argument_list(LitCompiler* compiler) {
 
 static void parse_call(LitCompiler* compiler) {
 	uint8_t arg_count = parse_argument_list(compiler);
-	// emit_constant(compiler, MAKE_NUMBER_VALUE(arg_count));
-	emit_byte(compiler, OP_CALL_0 + arg_count);
+	emit_constant(compiler, MAKE_NUMBER_VALUE(arg_count));
+	emit_byte(compiler, OP_CALL);
 }
 
 static void parse_unary(LitCompiler* compiler) {
-	LitTokenType operatorType = compiler->lexer.previous.type;
+	LitTokenType operator_type = compiler->lexer.previous.type;
 	parse_precedence(compiler, PREC_UNARY);
 
-	switch (operatorType) {
+	switch (operator_type) {
 		case TOKEN_BANG: emit_byte(compiler, OP_NOT); break;
 		case TOKEN_MINUS: emit_byte(compiler, OP_NEGATE); break;
+		default: UNREACHABLE();
+	}
+}
+
+static void parse_var_assign(LitCompiler* compiler) {
+	if (compiler->lexer.prev_prev.type != TOKEN_IDENTIFIER) {
+		error_at(compiler, &compiler->lexer.prev_prev, "Expected variable");
+	}
+
+	uint8_t constant = make_identifier_constant(compiler, &compiler->lexer.prev_prev);
+	LitTokenType operator_type = compiler->lexer.previous.type;
+	parse_expression(compiler);
+	
+	switch (operator_type) {
+		case TOKEN_PLUS_EQUAL: {
+
+			emit_byte(compiler, OP_ADD);
+			emit_bytes(compiler, OP_SET_GLOBAL, constant);
+			// emit_byte(compiler, OP_EQUAL);
+			break;
+		}
 		default: UNREACHABLE();
 	}
 }
@@ -950,4 +972,5 @@ static void init_parse_rules() {
 	parse_rules[TOKEN_DOT] = (LitParseRule) { NULL, parse_dot, PREC_CALL };
 	parse_rules[TOKEN_THIS] = (LitParseRule) { parse_this, NULL, PREC_NONE };
 	parse_rules[TOKEN_FUN] = (LitParseRule) { parse_anonym, NULL, PREC_CALL };
+	parse_rules[TOKEN_PLUS_EQUAL] = (LitParseRule) { NULL, parse_var_assign, PREC_EQUALITY };
 }
