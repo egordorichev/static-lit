@@ -1,4 +1,5 @@
-var a = 350
-a += a
-
-print(a)
+{
+    var a = 10
+    a /= 3
+    print(a)
+}

@@ -90,6 +90,7 @@ static inline void error_at_compiler(LitCompiler* compiler, const char* message)
  */
 
 static void advance(LitCompiler* compiler) {
+	compiler->lexer.prev_prev_prev = compiler->lexer.prev_prev;
 	compiler->lexer.prev_prev = compiler->lexer.previous;
 	compiler->lexer.previous = compiler->lexer.current;
 
@@ -467,17 +468,27 @@ static void parse_var_assign(LitCompiler* compiler) {
 	uint8_t constant = make_identifier_constant(compiler, &compiler->lexer.prev_prev);
 	LitTokenType operator_type = compiler->lexer.previous.type;
 	parse_expression(compiler);
+
+	uint8_t set;
+	int arg = resolve_local(compiler, &compiler->lexer.prev_prev_prev, false);
+
+	if (arg != -1) {
+		set = OP_SET_LOCAL;
+	} else if (resolve_upvalue(compiler, &compiler->lexer.prev_prev_prev) != -1) {
+		set = OP_SET_UPVALUE;
+	} else {
+		set = OP_SET_GLOBAL;
+	}
 	
 	switch (operator_type) {
-		case TOKEN_PLUS_EQUAL: {
-
-			emit_byte(compiler, OP_ADD);
-			emit_bytes(compiler, OP_SET_GLOBAL, constant);
-			// emit_byte(compiler, OP_EQUAL);
-			break;
-		}
+		case TOKEN_PLUS_EQUAL: emit_byte(compiler, OP_ADD); break;
+		case TOKEN_MINUS_EQUAL: emit_byte(compiler, OP_SUBTRACT); break;
+		case TOKEN_STAR_EQUAL: emit_byte(compiler, OP_MULTIPLY); break;
+		case TOKEN_SLASH_EQUAL: emit_byte(compiler, OP_DIVIDE); break;
 		default: UNREACHABLE();
 	}
+
+	emit_bytes(compiler, set, constant);
 }
 
 static void parse_binary(LitCompiler* compiler) {
@@ -972,5 +983,8 @@ static void init_parse_rules() {
 	parse_rules[TOKEN_DOT] = (LitParseRule) { NULL, parse_dot, PREC_CALL };
 	parse_rules[TOKEN_THIS] = (LitParseRule) { parse_this, NULL, PREC_NONE };
 	parse_rules[TOKEN_FUN] = (LitParseRule) { parse_anonym, NULL, PREC_CALL };
-	parse_rules[TOKEN_PLUS_EQUAL] = (LitParseRule) { NULL, parse_var_assign, PREC_EQUALITY };
+	parse_rules[TOKEN_PLUS_EQUAL] = (LitParseRule) { NULL, parse_var_assign, PREC_TERM };
+	parse_rules[TOKEN_MINUS_EQUAL] = (LitParseRule) { NULL, parse_var_assign, PREC_TERM };
+	parse_rules[TOKEN_STAR_EQUAL] = (LitParseRule) { NULL, parse_var_assign, PREC_TERM };
+	parse_rules[TOKEN_SLASH_EQUAL] = (LitParseRule) { NULL, parse_var_assign, PREC_TERM };
 }
