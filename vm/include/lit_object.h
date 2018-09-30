@@ -65,7 +65,7 @@ typedef struct {
 	LitString* name;
 } LitFunction;
 
-typedef int (*LitNativeFn)(LitVm *vm);
+typedef int (*LitNativeFn)(LitVm *vm, int count);
 
 typedef struct {
 	LitObject object;

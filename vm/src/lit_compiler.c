@@ -860,10 +860,6 @@ static void parse_statement(LitCompiler* compiler) {
 	} else if (token == TOKEN_FOR) {
 		advance(compiler);
 		parse_for(compiler);
-	} else if (token == TOKEN_PRINT) {
-		advance(compiler);
-		parse_expression(compiler);
-		emit_byte(compiler, OP_PRINT);
 	} else if (token == TOKEN_RETURN) {
 		advance(compiler);
 		parse_return(compiler);

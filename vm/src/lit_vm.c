@@ -129,7 +129,7 @@ static bool call_value(LitVm* vm, LitValue callee, int arg_count) {
 			case OBJECT_CLOSURE: return call(vm, AS_CLOSURE(callee), arg_count);
 			case OBJECT_NATIVE: {
 				last_native = true;
-				int count = AS_NATIVE(callee)(vm);
+				int count = AS_NATIVE(callee)(vm, arg_count);
 				LitValue values[count];
 
 				for (int i = 0; i < count; i++) {
@@ -178,6 +178,14 @@ static int time_function(LitVm* vm) {
 	return 1;
 }
 
+static int print_function(LitVm* vm, int count) {
+	for (int i = count - 1; i >= 0; i--) {
+		printf("%s\n", lit_to_string(vm, lit_peek(vm, i)));
+	}
+
+	return 0;
+}
+
 LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 	vm->abort = false;
 	LitFunction *function = lit_compile(vm, code);
@@ -196,6 +204,7 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 	return INTERPRET_OK;
 #else
 	define_native(vm, "time", time_function);
+	define_native(vm, "print", print_function);
 	return lit_interpret(vm);
 #endif
 }
