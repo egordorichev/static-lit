@@ -2,7 +2,8 @@
 #define LIT_PARSER_H
 
 #include "lit_ast.h"
+#include "lit_array.h"
 
-LitExpression *lit_parse(LitVm* vm);
+LitStatements lit_parse(LitVm* vm);
 
 #endif

@@ -27,6 +27,26 @@ static bool match(LitLexer* lexer, LitTokenType type) {
 	return false;
 }
 
+static void synchronize(LitLexer* lexer) {
+	advance(lexer);
+
+	while (!is_at_end(lexer)) {
+		switch (lexer->current.type) {
+			case TOKEN_CLASS:
+			case TOKEN_FUN:
+			case TOKEN_VAR:
+			case TOKEN_FOR:
+			case TOKEN_IF:
+			case TOKEN_WHILE:
+			case TOKEN_SWITCH:
+			case TOKEN_RETURN:
+				return;
+		}
+	}
+
+	advance(lexer);
+}
+
 static void error(LitLexer* lexer, LitToken *token, const char* message) {
 	if (lexer->panic_mode) {
 		return;
@@ -44,6 +64,7 @@ static void error(LitLexer* lexer, LitToken *token, const char* message) {
 	}
 
 	printf(": %s\n", message);
+	synchronize(lexer);
 }
 
 static void consume(LitLexer* lexer, LitTokenType type, const char* message) {
@@ -146,16 +167,29 @@ static LitExpression *parse_expression(LitLexer* lexer) {
 	return parse_equality(lexer);
 }
 
-LitExpression *lit_parse(LitVm* vm) {
+static LitExpression *parse_expression_statement(LitLexer* lexer) {
+	return lit_make_statement_expression(lexer->vm, parse_equality(lexer));
+}
+
+static LitExpression *parse_declaration(LitLexer* lexer) {
+	return parse_equality(lexer);
+}
+
+LitStatements lit_parse(LitVm* vm) {
 	LitLexer lexer;
 
 	lit_init_lexer(&lexer, vm->code);
 	lexer.vm = vm;
-
 	advance(&lexer);
-	LitExpression* expression = parse_equality(&lexer);
+
+	LitStatements expressions;
+	lit_init_expressions(&expressions);
+
+	while (!is_at_end(&lexer)) {
+		lit_expressions_write(vm, &expressions, *parse_declaration(&lexer));
+	}
 
 	lit_free_lexer(&lexer);
 
-	return expression;
+	return expressions;
 }

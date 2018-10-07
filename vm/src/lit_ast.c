@@ -45,3 +45,11 @@ LitGroupingExpression* lit_make_grouping_expression(LitVm* vm, LitExpression* ex
 
 	return expression;
 }
+
+LitStatementExpression* lit_make_statement_expression(LitVm* vm, LitExpression* expr) {
+	LitStatementExpression* expression = ALLOCATE_AST(vm, LitStatementExpression, STATEMENT_AST);
+
+	expression->expr = expr;
+
+	return expression;
+}

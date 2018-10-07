@@ -62,6 +62,16 @@ void lit_trace_ast(LitVm* vm, LitExpression* expression, int depth) {
 
 				break;
 			}
+			case STATEMENT_AST: {
+				LitGroupingExpression* grouping = (LitGroupingExpression*) expression;
+
+				printf("\"type\" : \"statement\",\n");
+				printf("\"expression\" : ");
+				lit_trace_ast(vm, grouping->expr, depth + 1);
+				printf("\n");
+
+				break;
+			}
 		}
 	}
 

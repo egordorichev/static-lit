@@ -3,6 +3,7 @@
 
 #include "lit_vm.h"
 #include "lit_value.h"
+#include "lit_ast.h"
 
 typedef struct {
 	int capacity;
@@ -12,7 +13,16 @@ typedef struct {
 
 void lit_init_array(LitArray *array);
 void lit_free_array(LitVm* vm, LitArray *array);
-
 void lit_array_write(LitVm* vm, LitArray *array, LitValue value);
+
+typedef struct {
+		int capacity;
+		int count;
+		LitStatement* values;
+} LitStatements;
+
+void lit_init_expressions(LitStatements *array);
+void lit_free_expressions(LitVm* vm, LitStatements *array);
+void lit_expressions_write(LitVm* vm, LitStatements *array, LitStatement statement);
 
 #endif
