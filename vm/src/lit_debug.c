@@ -4,6 +4,40 @@
 #include "lit_debug.h"
 #include "lit_value.h"
 
+void lit_trace_ast(LitVm* vm, LitExpression* expression, int depth) {
+	printf("{\n");
+
+	if (expression != NULL) {
+		switch (expression->type) {
+			case BINARY_AST: {
+				LitBinaryExpression* binary = (LitBinaryExpression*) expression;
+
+				printf("\"left\" : ");
+				lit_trace_ast(vm, binary->left, depth + 1);
+				printf(",\n\"right\" : ");
+				lit_trace_ast(vm, binary->right, depth + 1);
+				printf(",\n\"operator\" : ");
+
+				switch (binary->operator) {
+					case TOKEN_MINUS: printf("\"-\"\n"); break;
+					case TOKEN_PLUS: printf("\"+\"\n"); break;
+					case TOKEN_SLASH: printf("\"/\"\n"); break;
+					case TOKEN_STAR: printf("\"*\"\n"); break;
+					default: printf("\"unknown\"\n"); break;
+				}
+
+				break;
+			}
+		}
+	}
+
+	if (depth == 0) {
+		printf("}\n");
+	} else {
+		printf("}");
+	}
+}
+
 void lit_trace_chunk(LitVm* vm, LitChunk* chunk, const char* name) {
 	printf("== %s ==\n", name);
 

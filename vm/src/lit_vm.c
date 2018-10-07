@@ -4,11 +4,11 @@
 #include <time.h>
 
 #include "lit_vm.h"
-#include "lit_compiler.h"
 #include "lit.h"
 #include "lit_debug.h"
 #include "lit_memory.h"
 #include "lit_object.h"
+#include "lit_parser.h"
 
 static inline void reset_stack(LitVm *vm) {
 	vm->stack_top = vm->stack;
@@ -30,8 +30,6 @@ void lit_init_vm(LitVm* vm) {
 	lit_init_table(&vm->strings);
 	lit_init_table(&vm->globals);
 
-	vm->compiler = NULL;
-
 	vm->bytes_allocated = 0;
 	vm->next_gc = 1024 * 1024;
 	vm->objects = NULL;
@@ -46,11 +44,6 @@ void lit_init_vm(LitVm* vm) {
 void lit_free_vm(LitVm* vm) {
 	lit_free_table(vm, &vm->strings);
 	lit_free_table(vm, &vm->globals);
-
-	if (vm->compiler != NULL) {
-		lit_free_compiler(vm->compiler);
-	}
-
 	lit_free_objects(vm);
 
 	vm->init_string = NULL;
@@ -63,16 +56,14 @@ void lit_push(LitVm* vm, LitValue value) {
 
 LitValue lit_pop(LitVm* vm) {
 	assert(vm->stack_top > vm->stack);
-
 	vm->stack_top--;
+
 	return *vm->stack_top;
 }
 
 LitValue lit_peek(LitVm* vm, int depth) {
 	return vm->stack_top[-1 - depth];
 }
-
-LitCompiler compiler;
 
 static void runtime_error(LitVm* vm, const char* format, ...) {
 	va_list args;
@@ -188,25 +179,15 @@ static int print_function(LitVm* vm, int count) {
 
 LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 	vm->abort = false;
-	LitFunction *function = lit_compile(vm, code);
+	vm->code = code;
 
-	if (function == NULL) {
-		return INTERPRET_COMPILE_ERROR;
-	}
+	LitExpression *expression = lit_parse(vm);
 
-	lit_push(vm, MAKE_OBJECT_VALUE(function));
-	LitClosure* closure = lit_new_closure(vm, function);
-	lit_pop(vm);
-
-	call_value(vm, MAKE_OBJECT_VALUE(closure), 0);
-
-#ifdef DEBUG_NO_EXECUTE
-	return INTERPRET_OK;
-#else
-	define_native(vm, "time", time_function);
-	define_native(vm, "print", print_function);
-	return lit_interpret(vm);
+#ifdef DEBUG_PRINT_AST
+	lit_trace_ast(vm, expression, 0);
 #endif
+
+	return INTERPRET_OK;
 }
 
 static void close_upvalues(LitVm* vm, LitValue* last) {

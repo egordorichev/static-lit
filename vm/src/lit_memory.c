@@ -145,15 +145,6 @@ static void free_object(LitVm* vm, LitObject* object) {
 	}
 }
 
-void gray_compiler_roots(LitVm* vm) {
-	LitCompiler* compiler = vm->compiler;
-
-	while (compiler != NULL) {
-		lit_gray_object(vm, (LitObject*) compiler->function);
-		compiler = compiler->enclosing;
-	}
-}
-
 void lit_collect_garbage(LitVm* vm) {
 #ifdef DEBUG_TRACE_GC
 	printf("-- gc begin\n");
@@ -173,7 +164,6 @@ void lit_collect_garbage(LitVm* vm) {
 	}
 
 	lit_table_gray(vm, &vm->globals);
-	gray_compiler_roots(vm);
 
 	lit_gray_object(vm, (LitObject*) vm->init_string);
 

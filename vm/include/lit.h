@@ -3,8 +3,8 @@
 
 #include "lit_vm.h"
 #include "lit_chunk.h"
-#include "lit_compiler.h"
 #include "lit_table.h"
+#include "lit_object.h"
 
 #define FRAMES_MAX 64
 #define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
@@ -27,9 +27,9 @@ typedef struct _LitVm {
 	LitFrame frames[FRAMES_MAX];
 	int frame_count;
 	bool abort;
+	const char* code;
 
 	LitUpvalue* open_upvalues;
-	LitCompiler *compiler;
 
 	size_t bytes_allocated;
 	size_t next_gc;
@@ -37,8 +37,6 @@ typedef struct _LitVm {
 	int gray_count;
 	int gray_capacity;
 	LitObject** gray_stack;
-
-	LitClassCompiler *class;
 } _LitVm;
 
 void lit_init_vm(LitVm* vm);
@@ -50,5 +48,15 @@ LitValue lit_peek(LitVm* vm, int depth);
 
 LitInterpretResult lit_execute(LitVm* vm, const char* code);
 LitInterpretResult lit_interpret(LitVm* vm);
+
+/*
+ * Source code ->
+ * Lexer ->
+ * Parser ->
+ * AST ->
+ * Compiler ->
+ * Bytecode ->
+ * VM
+ */
 
 #endif

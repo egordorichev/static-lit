@@ -73,9 +73,11 @@ int main(int argc, char** argv) {
 					  i++;
 
 					  LitVm vm;
+
 					  lit_init_vm(&vm);
 					  LitInterpretResult result = lit_execute(&vm, argv[i]);
 					  lit_free_vm(&vm);
+
 					  return result == INTERPRET_OK ? 0 : -2;
 				  }
 			  } else if (strcmp(arg, "-h") == 0 || strcmp(arg, "--help") == 0) {
