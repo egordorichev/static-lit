@@ -19,3 +19,29 @@ LitBinaryExpression* lit_make_binary_expression(LitVm* vm, LitExpression* left, 
 
 	return expression;
 }
+
+LitLiteralExpression* lit_make_literal_expression(LitVm* vm, LitValue value) {
+	LitLiteralExpression* expression = ALLOCATE_AST(vm, LitLiteralExpression, LITERAL_AST);
+
+	expression->value = value;
+
+	return expression;
+}
+
+LitUnaryExpression* lit_make_unary_expression(LitVm* vm, LitExpression* right, LitTokenType type) {
+	LitUnaryExpression* expression = ALLOCATE_AST(vm, LitUnaryExpression, UNARY_AST);
+
+	expression->right = right;
+	expression->operator = type;
+
+	return expression;
+}
+
+
+LitGroupingExpression* lit_make_grouping_expression(LitVm* vm, LitExpression* expr) {
+	LitGroupingExpression* expression = ALLOCATE_AST(vm, LitGroupingExpression, GROUPING_AST);
+
+	expression->expr = expr;
+
+	return expression;
+}

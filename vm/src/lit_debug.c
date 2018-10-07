@@ -12,6 +12,7 @@ void lit_trace_ast(LitVm* vm, LitExpression* expression, int depth) {
 			case BINARY_AST: {
 				LitBinaryExpression* binary = (LitBinaryExpression*) expression;
 
+				printf("\"type\" : \"binary\",\n");
 				printf("\"left\" : ");
 				lit_trace_ast(vm, binary->left, depth + 1);
 				printf(",\n\"right\" : ");
@@ -25,6 +26,39 @@ void lit_trace_ast(LitVm* vm, LitExpression* expression, int depth) {
 					case TOKEN_STAR: printf("\"*\"\n"); break;
 					default: printf("\"unknown\"\n"); break;
 				}
+
+				break;
+			}
+			case LITERAL_AST: {
+				LitLiteralExpression* literal = (LitLiteralExpression*) expression;
+
+				printf("\"type\" : \"literal\",\n");
+				printf("\"value\" : %s\n", lit_to_string(vm, literal->value));
+				break;
+			}
+			case UNARY_AST: {
+				LitUnaryExpression* unary = (LitUnaryExpression*) expression;
+
+				printf("\"type\" : \"unary\",\n");
+				printf("\"right\" : ");
+				lit_trace_ast(vm, unary->right, depth + 1);
+				printf(",\n\"operator\" : ");
+
+				switch (unary->operator) {
+					case TOKEN_MINUS: printf("\"-\"\n"); break;
+					case TOKEN_BANG: printf("\"!\"\n"); break;
+					default: printf("\"unknown\"\n"); break;
+				}
+
+				break;
+			}
+			case GROUPING_AST: {
+				LitGroupingExpression* grouping = (LitGroupingExpression*) expression;
+
+				printf("\"type\" : \"grouping\",\n");
+				printf("\"expression\" : ");
+				lit_trace_ast(vm, grouping->expr, depth + 1);
+				printf("\n");
 
 				break;
 			}

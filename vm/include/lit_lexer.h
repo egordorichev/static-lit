@@ -44,8 +44,6 @@ typedef struct {
 
 	LitToken current;
 	LitToken previous;
-	LitToken prev_prev;
-	LitToken prev_prev_prev;
 
 	bool had_error;
 	bool panic_mode;
