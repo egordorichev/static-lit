@@ -105,6 +105,19 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 
 				break;
 			}
+			case WHILE_STATEMENT: {
+				LitWhileStatement* while_statement = (LitWhileStatement*) statement;
+
+				printf("\"type\" : \"while\",\n");
+				printf("\"condition\" : ");
+				lit_trace_expression(vm, while_statement->condition, depth + 1);
+				printf(",\n");
+
+				printf("\"body\" : ");
+				lit_trace_statement(vm, while_statement->body, depth + 1);
+
+				printf("\n");
+			}
 		}
 	}
 

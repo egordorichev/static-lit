@@ -86,7 +86,8 @@ typedef enum {
 	VAR_STATEMENT,
 	EXPRESSION_STATEMENT,
 	IF_STATEMENT,
-	BLOCK_STATEMENT
+	BLOCK_STATEMENT,
+	WHILE_STATEMENT
 } LitStatementType;
 
 typedef struct {
@@ -121,6 +122,7 @@ LitExpressionStatement* lit_make_expression_statement(LitVm* vm, LitExpression* 
 
 typedef struct {
 	LitExpression* expression;
+
 	LitExpression* condition;
 	LitStatement* if_branch;
 	LitStatement* else_branch;
@@ -136,5 +138,14 @@ typedef struct {
 } LitBlockStatement;
 
 LitBlockStatement* lit_make_block_statement(LitVm* vm, LitStatements* statements);
+
+typedef struct {
+	LitExpression* expression;
+
+	LitExpression* condition;
+	LitStatement* body;
+} LitWhileStatement;
+
+LitWhileStatement* lit_make_while_statement(LitVm* vm, LitExpression* condition, LitStatement* body);
 
 #endif

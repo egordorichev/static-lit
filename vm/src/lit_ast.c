@@ -119,3 +119,12 @@ LitBlockStatement* lit_make_block_statement(LitVm* vm, LitStatements* statements
 
 	return statement;
 }
+
+LitWhileStatement* lit_make_while_statement(LitVm* vm, LitExpression* condition, LitStatement* body) {
+	LitWhileStatement* statement = ALLOCATE_STATEMENT(vm, LitWhileStatement, WHILE_STATEMENT);
+
+	statement->condition = condition;
+	statement->body = body;
+
+	return statement;
+}

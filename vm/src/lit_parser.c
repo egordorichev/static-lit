@@ -272,6 +272,14 @@ static LitStatement* parse_if_statement(LitLexer* lexer) {
 	return (LitStatement*) lit_make_if_statement(lexer->vm, condition, if_branch, else_branch, else_if_branches, else_if_conditions);
 }
 
+static LitStatement* parse_while(LitLexer* lexer) {
+	consume(lexer, TOKEN_LEFT_PAREN, "Expected '(' after while");
+	LitExpression* condition = parse_expression(lexer);
+	consume(lexer, TOKEN_RIGHT_PAREN, "Expected ')' after while condition");
+
+	return (LitStatement*) lit_make_while_statement(lexer->vm, condition, parse_statement(lexer));
+}
+
 static LitStatement* parse_block_statement(LitLexer* lexer) {
 	LitStatements* statements = (LitStatements*) reallocate(lexer->vm, NULL, 0, sizeof(LitStatements));
 	lit_init_statements(statements);
@@ -295,6 +303,10 @@ static LitStatement* parse_statement(LitLexer* lexer) {
 
 	if (match(lexer, TOKEN_IF)) {
 		return parse_if_statement(lexer);
+	}
+
+	if (match(lexer, TOKEN_WHILE)) {
+		return parse_while(lexer);
 	}
 
 	return parse_expression_statement(lexer);
