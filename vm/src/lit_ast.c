@@ -57,6 +57,14 @@ LitGroupingExpression* lit_make_grouping_expression(LitVm* vm, LitExpression* ex
 	return expression;
 }
 
+LitVarExpression* lit_make_var_expression(LitVm* vm, LitToken* name) {
+	LitVarExpression* expression = ALLOCATE_EXPRESSION(vm, LitVarExpression, VAR_EXPRESSION);
+
+	expression->name = name;
+
+	return expression;
+}
+
 LitVarStatement* lit_make_var_statement(LitVm* vm, LitToken* name, LitExpression* init) {
 	LitVarStatement* statement = ALLOCATE_STATEMENT(vm, LitVarStatement, VAR_STATEMENT);
 

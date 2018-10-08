@@ -22,7 +22,7 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 			case VAR_STATEMENT: {
 				LitVarStatement* var = (LitVarStatement*) statement;
 
-				printf("\"type\" : \"var\",\n");
+				printf("\"type\" : \"var declaration\",\n");
 				printf("\"name\" : \"%.*s\",\n", var->name->length, var->name->start);
 				printf("\"init\" : ");
 
@@ -100,6 +100,14 @@ void lit_trace_expression(LitVm* vm, LitExpression* expression, int depth) {
 				printf("\"expression\" : ");
 				lit_trace_expression(vm, grouping->expr, depth + 1);
 				printf("\n");
+
+				break;
+			}
+			case VAR_EXPRESSION: {
+				LitVarExpression* var = (LitVarExpression*) expression;
+
+				printf("\"type\" : \"var usage\",\n");
+				printf("\"name\" : \"%.*s\"\n", var->name->length, var->name->start);
 
 				break;
 			}

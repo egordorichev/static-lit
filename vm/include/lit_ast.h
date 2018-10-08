@@ -7,7 +7,8 @@ typedef enum {
 	BINARY_EXPRESSION,
 	LITERAL_EXPRESSION,
 	UNARY_EXPRESSION,
-	GROUPING_EXPRESSION
+	GROUPING_EXPRESSION,
+	VAR_EXPRESSION
 } LitExpresionType;
 
 typedef struct {
@@ -40,11 +41,18 @@ typedef struct {
 LitUnaryExpression* lit_make_unary_expression(LitVm* vm, LitExpression* right, LitTokenType type);
 
 typedef struct {
-	LitExpression *expression;
-	LitExpression *expr;
+	LitExpression* expression;
+	LitExpression* expr;
 } LitGroupingExpression;
 
 LitGroupingExpression* lit_make_grouping_expression(LitVm* vm, LitExpression* expr);
+
+typedef struct {
+	LitExpression* expression;
+	LitToken* name;
+} LitVarExpression;
+
+LitVarExpression* lit_make_var_expression(LitVm* vm, LitToken* name);
 
 typedef enum {
 	VAR_STATEMENT,
@@ -56,7 +64,7 @@ typedef struct {
 }	LitStatement;
 
 typedef struct {
-	LitExpression*expression;
+	LitExpression* expression;
 
 	LitToken* name;
 	LitExpression* init;

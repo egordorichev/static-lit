@@ -187,13 +187,17 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 	lit_parse(vm, &statements);
 
 #ifdef DEBUG_PRINT_AST
-	printf("{\n");
+	printf("[\n");
 
 	for (int i = 0; i < statements.count; i++) {
 		lit_trace_statement(vm, statements.values[i], 1);
+
+		if (i < statements.count - 1) {
+			printf(",\n");
+		}
 	}
 
-	printf("\n}\n");
+	printf("\n]\n");
 #endif
 
 	lit_free_statements(vm, &statements);

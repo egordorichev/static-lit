@@ -8,6 +8,17 @@
 
 static LitExpression* parse_expression(LitLexer* lexer);
 
+static LitToken* copy_token(LitLexer* lexer, LitToken* old) {
+	LitToken* token = (LitToken*) reallocate(lexer->vm, NULL, 0, sizeof(LitToken));
+
+	token->start = old->start;
+	token->length = old->length;
+	token->line = old->line;
+	token->type = old->type;
+
+	return token;
+}
+
 static LitToken advance(LitLexer* lexer) {
 	lexer->previous = lexer->current;
 	lexer->current = lit_lexer_next_token(lexer);
@@ -78,6 +89,10 @@ static LitToken consume(LitLexer* lexer, LitTokenType type, const char* message)
 }
 
 static LitExpression* parse_primary(LitLexer* lexer) {
+	if (match(lexer, TOKEN_IDENTIFIER)) {
+		return lit_make_var_expression(lexer->vm, copy_token(lexer, &lexer->previous));
+	}
+
 	if (match(lexer, TOKEN_TRUE)) {
 		return (LitExpression*) lit_make_literal_expression(lexer->vm, TRUE_VALUE);
 	}
@@ -183,14 +198,7 @@ static LitStatement* parse_var_declaration(LitLexer* lexer) {
 		init = parse_expression(lexer);
 	}
 
-	LitToken* token = (LitToken*) reallocate(lexer->vm, NULL, 0, sizeof(LitToken));
-
-	token->start = name.start;
-	token->length = name.length;
-	token->line = name.line;
-	token->type = name.type;
-
-	return (LitStatement*) lit_make_var_statement(lexer->vm, token, init);
+	return (LitStatement*) lit_make_var_statement(lexer->vm, copy_token(lexer, &name), init);
 }
 
 static LitStatement* parse_declaration(LitLexer* lexer) {
