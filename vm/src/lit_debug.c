@@ -35,6 +35,51 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 				printf("\n");
 				break;
 			}
+			case IF_STATEMENT: {
+				LitIfStatement* if_statement = (LitIfStatement*) statement;
+
+				printf("\"type\" : \"if\",\n");
+				printf("\"condition\" : ");
+				lit_trace_expression(vm, if_statement->condition, depth + 1);
+				printf(",\n");
+
+				printf("\"if_branch\" : ");
+				lit_trace_statement(vm, if_statement->if_branch, depth + 1);
+
+				printf(",\n\"else_branch\" : ");
+
+				if (if_statement->else_branch != NULL) {
+					lit_trace_statement(vm, if_statement->else_branch, depth + 1);
+				} else {
+					printf("\"null\"");
+				}
+
+				printf("\n");
+				break;
+			}
+			case BLOCK_STATEMENT: {
+				LitBlockStatement* block = (LitBlockStatement*) statement;
+
+				printf("\"type\" : \"block\",\n");
+				printf("\"statements\" : [");
+
+				int cn = block->statements->count;
+				
+				if (cn > 0) {
+					for (int i = 0; i < cn; i++) {
+						lit_trace_statement(vm, block->statements->values[i], depth + 1);
+
+						if (i < cn - 1) {
+							printf(",\n");
+						} else {
+							printf("\n");
+						}
+					}
+				}
+				printf("]\n");
+
+				break;
+			}
 		}
 	}
 

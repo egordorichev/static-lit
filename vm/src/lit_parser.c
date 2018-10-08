@@ -7,6 +7,8 @@
 #include "lit_memory.h"
 
 static LitExpression* parse_expression(LitLexer* lexer);
+static LitStatement* parse_statement(LitLexer* lexer);
+static LitStatement* parse_declaration(LitLexer* lexer);
 
 static LitToken* copy_token(LitLexer* lexer, LitToken* old) {
 	LitToken* token = (LitToken*) reallocate(lexer->vm, NULL, 0, sizeof(LitToken));
@@ -207,6 +209,49 @@ static LitStatement* parse_expression_statement(LitLexer* lexer) {
 	return (LitStatement*) lit_make_expression_statement(lexer->vm, parse_expression(lexer));
 }
 
+static LitStatement* parse_if_statement(LitLexer* lexer) {
+	consume(lexer, TOKEN_LEFT_PAREN, "Expected '(' after if");
+	LitExpression* condition = parse_expression(lexer);
+	consume(lexer, TOKEN_RIGHT_PAREN, "Expected ')' after if condition");
+
+	LitStatement* if_branch = parse_statement(lexer);
+	LitStatement* else_branch = NULL;
+
+	if (match(lexer, TOKEN_ELSE)) {
+		else_branch = parse_statement(lexer);
+	}
+
+	return (LitStatement*) lit_make_if_statement(lexer->vm, condition, if_branch, else_branch);
+}
+
+static LitStatement* parse_block_statement(LitLexer* lexer) {
+	LitStatements* statements = (LitStatements*) reallocate(lexer->vm, NULL, 0, sizeof(LitStatements));
+	lit_init_statements(statements);
+
+	while (!match(lexer, TOKEN_RIGHT_BRACE)) {
+		if (lexer->current.type == TOKEN_EOF) {
+			error(lexer, &lexer->current, "Expected '}' to close the block");
+			break;
+		}
+
+		lit_statements_write(lexer->vm, statements, parse_declaration(lexer));
+	}
+
+	return (LitStatement*) lit_make_block_statement(lexer->vm, statements);
+}
+
+static LitStatement* parse_statement(LitLexer* lexer) {
+	if (match(lexer, TOKEN_LEFT_BRACE)) {
+		return parse_block_statement(lexer);
+	}
+
+	if (match(lexer, TOKEN_IF)) {
+		return parse_if_statement(lexer);
+	}
+
+	return parse_expression_statement(lexer);
+}
+
 static LitStatement* parse_var_declaration(LitLexer* lexer) {
 	LitToken name = consume(lexer, TOKEN_IDENTIFIER, "Expected variable name");
 	LitExpression* init = NULL;
@@ -223,7 +268,7 @@ static LitStatement* parse_declaration(LitLexer* lexer) {
 		return parse_var_declaration(lexer);
 	}
 
-	return parse_expression_statement(lexer);
+	return parse_statement(lexer);
 }
 
 LitStatements* lit_parse(LitVm* vm, LitStatements* statements) {

@@ -15,14 +15,4 @@ void lit_init_array(LitArray* array);
 void lit_free_array(LitVm* vm, LitArray* array);
 void lit_array_write(LitVm* vm, LitArray* array, LitValue value);
 
-typedef struct {
-		int capacity;
-		int count;
-		LitStatement** values;
-} LitStatements;
-
-void lit_init_statements(LitStatements* array);
-void lit_free_statements(LitVm* vm, LitStatements* array);
-void lit_statements_write(LitVm* vm, LitStatements* array, LitStatement* statement);
-
 #endif

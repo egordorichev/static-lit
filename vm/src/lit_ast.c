@@ -90,3 +90,21 @@ LitExpressionStatement* lit_make_expression_statement(LitVm* vm, LitExpression* 
 
 	return statement;
 }
+
+LitIfStatement* lit_make_if_statement(LitVm* vm, LitExpression* condition, LitStatement* if_branch, LitStatement* else_branch) {
+	LitIfStatement* statement = ALLOCATE_STATEMENT(vm, LitIfStatement, IF_STATEMENT);
+
+	statement->condition = condition;
+	statement->if_branch = if_branch;
+	statement->else_branch = else_branch;
+
+	return statement;
+}
+
+LitBlockStatement* lit_make_block_statement(LitVm* vm, LitStatements* statements) {
+	LitBlockStatement* statement = ALLOCATE_STATEMENT(vm, LitBlockStatement, BLOCK_STATEMENT);
+
+	statement->statements = statements;
+
+	return statement;
+}

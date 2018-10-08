@@ -65,12 +65,24 @@ LitAssignExpression* lit_make_assign_expression(LitVm* vm, LitToken* name, LitEx
 
 typedef enum {
 	VAR_STATEMENT,
-	EXPRESSION_STATEMENT
+	EXPRESSION_STATEMENT,
+	IF_STATEMENT,
+	BLOCK_STATEMENT
 } LitStatementType;
 
 typedef struct {
 	LitStatementType type;
 }	LitStatement;
+
+typedef struct {
+	int capacity;
+	int count;
+	LitStatement** values;
+} LitStatements;
+
+void lit_init_statements(LitStatements* array);
+void lit_free_statements(LitVm* vm, LitStatements* array);
+void lit_statements_write(LitVm* vm, LitStatements* array, LitStatement* statement);
 
 typedef struct {
 	LitExpression* expression;
@@ -87,5 +99,21 @@ typedef struct {
 } LitExpressionStatement;
 
 LitExpressionStatement* lit_make_expression_statement(LitVm* vm, LitExpression* expr);
+
+typedef struct {
+	LitExpression* expression;
+	LitExpression* condition;
+	LitStatement* if_branch;
+	LitStatement* else_branch;
+} LitIfStatement;
+
+LitIfStatement* lit_make_if_statement(LitVm* vm, LitExpression* condition, LitStatement* if_branch, LitStatement* else_branch);
+
+typedef struct {
+	LitExpression* expression;
+	LitStatements* statements;
+} LitBlockStatement;
+
+LitBlockStatement* lit_make_block_statement(LitVm* vm, LitStatements* statements);
 
 #endif
