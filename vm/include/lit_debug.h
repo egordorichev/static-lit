@@ -4,7 +4,8 @@
 #include "lit_chunk.h"
 #include "lit_ast.h"
 
-void lit_trace_ast(LitVm* vm, LitExpression* expression, int depth);
+void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth);
+void lit_trace_expression(LitVm* vm, LitExpression* expression, int depth);
 
 void lit_trace_chunk(LitVm* vm, LitChunk* chunk, const char* name);
 int lit_disassemble_instruction(LitVm* vm, LitChunk* chunk, int offset);

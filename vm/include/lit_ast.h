@@ -4,11 +4,10 @@
 #include "lit_lexer.h"
 
 typedef enum {
-	BINARY_AST,
-	LITERAL_AST,
-	UNARY_AST,
-	GROUPING_AST,
-	STATEMENT_AST
+	BINARY_EXPRESSION,
+	LITERAL_EXPRESSION,
+	UNARY_EXPRESSION,
+	GROUPING_EXPRESSION
 } LitExpresionType;
 
 typedef struct {
@@ -47,19 +46,29 @@ typedef struct {
 
 LitGroupingExpression* lit_make_grouping_expression(LitVm* vm, LitExpression* expr);
 
-typedef struct {
-	LitExpression *expression;
-	LitExpression *expr;
-} LitStatementExpression;
-
-LitStatementExpression* lit_make_statement_expression(LitVm* vm, LitExpression* expr);
-
 typedef enum {
-	VAR_STATEMENT
+	VAR_STATEMENT,
+	EXPRESSION_STATEMENT
 } LitStatementType;
 
 typedef struct {
 	LitStatementType type;
 }	LitStatement;
+
+typedef struct {
+	LitExpression*expression;
+
+	LitToken* name;
+	LitExpression* init;
+} LitVarStatement;
+
+LitVarStatement* lit_make_var_statement(LitVm* vm, LitToken* name, LitExpression* init);
+
+typedef struct {
+	LitExpression* expression;
+	LitExpression* expr;
+} LitExpressionStatement;
+
+LitExpressionStatement* lit_make_expression_statement(LitVm* vm, LitExpression* expr);
 
 #endif

@@ -181,19 +181,22 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 	vm->abort = false;
 	vm->code = code;
 
-	LitStatements expressions = lit_parse(vm);
+	LitStatements statements;
+
+	lit_init_statements(&statements);
+	lit_parse(vm, &statements);
 
 #ifdef DEBUG_PRINT_AST
 	printf("{\n");
 
-	for (int i = 0; i < expressions.count; i++) {
-		lit_trace_statement(vm, &expressions.values[i], 1);
+	for (int i = 0; i < statements.count; i++) {
+		lit_trace_statement(vm, statements.values[i], 1);
 	}
 
 	printf("\n}\n");
 #endif
 
-	lit_free_expressions(vm, &expressions);
+	lit_free_statements(vm, &statements);
 
 	return INTERPRET_OK;
 }
