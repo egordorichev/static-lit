@@ -182,8 +182,25 @@ static LitExpression* parse_equality(LitLexer* lexer) {
 	return expression;
 }
 
+static LitExpression* parse_assigment(LitLexer* lexer) {
+	LitExpression* expression = parse_equality(lexer);
+
+	if (match(lexer, TOKEN_EQUAL)) {
+		LitToken equal = lexer->previous;
+		LitExpression* value = parse_assigment(lexer);
+
+		if (expression->type == VAR_EXPRESSION) {
+			return (LitExpression*) lit_make_assign_expression(lexer->vm, ((LitVarExpression*) expression)->name, value);
+		}
+
+		error(lexer, &equal, "Invalid assigment target");
+	}
+
+	return expression;
+}
+
 static LitExpression* parse_expression(LitLexer* lexer) {
-	return parse_equality(lexer);
+	return parse_assigment(lexer);
 }
 
 static LitStatement* parse_expression_statement(LitLexer* lexer) {

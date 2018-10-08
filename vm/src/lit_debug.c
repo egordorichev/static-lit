@@ -111,6 +111,17 @@ void lit_trace_expression(LitVm* vm, LitExpression* expression, int depth) {
 
 				break;
 			}
+			case ASSIGN_EXPRESSION: {
+				LitAssignExpression* var = (LitAssignExpression*) expression;
+
+				printf("\"type\" : \"assign\",\n");
+				printf("\"to\" : \"%.*s\",\n", var->name->length, var->name->start);
+				printf("\"value\" : ");
+				lit_trace_expression(vm, var->value, depth + 1);
+				printf("\n");
+
+				break;
+			}
 		}
 	}
 

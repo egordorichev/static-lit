@@ -1,3 +1,1 @@
-var abc = 10
-
-abc + 20
+abc = 10

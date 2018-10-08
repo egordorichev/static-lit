@@ -65,6 +65,15 @@ LitVarExpression* lit_make_var_expression(LitVm* vm, LitToken* name) {
 	return expression;
 }
 
+LitAssignExpression* lit_make_assign_expression(LitVm* vm, LitToken* name, LitExpression* value) {
+	LitAssignExpression* expression = ALLOCATE_EXPRESSION(vm, LitAssignExpression, ASSIGN_EXPRESSION);
+
+	expression->name = name;
+	expression->value = value;
+
+	return expression;
+}
+
 LitVarStatement* lit_make_var_statement(LitVm* vm, LitToken* name, LitExpression* init) {
 	LitVarStatement* statement = ALLOCATE_STATEMENT(vm, LitVarStatement, VAR_STATEMENT);
 
