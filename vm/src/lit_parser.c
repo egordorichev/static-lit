@@ -93,7 +93,7 @@ static LitToken consume(LitLexer* lexer, LitTokenType type, const char* message)
 
 static LitExpression* parse_primary(LitLexer* lexer) {
 	if (match(lexer, TOKEN_IDENTIFIER)) {
-		return lit_make_var_expression(lexer->vm, copy_token(lexer, &lexer->previous));
+		return (LitExpression*) lit_make_var_expression(lexer->vm, copy_token(lexer, &lexer->previous));
 	}
 
 	if (match(lexer, TOKEN_TRUE)) {
@@ -121,6 +121,32 @@ static LitExpression* parse_primary(LitLexer* lexer) {
 		consume(lexer, TOKEN_RIGHT_PAREN, "Expected ')' after expression");
 		return (LitExpression*) lit_make_grouping_expression(lexer->vm, expression);
 	}
+
+	error(lexer, &lexer->current, "Unexpected token");
+}
+
+static LitExpression* finish_call(LitLexer* lexer, LitExpression* callee) {
+	LitExpressions* args = (LitExpressions*) reallocate(lexer->vm, NULL, 0, sizeof(LitExpressions));
+	lit_init_expressions(args);
+
+	if (lexer->current.type != TOKEN_RIGHT_PAREN) {
+		do {
+			lit_expressions_write(lexer->vm, args, parse_expression(lexer));
+		} while (match(lexer, TOKEN_COMMA));
+	}
+
+	consume(lexer, TOKEN_RIGHT_PAREN, "Expected ')' after arguments");
+	return (LitExpression*) lit_make_call_expression(lexer->vm, callee, args);
+}
+
+static LitExpression* parse_call(LitLexer* lexer) {
+	LitExpression* expression = parse_primary(lexer);
+
+	while (match(lexer, TOKEN_LEFT_PAREN)) {
+		expression = finish_call(lexer, expression);
+	}
+
+	return expression;
 }
 
 static LitExpression* parse_unary(LitLexer* lexer) {
@@ -130,7 +156,7 @@ static LitExpression* parse_unary(LitLexer* lexer) {
 		return (LitExpression*) lit_make_unary_expression(lexer->vm, right, operator);
 	}
 
-	return parse_primary(lexer);
+	return parse_call(lexer);
 }
 
 static LitExpression* parse_multiplication(LitLexer* lexer) {

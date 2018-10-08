@@ -83,6 +83,16 @@ LitLogicalExpression* lit_make_logical_expression(LitVm* vm, LitTokenType operat
 	return expression;
 }
 
+LitCallExpression* lit_make_call_expression(LitVm* vm, LitExpression* callee, LitExpressions* args) {
+	LitCallExpression* expression = ALLOCATE_EXPRESSION(vm, LitCallExpression, CALL_EXPRESSION);
+
+	expression->callee = callee;
+	expression->args = args;
+
+	return expression;
+
+}
+
 LitVarStatement* lit_make_var_statement(LitVm* vm, LitToken* name, LitExpression* init) {
 	LitVarStatement* statement = ALLOCATE_STATEMENT(vm, LitVarStatement, VAR_STATEMENT);
 

@@ -223,6 +223,33 @@ void lit_trace_expression(LitVm* vm, LitExpression* expression, int depth) {
 
 				break;
 			}
+			case CALL_EXPRESSION: {
+				LitCallExpression* call = (LitCallExpression*) expression;
+
+				printf("\"type\" : \"call\",\n");
+				printf("\"callee\" : ");
+				lit_trace_expression(vm, call->callee, depth + 1);
+				printf(",\n\"args\" : [");
+
+				if (call->args->count > 0) {
+					printf("\n");
+					int cn = call->args->count;
+
+					for (int i = 0; i < cn; i++) {
+						lit_trace_expression(vm, call->args->values[i], depth + 1);
+
+						if (i < cn - 1) {
+							printf(",\n");
+						} else {
+							printf("\n");
+						}
+					}
+				}
+
+				printf("]\n");
+
+				break;
+			}
 		}
 	}
 
