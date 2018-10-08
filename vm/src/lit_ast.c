@@ -91,12 +91,14 @@ LitExpressionStatement* lit_make_expression_statement(LitVm* vm, LitExpression* 
 	return statement;
 }
 
-LitIfStatement* lit_make_if_statement(LitVm* vm, LitExpression* condition, LitStatement* if_branch, LitStatement* else_branch) {
+LitIfStatement* lit_make_if_statement(LitVm* vm, LitExpression* condition, LitStatement* if_branch, LitStatement* else_branch, LitStatements* else_if_branches, LitExpressions* else_if_conditions) {
 	LitIfStatement* statement = ALLOCATE_STATEMENT(vm, LitIfStatement, IF_STATEMENT);
 
 	statement->condition = condition;
 	statement->if_branch = if_branch;
 	statement->else_branch = else_branch;
+	statement->else_if_branches = else_if_branches;
+	statement->else_if_conditions = else_if_conditions;
 
 	return statement;
 }

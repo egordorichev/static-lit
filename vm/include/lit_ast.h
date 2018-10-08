@@ -17,6 +17,16 @@ typedef struct {
 }	LitExpression;
 
 typedef struct {
+	int capacity;
+	int count;
+	LitExpression** values;
+} LitExpressions;
+
+void lit_init_expressions(LitExpressions* array);
+void lit_free_expressions(LitVm* vm, LitExpressions* array);
+void lit_expressions_write(LitVm* vm, LitExpressions* array, LitExpression* expression);
+
+typedef struct {
 	LitExpression *expression;
 
 	LitExpression* left;
@@ -105,9 +115,11 @@ typedef struct {
 	LitExpression* condition;
 	LitStatement* if_branch;
 	LitStatement* else_branch;
+	LitStatements* else_if_branches;
+	LitExpressions* else_if_conditions;
 } LitIfStatement;
 
-LitIfStatement* lit_make_if_statement(LitVm* vm, LitExpression* condition, LitStatement* if_branch, LitStatement* else_branch);
+LitIfStatement* lit_make_if_statement(LitVm* vm, LitExpression* condition, LitStatement* if_branch, LitStatement* else_branch, LitStatements* else_if_branches, LitExpressions* else_if_conditions);
 
 typedef struct {
 	LitExpression* expression;

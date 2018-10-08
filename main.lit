@@ -1,5 +1,6 @@
 if (true) {
     var a
+} else if (true) {
 } else {
     var b
 }

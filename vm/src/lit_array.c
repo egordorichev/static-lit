@@ -46,3 +46,24 @@ void lit_statements_write(LitVm* vm, LitStatements* array, LitStatement* stateme
 	array->values[array->count] = statement;
 	array->count++;
 }
+void lit_init_expressions(LitExpressions* array) {
+	array->values = NULL;
+	array->capacity = 0;
+	array->count = 0;
+}
+
+void lit_free_expressions(LitVm* vm, LitExpressions* array) {
+	FREE_ARRAY(vm, LitExpression*, array->values, array->capacity);
+	lit_init_expressions(array);
+}
+
+void lit_expressions_write(LitVm* vm, LitExpressions* array, LitExpression* statement) {
+	if (array->capacity < array->count + 1) {
+		int old_capacity = array->capacity;
+		array->capacity = GROW_CAPACITY(old_capacity);
+		array->values = GROW_ARRAY(vm, array->values, LitExpression*, old_capacity, array->capacity);
+	}
+
+	array->values[array->count] = statement;
+	array->count++;
+}

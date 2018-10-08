@@ -78,7 +78,7 @@ static void error(LitLexer* lexer, LitToken *token, const char* message) {
 	}
 
 	printf(": %s\n", message);
-	synchronize(lexer);
+	// synchronize(lexer);
 }
 
 static LitToken consume(LitLexer* lexer, LitTokenType type, const char* message) {
@@ -216,12 +216,34 @@ static LitStatement* parse_if_statement(LitLexer* lexer) {
 
 	LitStatement* if_branch = parse_statement(lexer);
 	LitStatement* else_branch = NULL;
+	LitStatements* else_if_branches = NULL;
+	LitExpressions* else_if_conditions = NULL;
 
-	if (match(lexer, TOKEN_ELSE)) {
-		else_branch = parse_statement(lexer);
+	while (match(lexer, TOKEN_ELSE)) {
+		if (match(lexer, TOKEN_IF)) {
+			if (else_branch != NULL) {
+				error(lexer, &lexer->current, "Else branch is already defined for this if");
+			}
+
+			if (else_if_branches == NULL) {
+				else_if_conditions = (LitExpressions*) reallocate(lexer->vm, NULL, 0, sizeof(LitExpressions));
+				lit_init_expressions(else_if_conditions);
+
+				else_if_branches = (LitStatements*) reallocate(lexer->vm, NULL, 0, sizeof(LitStatements));
+				lit_init_statements(else_if_branches);
+			}
+
+			consume(lexer, TOKEN_LEFT_PAREN, "Expected '(' after else if");
+			lit_expressions_write(lexer->vm, else_if_conditions, parse_expression(lexer));
+			consume(lexer, TOKEN_RIGHT_PAREN, "Expected ')' after else if condition");
+
+				lit_statements_write(lexer->vm, else_if_branches, parse_statement(lexer));
+		} else {
+			else_branch = parse_statement(lexer);
+		}
 	}
 
-	return (LitStatement*) lit_make_if_statement(lexer->vm, condition, if_branch, else_branch);
+	return (LitStatement*) lit_make_if_statement(lexer->vm, condition, if_branch, else_branch, else_if_branches, else_if_conditions);
 }
 
 static LitStatement* parse_block_statement(LitLexer* lexer) {

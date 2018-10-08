@@ -46,12 +46,37 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 				printf("\"if_branch\" : ");
 				lit_trace_statement(vm, if_statement->if_branch, depth + 1);
 
+				printf(",\n\"else_if_branches\" : ");
+
+				if (if_statement->else_if_branches == NULL) {
+					printf("[]\n");
+				} else {
+					printf("[\n");
+
+					int cn = if_statement->else_if_branches->count;
+
+					for (int i = 0; i < cn; i++) {
+						printf("{\n\"condition\" : ");
+						lit_trace_expression(vm, if_statement->else_if_conditions->values[i], depth + 1);
+						printf(",\n\"body\" : ");
+						lit_trace_statement(vm, if_statement->else_if_branches->values[i], depth + 1);
+
+						if (i < cn - 1) {
+							printf("},\n");
+						} else {
+							printf("}\n");
+						}
+					}
+
+					printf("]\n");
+				}
+
 				printf(",\n\"else_branch\" : ");
 
 				if (if_statement->else_branch != NULL) {
 					lit_trace_statement(vm, if_statement->else_branch, depth + 1);
 				} else {
-					printf("\"null\"");
+					printf("{}");
 				}
 
 				printf("\n");
@@ -64,7 +89,7 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 				printf("\"statements\" : [");
 
 				int cn = block->statements->count;
-				
+
 				if (cn > 0) {
 					for (int i = 0; i < cn; i++) {
 						lit_trace_statement(vm, block->statements->values[i], depth + 1);
