@@ -184,8 +184,34 @@ static LitExpression* parse_equality(LitLexer* lexer) {
 	return expression;
 }
 
-static LitExpression* parse_assigment(LitLexer* lexer) {
+static LitExpression* parse_and(LitLexer* lexer) {
 	LitExpression* expression = parse_equality(lexer);
+
+	while (match(lexer, TOKEN_AND)) {
+		LitTokenType operator = lexer->previous.type;
+		LitExpression* right = parse_equality(lexer);
+
+		expression = (LitExpression*) lit_make_logical_expression(lexer->vm, operator, right);
+	}
+
+	return expression;
+}
+
+static LitExpression* parse_or(LitLexer* lexer) {
+	LitExpression* expression = parse_and(lexer);
+
+	while (match(lexer, TOKEN_OR)) {
+		LitTokenType operator = lexer->previous.type;
+		LitExpression* right = parse_and(lexer);
+
+		expression = (LitExpression*) lit_make_logical_expression(lexer->vm, operator, right);
+	}
+
+	return expression;
+}
+
+static LitExpression* parse_assigment(LitLexer* lexer) {
+	LitExpression* expression = parse_or(lexer);
 
 	if (match(lexer, TOKEN_EQUAL)) {
 		LitToken equal = lexer->previous;

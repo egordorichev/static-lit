@@ -136,7 +136,6 @@ static LitTokenType check_keyword(LitLexer* lexer, int start, int length, const 
 
 static LitTokenType find_identifier_type(LitLexer* lexer) {
 	switch (lexer->start[0]) {
-		case 'a': return check_keyword(lexer, 1, 2, "nd", TOKEN_AND);
 		case 'b': return check_keyword(lexer, 1, 4, "reak", TOKEN_BREAK);
 		case 'c': {
 			if (lexer->current_code - lexer->start > 1) {
@@ -151,7 +150,6 @@ static LitTokenType find_identifier_type(LitLexer* lexer) {
 		case 'e': return check_keyword(lexer, 1, 3, "lse", TOKEN_ELSE);
 		case 'i': return check_keyword(lexer, 1, 1, "f", TOKEN_IF);
 		case 'n': return check_keyword(lexer, 1, 2, "il", TOKEN_NIL);
-		case 'o': return check_keyword(lexer, 1, 1, "r", TOKEN_OR);
 		case 'r': return check_keyword(lexer, 1, 5, "eturn", TOKEN_RETURN);
 		case 's': {
 			if (lexer->current_code - lexer->start > 1) {
@@ -226,6 +224,8 @@ LitToken lit_lexer_next_token(LitLexer* lexer) {
 
 	switch (c) {
 		case '(': return make_token(lexer, TOKEN_LEFT_PAREN);
+		case '&': return make_token(lexer, match(lexer, '&') ? TOKEN_AND : TOKEN_AMPERSAND);
+		case '|': return make_token(lexer, match(lexer, '|') ? TOKEN_OR : TOKEN_BAR);
 		case ')': return make_token(lexer, TOKEN_RIGHT_PAREN);
 		case '{': return make_token(lexer, TOKEN_LEFT_BRACE);
 		case '}': return make_token(lexer, TOKEN_RIGHT_BRACE);

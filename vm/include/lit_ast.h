@@ -9,7 +9,8 @@ typedef enum {
 	UNARY_EXPRESSION,
 	GROUPING_EXPRESSION,
 	VAR_EXPRESSION,
-	ASSIGN_EXPRESSION
+	ASSIGN_EXPRESSION,
+	LOGICAL_EXPRESSION
 } LitExpresionType;
 
 typedef struct {
@@ -72,6 +73,14 @@ typedef struct {
 } LitAssignExpression;
 
 LitAssignExpression* lit_make_assign_expression(LitVm* vm, LitToken* name, LitExpression* value);
+
+typedef struct {
+	LitExpression* expression;
+	LitTokenType operator;
+	LitExpression* right;
+} LitLogicalExpression;
+
+LitLogicalExpression* lit_make_logical_expression(LitVm* vm, LitTokenType operator, LitExpression* right);
 
 typedef enum {
 	VAR_STATEMENT,

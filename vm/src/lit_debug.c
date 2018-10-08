@@ -135,7 +135,21 @@ void lit_trace_expression(LitVm* vm, LitExpression* expression, int depth) {
 					case TOKEN_PLUS: printf("\"+\"\n"); break;
 					case TOKEN_SLASH: printf("\"/\"\n"); break;
 					case TOKEN_STAR: printf("\"*\"\n"); break;
-					default: printf("\"unknown\"\n"); break;
+				}
+
+				break;
+			}
+			case LOGICAL_EXPRESSION: {
+				LitLogicalExpression* logic = (LitLogicalExpression*) expression;
+
+				printf("\"type\" : \"logic\",\n");
+				printf("\"right\" : ");
+				lit_trace_expression(vm, logic->right, depth + 1);
+				printf(",\n\"operator\" : ");
+
+				switch (logic->operator) {
+					case TOKEN_AND: printf("\"and\"\n"); break;
+					case TOKEN_OR: printf("\"or\"\n"); break;
 				}
 
 				break;

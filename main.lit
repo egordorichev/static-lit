@@ -1,4 +1,4 @@
-if (true) {
+if (true && false) {
     var a
 } else if (true) {
 } else {
