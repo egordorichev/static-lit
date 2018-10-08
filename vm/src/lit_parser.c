@@ -9,6 +9,7 @@
 static LitExpression* parse_expression(LitLexer* lexer);
 static LitStatement* parse_statement(LitLexer* lexer);
 static LitStatement* parse_declaration(LitLexer* lexer);
+static LitStatement* parse_var_declaration(LitLexer* lexer);
 
 static LitToken* copy_token(LitLexer* lexer, LitToken* old) {
 	LitToken* token = (LitToken*) reallocate(lexer->vm, NULL, 0, sizeof(LitToken));
@@ -280,6 +281,66 @@ static LitStatement* parse_while(LitLexer* lexer) {
 	return (LitStatement*) lit_make_while_statement(lexer->vm, condition, parse_statement(lexer));
 }
 
+static LitStatement* parse_for(LitLexer* lexer) {
+	consume(lexer, TOKEN_LEFT_PAREN, "Expected '(' after while");
+
+	LitStatement* init = NULL;
+
+	if (match(lexer, TOKEN_VAR)) {
+		init = parse_var_declaration(lexer);
+		consume(lexer, TOKEN_SEMICOLON, "Expected ; after for init");
+	} else if (!match(lexer, TOKEN_SEMICOLON)) {
+		init = parse_expression_statement(lexer);
+		consume(lexer, TOKEN_SEMICOLON, "Expected ; after for init");
+	}
+
+	LitExpression* condition = NULL;
+
+	if (lexer->current.type != TOKEN_SEMICOLON) {
+		condition = parse_expression(lexer);
+	}
+
+	consume(lexer, TOKEN_SEMICOLON, "Expected ; after for condition");
+
+	LitExpression* increment = NULL;
+
+	if (lexer->current.type != TOKEN_SEMICOLON) {
+		increment = parse_expression(lexer);
+	}
+
+	consume(lexer, TOKEN_RIGHT_PAREN, "Expected ')' after for");
+
+	LitStatement* body = parse_statement(lexer);
+
+	if (increment != NULL) {
+		LitStatements* statements = (LitStatements*) reallocate(lexer->vm, NULL, 0, sizeof(LitStatements));
+		lit_init_statements(statements);
+
+		lit_statements_write(lexer->vm, statements, body);
+		lit_statements_write(lexer->vm, statements, (LitStatement*) lit_make_expression_statement(lexer->vm, increment));
+
+		body = (LitStatement*) lit_make_block_statement(lexer->vm, statements);
+	}
+
+	if (condition == NULL) {
+		condition = (LitExpression*) lit_make_literal_expression(lexer->vm, TRUE_VALUE);
+	}
+
+	body = (LitStatement*) lit_make_while_statement(lexer->vm, condition, body);
+
+	if (init != NULL) {
+		LitStatements* statements = (LitStatements*) reallocate(lexer->vm, NULL, 0, sizeof(LitStatements));
+		lit_init_statements(statements);
+
+		lit_statements_write(lexer->vm, statements, init);
+		lit_statements_write(lexer->vm, statements, body);
+
+		body = (LitStatement*) lit_make_block_statement(lexer->vm, statements);
+	}
+
+	return body;
+}
+
 static LitStatement* parse_block_statement(LitLexer* lexer) {
 	LitStatements* statements = (LitStatements*) reallocate(lexer->vm, NULL, 0, sizeof(LitStatements));
 	lit_init_statements(statements);
@@ -303,6 +364,10 @@ static LitStatement* parse_statement(LitLexer* lexer) {
 
 	if (match(lexer, TOKEN_IF)) {
 		return parse_if_statement(lexer);
+	}
+
+	if (match(lexer, TOKEN_FOR)) {
+		return parse_for(lexer);
 	}
 
 	if (match(lexer, TOKEN_WHILE)) {

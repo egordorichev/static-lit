@@ -148,6 +148,10 @@ void lit_trace_expression(LitVm* vm, LitExpression* expression, int depth) {
 					case TOKEN_PLUS: printf("\"+\"\n"); break;
 					case TOKEN_SLASH: printf("\"/\"\n"); break;
 					case TOKEN_STAR: printf("\"*\"\n"); break;
+					case TOKEN_LESS: printf("\"<\"\n"); break;
+					case TOKEN_LESS_EQUAL: printf("\"<=\"\n"); break;
+					case TOKEN_GREATER: printf("\">\"\n"); break;
+					case TOKEN_GREATER_EQUAL: printf("\">=\"\n"); break;
 				}
 
 				break;
