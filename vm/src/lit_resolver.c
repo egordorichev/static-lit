@@ -85,6 +85,8 @@ static void declare(LitResolver* resolver, const char* name) {
 		error(resolver, "Variable with this name already exists in this scope");
 	}
 
+	value = (LitLetal*) reallocate(resolver->vm, NULL, 0, sizeof(LitLetal));
+
 	lit_init_letal(value);
 	lit_letals_set(resolver->vm, scope, str, *value);
 }
@@ -96,10 +98,10 @@ static void define(LitResolver* resolver, const char* name) {
 	LitLetal* value = lit_letals_get(scope, str);
 
 	if (value == NULL) {
-		LitLetal value;
-		lit_init_letal(&value);
-		value.defined = true;
-		lit_letals_set(resolver->vm, scope, str, value);
+		LitLetal *value = (LitLetal*) reallocate(resolver->vm, NULL, 0, sizeof(LitLetal));
+		lit_init_letal(value);
+		value->defined = true;
+		lit_letals_set(resolver->vm, scope, str, *value);
 	} else {
 		value->defined = true;
 	}
@@ -209,7 +211,7 @@ static void resolve_grouping_expression(LitResolver* resolver, LitGroupingExpres
 static void resolve_var_expression(LitResolver* resolver, LitVarExpression* expression) {
 	LitLetal* value = lit_letals_get(peek_scope(resolver), lit_copy_string(resolver->vm, expression->name, (int) strlen(expression->name)));
 
-	if (value == NULL || value->nil) {
+	if (value != NULL && !value->defined) {
 		error(resolver, "Can't use local variable in it's own initializer");
 	}
 
