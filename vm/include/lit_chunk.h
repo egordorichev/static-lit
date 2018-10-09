@@ -5,6 +5,8 @@
 #include "lit_vm.h"
 #include "lit_array.h"
 
+DECLARE_ARRAY(LitArray, LitValue, array)
+
 typedef enum {
 	OP_RETURN = 0,
 	OP_CONSTANT = 1,

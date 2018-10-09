@@ -2,6 +2,16 @@
 #define LIT_AST_H
 
 #include "lit_lexer.h"
+#include "lit_array.h"
+
+typedef struct LitParameter {
+	const char* name;
+	int length;
+	const char* type;
+	int type_length;
+} LitParameter;
+
+DECLARE_ARRAY(LitParameters, LitParameter, parameters)
 
 typedef enum {
 	BINARY_EXPRESSION,
@@ -14,19 +24,11 @@ typedef enum {
 	CALL_EXPRESSION
 } LitExpresionType;
 
-typedef struct {
+typedef struct LitExpression {
 	LitExpresionType type;
-}	LitExpression;
+} LitExpression;
 
-typedef struct {
-	int capacity;
-	int count;
-	LitExpression** values;
-} LitExpressions;
-
-void lit_init_expressions(LitExpressions* array);
-void lit_free_expressions(LitVm* vm, LitExpressions* array);
-void lit_expressions_write(LitVm* vm, LitExpressions* array, LitExpression* expression);
+DECLARE_ARRAY(LitExpressions, LitExpression*, expressions)
 
 typedef struct {
 	LitExpression *expression;
@@ -97,22 +99,15 @@ typedef enum {
 	EXPRESSION_STATEMENT,
 	IF_STATEMENT,
 	BLOCK_STATEMENT,
-	WHILE_STATEMENT
+	WHILE_STATEMENT,
+	FUNCTION_STATEMENT
 } LitStatementType;
 
 typedef struct {
 	LitStatementType type;
 }	LitStatement;
 
-typedef struct {
-	int capacity;
-	int count;
-	LitStatement** values;
-} LitStatements;
-
-void lit_init_statements(LitStatements* array);
-void lit_free_statements(LitVm* vm, LitStatements* array);
-void lit_statements_write(LitVm* vm, LitStatements* array, LitStatement* statement);
+DECLARE_ARRAY(LitStatements, LitStatement*, statements)
 
 typedef struct {
 	LitExpression* expression;
@@ -157,5 +152,15 @@ typedef struct {
 } LitWhileStatement;
 
 LitWhileStatement* lit_make_while_statement(LitVm* vm, LitExpression* condition, LitStatement* body);
+
+typedef struct {
+	LitExpression* expression;
+
+	LitToken* name;
+	LitParameters* parameters;
+	LitStatement* body;
+} LitFunctionStatement;
+
+LitFunctionStatement* lit_make_function_statement(LitVm* vm, LitToken* name, LitParameters* parameters, LitStatement* body);
 
 #endif

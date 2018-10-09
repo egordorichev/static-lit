@@ -383,6 +383,30 @@ static LitStatement* parse_block_statement(LitLexer* lexer) {
 	return (LitStatement*) lit_make_block_statement(lexer->vm, statements);
 }
 
+static LitStatement* parse_fun_statement(LitLexer* lexer) {
+	LitToken function_name = consume(lexer, TOKEN_IDENTIFIER, "Expected function name");
+	consume(lexer, TOKEN_LEFT_PAREN, "Expected '(' after function name");
+
+	LitParameters* parameters = NULL;
+
+	if (lexer->current.type != TOKEN_RIGHT_PAREN) {
+		parameters = (LitParameters*) reallocate(lexer->vm, NULL, 0, sizeof(LitParameters));
+		lit_init_parameters(parameters);
+		
+		do {
+			LitToken type = consume(lexer, TOKEN_IDENTIFIER, "Expected argument type");
+			LitToken name = consume(lexer, TOKEN_IDENTIFIER, "Expected argument name");
+
+			lit_parameters_write(lexer->vm, parameters, (LitParameter) {name.start, name.length, type.start, type.length});
+		} while (match(lexer, TOKEN_COMMA));
+	}
+
+	consume(lexer, TOKEN_RIGHT_PAREN, "Expected ')' after parameters");
+	consume(lexer, TOKEN_LEFT_BRACE, "Expected '{' before function body");
+
+	return (LitStatement*) lit_make_function_statement(lexer->vm, copy_token(lexer, &function_name), parameters, parse_block_statement(lexer));
+}
+
 static LitStatement* parse_statement(LitLexer* lexer) {
 	if (match(lexer, TOKEN_LEFT_BRACE)) {
 		return parse_block_statement(lexer);
@@ -390,6 +414,10 @@ static LitStatement* parse_statement(LitLexer* lexer) {
 
 	if (match(lexer, TOKEN_IF)) {
 		return parse_if_statement(lexer);
+	}
+
+	if (match(lexer, TOKEN_FUN)) {
+		return parse_fun_statement(lexer);
 	}
 
 	if (match(lexer, TOKEN_FOR)) {

@@ -2,6 +2,11 @@
 
 #include "lit_ast.h"
 #include "lit_memory.h"
+#include "lit_array.h"
+
+DEFINE_ARRAY(LitParameters, LitParameter, parameters)
+DEFINE_ARRAY(LitExpressions, LitExpression*, expressions)
+DEFINE_ARRAY(LitStatements, LitStatement*, statements)
 
 #define ALLOCATE_EXPRESSION(vm, type, object_type) \
     (type*) allocate_expression(vm, sizeof(type), object_type)
@@ -134,6 +139,16 @@ LitWhileStatement* lit_make_while_statement(LitVm* vm, LitExpression* condition,
 	LitWhileStatement* statement = ALLOCATE_STATEMENT(vm, LitWhileStatement, WHILE_STATEMENT);
 
 	statement->condition = condition;
+	statement->body = body;
+
+	return statement;
+}
+
+LitFunctionStatement* lit_make_function_statement(LitVm* vm, LitToken* name, LitParameters* parameters, LitStatement* body) {
+	LitFunctionStatement* statement = ALLOCATE_STATEMENT(vm, LitFunctionStatement, FUNCTION_STATEMENT);
+
+	statement->name = name;
+	statement->parameters = parameters;
 	statement->body = body;
 
 	return statement;

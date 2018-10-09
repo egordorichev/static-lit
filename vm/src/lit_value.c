@@ -4,6 +4,7 @@
 #include "lit_value.h"
 #include "lit_memory.h"
 #include "lit_object.h"
+#include "lit.h"
 
 static char output[21];
 

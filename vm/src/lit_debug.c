@@ -118,6 +118,34 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 
 				printf("\n");
 			}
+			case FUNCTION_STATEMENT: {
+				LitFunctionStatement* function = (LitFunctionStatement*) statement;
+
+				printf("\"type\" : \"function\",\n");
+				printf("\"args\" : [");
+
+				if (function->parameters != NULL) {
+					int cn = function->parameters->count;
+
+					for (int i = 0; i < cn; i++) {
+						LitParameter parameter = function->parameters->values[i];
+
+						printf("{\n\"name\" : \"%.*s\",\n", parameter.length, parameter.name);
+						printf("\"type\" : \"%.*s\"\n}", parameter.type_length, parameter.type);
+
+						if (i < cn - 1) {
+							printf(",\n");
+						} else {
+							printf("\n");
+						}
+					}
+				}
+
+				printf("],\n\"body\" : ");
+				lit_trace_statement(vm, function->body, depth + 1);
+
+				printf("\n");
+			}
 		}
 	}
 

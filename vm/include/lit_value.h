@@ -2,6 +2,7 @@
 #define LIT_VALUE_H
 
 #include "lit_common.h"
+#include "lit_array.h"
 
 typedef struct sLitObject LitObject;
 typedef struct sLitString LitString;
