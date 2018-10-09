@@ -23,7 +23,7 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 				LitVarStatement* var = (LitVarStatement*) statement;
 
 				printf("\"type\" : \"var declaration\",\n");
-				printf("\"name\" : \"%.*s\",\n", var->name->length, var->name->start);
+				printf("\"name\" : \"%s\",\n", var->name);
 				printf("\"init\" : ");
 
 				if (var->init != NULL) {
@@ -125,8 +125,8 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 				LitFunctionStatement* function = (LitFunctionStatement*) statement;
 
 				printf("\"type\" : \"function\",\n");
-				printf("\"name\" : \"%.*s\",\n", function->name->length, function->name->start);
-				printf("\"return_type\" : \"%.*s\",\n", function->return_type.type_length, function->return_type.type);
+				printf("\"name\" : \"%s\",\n", function->name);
+				printf("\"return_type\" : \"%s\",\n", function->return_type.type);
 				printf("\"args\" : [");
 
 				if (function->parameters != NULL) {
@@ -136,8 +136,8 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 					for (int i = 0; i < cn; i++) {
 						LitParameter parameter = function->parameters->values[i];
 
-						printf("{\n\"name\" : \"%.*s\",\n", parameter.length, parameter.name);
-						printf("\"type\" : \"%.*s\"\n}", parameter.type_length, parameter.type);
+						printf("{\n\"name\" : \"%s\",\n", parameter.name);
+						printf("\"type\" : \"%s\"\n}", parameter.type);
 
 						if (i < cn - 1) {
 							printf(",\n");
@@ -258,7 +258,7 @@ void lit_trace_expression(LitVm* vm, LitExpression* expression, int depth) {
 				LitVarExpression* var = (LitVarExpression*) expression;
 
 				printf("\"type\" : \"var usage\",\n");
-				printf("\"name\" : \"%.*s\"\n", var->name->length, var->name->start);
+				printf("\"name\" : \"%s\"\n", var->name);
 
 				break;
 			}
@@ -266,7 +266,7 @@ void lit_trace_expression(LitVm* vm, LitExpression* expression, int depth) {
 				LitAssignExpression* var = (LitAssignExpression*) expression;
 
 				printf("\"type\" : \"assign\",\n");
-				printf("\"to\" : \"%.*s\",\n", var->name->length, var->name->start);
+				printf("\"to\" : \"%s\",\n", var->name);
 				printf("\"value\" : ");
 				lit_trace_expression(vm, var->value, depth + 1);
 				printf("\n");

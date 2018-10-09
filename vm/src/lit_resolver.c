@@ -47,15 +47,14 @@ static void pop_scope(LitResolver* resolver) {
 	resolver->depth --;
 }
 
-static void resolve_local(LitResolver* resolver, const char* name, int len) {
-	LitString *str = lit_copy_string(resolver->vm, name, len);
+static void resolve_local(LitResolver* resolver, const char* name) {
+	LitString *str = lit_copy_string(resolver->vm, name, (int) strlen(name));
 
 	for (int i = resolver->scopes.count - 1; i >= 0; i --) {
-		LitValue value;
+		LitValue value = NIL_VALUE;
 		lit_table_get(resolver->scopes.values[i], str, &value);
 
 		if (value != NIL_VALUE) {
-			// TODO: set it! http://craftinginterpreters.com/resolving-and-binding.html
 			return;
 		}
 	}
@@ -63,22 +62,30 @@ static void resolve_local(LitResolver* resolver, const char* name, int len) {
 	error(resolver, "Variable is not defined!");
 }
 
-static void declare(LitResolver* resolver, const char* name, int len) {
-	lit_table_set(resolver->vm, peek_scope(resolver), lit_copy_string(resolver->vm, name, len), FALSE_VALUE);
+static void declare(LitResolver* resolver, const char* name) {
+	LitTable* scope = peek_scope(resolver);
+	LitValue value = NIL_VALUE;
+	LitString* str = lit_copy_string(resolver->vm, name, (int) strlen(name));
+
+	if (lit_table_get(scope, str, &value)) {
+		error(resolver, "Variable with this name already exists in this scope");
+	}
+
+	lit_table_set(resolver->vm, scope, str, FALSE_VALUE);
 }
 
-static void define(LitResolver* resolver, const char* name, int len) {
-	lit_table_set(resolver->vm, peek_scope(resolver), lit_copy_string(resolver->vm, name, len), TRUE_VALUE);
+static void define(LitResolver* resolver, const char* name) {
+	lit_table_set(resolver->vm, peek_scope(resolver), lit_copy_string(resolver->vm, name, (int) strlen(name)), TRUE_VALUE);
 }
 
 static void resolve_var_statement(LitResolver* resolver, LitVarStatement* statement) {
-	declare(resolver, statement->name->start, statement->name->length);
+	declare(resolver, statement->name);
 
 	if (statement->init != NULL) {
 		resolve_expression(resolver, statement->init);
 	}
 
-	define(resolver, statement->name->start, statement->name->length);
+	define(resolver, statement->name);
 }
 
 static void resolve_expression_statement(LitResolver* resolver, LitExpressionStatement* statement) {
@@ -108,8 +115,23 @@ static void resolve_while_statement(LitResolver* resolver, LitWhileStatement* st
 	resolve_statement(resolver, statement->body);
 }
 
-static void resolve_function_statement(LitResolver* resolver, LitFunctionStatement* statement) {
+static void resolve_function(LitResolver* resolver, LitFunctionStatement* statement) {
+	push_scope(resolver);
+
+	if (statement->parameters != NULL) {
+		for (int i = 0; i < statement->parameters->count; i++) {
+			LitParameter parameter = statement->parameters->values[i];
+			define(resolver, parameter.name);
+		}
+	}
+
 	resolve_statement(resolver, statement->body);
+	pop_scope(resolver);
+}
+
+static void resolve_function_statement(LitResolver* resolver, LitFunctionStatement* statement) {
+	define(resolver, statement->name);
+	resolve_function(resolver, statement);
 }
 
 static void resolve_return_statement(LitResolver* resolver, LitReturnStatement* statement) {
@@ -157,20 +179,18 @@ static void resolve_grouping_expression(LitResolver* resolver, LitGroupingExpres
 
 static void resolve_var_expression(LitResolver* resolver, LitVarExpression* expression) {
 	LitValue value;
-
-	printf("%s\n", expression->name->start);
-
-	lit_table_get(peek_scope(resolver), lit_copy_string(resolver->vm, expression->name->start, expression->name->length), &value);
+	lit_table_get(peek_scope(resolver), lit_copy_string(resolver->vm, expression->name, (int) strlen(expression->name)), &value);
 
 	if (value == FALSE_VALUE) {
 		error(resolver, "Can't use local variable in it's own initializer");
 	}
 
-	// resolve_local(resolver, expression->name->start, expression->name->length);
+	resolve_local(resolver, expression->name);
 }
 
 static void resolve_assign_expression(LitResolver* resolver, LitAssignExpression* expression) {
 	resolve_expression(resolver, expression->value);
+	resolve_local(resolver, expression->name);
 }
 
 static void resolve_logical_expression(LitResolver* resolver, LitLogicalExpression* expression) {
@@ -208,6 +228,7 @@ static void resolve_expressions(LitResolver* resolver, LitExpressions* expressio
 void lit_init_resolver(LitResolver* resolver) {
 	lit_init_scopes(&resolver->scopes);
 	resolver->had_error = false;
+	resolver->depth = 0;
 
 	push_scope(resolver); // Global scope
 }

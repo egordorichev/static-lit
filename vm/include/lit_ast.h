@@ -6,9 +6,7 @@
 
 typedef struct LitParameter {
 	const char* name;
-	int length;
 	const char* type;
-	int type_length;
 } LitParameter;
 
 DECLARE_ARRAY(LitParameters, LitParameter, parameters)
@@ -64,18 +62,18 @@ LitGroupingExpression* lit_make_grouping_expression(LitVm* vm, LitExpression* ex
 
 typedef struct {
 	LitExpression* expression;
-	LitToken* name;
+	const char* name;
 } LitVarExpression;
 
-LitVarExpression* lit_make_var_expression(LitVm* vm, LitToken* name);
+LitVarExpression* lit_make_var_expression(LitVm* vm, const char* name);
 
 typedef struct {
 	LitExpression* expression;
-	LitToken* name;
+	const char* name;
 	LitExpression* value;
 } LitAssignExpression;
 
-LitAssignExpression* lit_make_assign_expression(LitVm* vm, LitToken* name, LitExpression* value);
+LitAssignExpression* lit_make_assign_expression(LitVm* vm, const char* name, LitExpression* value);
 
 typedef struct {
 	LitExpression* expression;
@@ -113,11 +111,11 @@ DECLARE_ARRAY(LitStatements, LitStatement*, statements)
 typedef struct {
 	LitExpression* expression;
 
-	LitToken* name;
+	const char* name;
 	LitExpression* init;
 } LitVarStatement;
 
-LitVarStatement* lit_make_var_statement(LitVm* vm, LitToken* name, LitExpression* init);
+LitVarStatement* lit_make_var_statement(LitVm* vm, const char* name, LitExpression* init);
 
 typedef struct {
 	LitExpression* expression;
@@ -157,13 +155,13 @@ LitWhileStatement* lit_make_while_statement(LitVm* vm, LitExpression* condition,
 typedef struct {
 	LitExpression* expression;
 
-	LitToken* name;
+	const char* name;
 	LitParameters* parameters;
 	LitStatement* body;
 	LitParameter return_type;
 } LitFunctionStatement;
 
-LitFunctionStatement* lit_make_function_statement(LitVm* vm, LitToken* name, LitParameters* parameters, LitStatement* body, LitParameter return_type);
+LitFunctionStatement* lit_make_function_statement(LitVm* vm, const char* name, LitParameters* parameters, LitStatement* body, LitParameter return_type);
 
 typedef struct {
 	LitExpression* expression;

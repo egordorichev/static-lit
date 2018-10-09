@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <memory.h>
 
 #include "lit.h"
 #include "lit_parser.h"
@@ -20,6 +21,22 @@ static LitToken* copy_token(LitLexer* lexer, LitToken* old) {
 	token->type = old->type;
 
 	return token;
+}
+
+static const char* copy_string(LitLexer* lexer, LitToken* name) {
+	char* str = (char*) reallocate(lexer->vm, NULL, 0, name->length + 1);
+	strncpy(str, name->start, name->length);
+	str[name->length] = '\0';
+
+	return str;
+}
+
+static const char* copy_string_native(LitLexer* lexer, const char* name, int length) {
+	char* str = (char*) reallocate(lexer->vm, NULL, 0, length + 1);
+	strncpy(str, name, length);
+	str[length] = '\0';
+
+	return str;
 }
 
 static LitToken advance(LitLexer* lexer) {
@@ -92,7 +109,7 @@ static LitToken consume(LitLexer* lexer, LitTokenType type, const char* message)
 
 static LitExpression* parse_primary(LitLexer* lexer) {
 	if (match(lexer, TOKEN_IDENTIFIER)) {
-		return (LitExpression*) lit_make_var_expression(lexer->vm, copy_token(lexer, &lexer->previous));
+		return (LitExpression*) lit_make_var_expression(lexer->vm, copy_string(lexer, &lexer->previous));
 	}
 
 	if (match(lexer, TOKEN_TRUE)) {
@@ -396,23 +413,22 @@ static LitStatement* parse_fun_statement(LitLexer* lexer) {
 			LitToken type = consume(lexer, TOKEN_IDENTIFIER, "Expected argument type");
 			LitToken name = consume(lexer, TOKEN_IDENTIFIER, "Expected argument name");
 
-			lit_parameters_write(lexer->vm, parameters, (LitParameter) {name.start, name.length, type.start, type.length});
+			lit_parameters_write(lexer->vm, parameters, (LitParameter) {copy_string_native(lexer, name.start, name.length), copy_string_native(lexer, type.start, type.length)});
 		} while (match(lexer, TOKEN_COMMA));
 	}
 
 	consume(lexer, TOKEN_RIGHT_PAREN, "Expected ')' after parameters");
 
-	LitParameter return_type = (LitParameter) {NULL, 0, "void", 4};
+	LitParameter return_type = (LitParameter) {NULL, "void"};
 
 	if (match(lexer, TOKEN_GREATER)) {
 		LitToken type = consume(lexer, TOKEN_IDENTIFIER, "Expected return type");
 
-		return_type.type_length = type.length;
 		return_type.type = type.start;
 	}
 
 	consume(lexer, TOKEN_LEFT_BRACE, "Expected '{' before function body");
-	return (LitStatement*) lit_make_function_statement(lexer->vm, copy_token(lexer, &function_name), parameters, parse_block_statement(lexer), (LitParameter) {NULL, 0, return_type.type, return_type.type_length});
+	return (LitStatement*) lit_make_function_statement(lexer->vm, copy_string(lexer, &function_name), parameters, parse_block_statement(lexer), (LitParameter) {NULL, return_type.type,});
 }
 
 static LitStatement* parse_return_statement(LitLexer* lexer) {
@@ -455,7 +471,7 @@ static LitStatement* parse_var_declaration(LitLexer* lexer) {
 		init = parse_expression(lexer);
 	}
 
-	return (LitStatement*) lit_make_var_statement(lexer->vm, copy_token(lexer, &name), init);
+	return (LitStatement*) lit_make_var_statement(lexer->vm, copy_string(lexer, &name), init);
 }
 
 static LitStatement* parse_declaration(LitLexer* lexer) {

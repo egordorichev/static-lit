@@ -62,7 +62,7 @@ LitGroupingExpression* lit_make_grouping_expression(LitVm* vm, LitExpression* ex
 	return expression;
 }
 
-LitVarExpression* lit_make_var_expression(LitVm* vm, LitToken* name) {
+LitVarExpression* lit_make_var_expression(LitVm* vm, const char* name) {
 	LitVarExpression* expression = ALLOCATE_EXPRESSION(vm, LitVarExpression, VAR_EXPRESSION);
 
 	expression->name = name;
@@ -70,7 +70,7 @@ LitVarExpression* lit_make_var_expression(LitVm* vm, LitToken* name) {
 	return expression;
 }
 
-LitAssignExpression* lit_make_assign_expression(LitVm* vm, LitToken* name, LitExpression* value) {
+LitAssignExpression* lit_make_assign_expression(LitVm* vm, const char* name, LitExpression* value) {
 	LitAssignExpression* expression = ALLOCATE_EXPRESSION(vm, LitAssignExpression, ASSIGN_EXPRESSION);
 
 	expression->name = name;
@@ -98,7 +98,7 @@ LitCallExpression* lit_make_call_expression(LitVm* vm, LitExpression* callee, Li
 
 }
 
-LitVarStatement* lit_make_var_statement(LitVm* vm, LitToken* name, LitExpression* init) {
+LitVarStatement* lit_make_var_statement(LitVm* vm, const char* name, LitExpression* init) {
 	LitVarStatement* statement = ALLOCATE_STATEMENT(vm, LitVarStatement, VAR_STATEMENT);
 
 	statement->name = name;
@@ -144,7 +144,7 @@ LitWhileStatement* lit_make_while_statement(LitVm* vm, LitExpression* condition,
 	return statement;
 }
 
-LitFunctionStatement* lit_make_function_statement(LitVm* vm, LitToken* name, LitParameters* parameters, LitStatement* body, LitParameter return_type) {
+LitFunctionStatement* lit_make_function_statement(LitVm* vm, const char* name, LitParameters* parameters, LitStatement* body, LitParameter return_type) {
 	LitFunctionStatement* statement = ALLOCATE_STATEMENT(vm, LitFunctionStatement, FUNCTION_STATEMENT);
 
 	statement->name = name;
