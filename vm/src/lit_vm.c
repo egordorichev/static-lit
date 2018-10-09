@@ -9,6 +9,7 @@
 #include "lit_memory.h"
 #include "lit_object.h"
 #include "lit_parser.h"
+#include "lit_resolver.h"
 
 static inline void reset_stack(LitVm *vm) {
 	vm->stack_top = vm->stack;
@@ -184,7 +185,7 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 	LitStatements statements;
 
 	lit_init_statements(&statements);
-	lit_parse(vm, &statements);
+	bool had_error = lit_parse(vm, &statements);
 
 #ifdef DEBUG_PRINT_AST
 	printf("[\n");
@@ -199,6 +200,14 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 
 	printf("\n]\n");
 #endif
+
+	if (had_error) {
+		return INTERPRET_COMPILE_ERROR;
+	}
+
+	if (!lit_resolve(vm, &statements)) {
+		return INTERPRET_COMPILE_ERROR;
+	}
 
 	lit_free_statements(vm, &statements);
 

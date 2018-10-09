@@ -79,7 +79,6 @@ static void error(LitLexer* lexer, LitToken *token, const char* message) {
 	}
 
 	printf(": %s\n", message);
-	// synchronize(lexer);
 }
 
 static LitToken consume(LitLexer* lexer, LitTokenType type, const char* message) {
@@ -467,7 +466,7 @@ static LitStatement* parse_declaration(LitLexer* lexer) {
 	return parse_statement(lexer);
 }
 
-LitStatements* lit_parse(LitVm* vm, LitStatements* statements) {
+bool lit_parse(LitVm* vm, LitStatements* statements) {
 	LitLexer lexer;
 
 	lit_init_lexer(&lexer, vm->code);
@@ -478,7 +477,8 @@ LitStatements* lit_parse(LitVm* vm, LitStatements* statements) {
 		lit_statements_write(vm, statements, parse_declaration(&lexer));
 	}
 
+	bool had_error = lexer.had_error;
 	lit_free_lexer(&lexer);
 
-	return statements;
+	return had_error;
 }

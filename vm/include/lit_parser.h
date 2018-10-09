@@ -4,6 +4,6 @@
 #include "lit_ast.h"
 #include "lit_array.h"
 
-LitStatements* lit_parse(LitVm* vm, LitStatements* statements);
+bool lit_parse(LitVm* vm, LitStatements* statements);
 
 #endif
