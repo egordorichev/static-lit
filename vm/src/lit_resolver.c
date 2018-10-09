@@ -107,7 +107,9 @@ static void resolve_if_statement(LitResolver* resolver, LitIfStatement* statemen
 }
 
 static void resolve_block_statement(LitResolver* resolver, LitBlockStatement* statement) {
+	push_scope(resolver);
 	resolve_statements(resolver, statement->statements);
+	pop_scope(resolver);
 }
 
 static void resolve_while_statement(LitResolver* resolver, LitWhileStatement* statement) {
