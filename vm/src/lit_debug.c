@@ -122,6 +122,7 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 				LitFunctionStatement* function = (LitFunctionStatement*) statement;
 
 				printf("\"type\" : \"function\",\n");
+				printf("\"return_type\" : \"%.*s\",\n", function->return_type.type_length, function->return_type.type);
 				printf("\"args\" : [");
 
 				if (function->parameters != NULL) {

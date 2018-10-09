@@ -159,8 +159,9 @@ typedef struct {
 	LitToken* name;
 	LitParameters* parameters;
 	LitStatement* body;
+	LitParameter return_type;
 } LitFunctionStatement;
 
-LitFunctionStatement* lit_make_function_statement(LitVm* vm, LitToken* name, LitParameters* parameters, LitStatement* body);
+LitFunctionStatement* lit_make_function_statement(LitVm* vm, LitToken* name, LitParameters* parameters, LitStatement* body, LitParameter return_type);
 
 #endif

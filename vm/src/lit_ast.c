@@ -144,12 +144,13 @@ LitWhileStatement* lit_make_while_statement(LitVm* vm, LitExpression* condition,
 	return statement;
 }
 
-LitFunctionStatement* lit_make_function_statement(LitVm* vm, LitToken* name, LitParameters* parameters, LitStatement* body) {
+LitFunctionStatement* lit_make_function_statement(LitVm* vm, LitToken* name, LitParameters* parameters, LitStatement* body, LitParameter return_type) {
 	LitFunctionStatement* statement = ALLOCATE_STATEMENT(vm, LitFunctionStatement, FUNCTION_STATEMENT);
 
 	statement->name = name;
 	statement->parameters = parameters;
 	statement->body = body;
+	statement->return_type = return_type;
 
 	return statement;
 }
