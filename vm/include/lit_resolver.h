@@ -6,7 +6,16 @@
 #include "lit_table.h"
 #include "lit_vm.h"
 
-DECLARE_ARRAY(LitScopes, LitTable*, scopes)
+typedef struct LitLetal {
+	bool defined;
+	bool nil;
+	const char* type;
+} LitLetal;
+
+void lit_init_letal(LitLetal* letal);
+
+DECLARE_TABLE(LitLetals, LitLetal, letals)
+DECLARE_ARRAY(LitScopes, LitLetals*, scopes)
 
 typedef struct LitResolver {
 	LitScopes scopes;

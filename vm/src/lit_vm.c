@@ -146,10 +146,10 @@ static bool call_value(LitVm* vm, LitValue callee, int arg_count) {
 			case OBJECT_CLASS: {
 				LitClass* class = AS_CLASS(callee);
 				vm->stack_top[-arg_count - 1] = MAKE_OBJECT_VALUE(lit_new_instance(vm, class));
-				LitValue initializer;
+				LitValue* initializer = lit_table_get(&class->methods, vm->init_string);
 
-				if (lit_table_get(&class->methods, vm->init_string, &initializer)) {
-					return call(vm, AS_CLOSURE(initializer), arg_count);
+				if (initializer != NULL) {
+					return call(vm, AS_CLOSURE(*initializer), arg_count);
 				} else if (arg_count != 0) {
 					runtime_error(vm, "Expected 0 arguments but got %d", arg_count);
 					return false;
@@ -187,19 +187,19 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 	lit_init_statements(&statements);
 	bool had_error = lit_parse(vm, &statements);
 
-#ifdef DEBUG_PRINT_AST
-	printf("[\n");
+	if (DEBUG_PRINT_AST) {
+		printf("[\n");
 
-	for (int i = 0; i < statements.count; i++) {
-		lit_trace_statement(vm, statements.values[i], 1);
+		for (int i = 0; i < statements.count; i++) {
+			lit_trace_statement(vm, statements.values[i], 1);
 
-		if (i < statements.count - 1) {
-			printf(",\n");
+			if (i < statements.count - 1) {
+				printf(",\n");
+			}
 		}
-	}
 
-	printf("\n]\n");
-#endif
+		printf("\n]\n");
+	}
 
 	if (had_error) {
 		return INTERPRET_COMPILE_ERROR;
@@ -272,14 +272,14 @@ static void define_method(LitVm* vm, LitString* name) {
 }
 
 static bool invoke_from_class(LitVm* vm, LitClass* klass, LitString* name, int arg_count) {
-	LitValue method;
+	LitValue* method = !lit_table_get(&klass->methods, name);
 
-	if (!lit_table_get(&klass->methods, name, &method)) {
+	if (method == NULL) {
 		runtime_error(vm, "Undefined property '%s'", name->chars);
 		return false;
 	}
 
-	return call(vm, AS_CLOSURE(method), arg_count);
+	return call(vm, AS_CLOSURE(*method), arg_count);
 }
 
 static bool invoke(LitVm* vm, LitString* name, int arg_count) {
@@ -291,25 +291,25 @@ static bool invoke(LitVm* vm, LitString* name, int arg_count) {
 	}
 
 	LitInstance* instance = AS_INSTANCE(receiver);
-	LitValue value;
+	LitValue* value = lit_table_get(&instance->fields, name);
 
-	if (lit_table_get(&instance->fields, name, &value)) {
-		vm->stack_top[-arg_count] = value;
-		return call_value(vm, value, arg_count);
+	if (value != NULL) {
+		vm->stack_top[-arg_count] = *value;
+		return call_value(vm, *value, arg_count);
 	}
 
 	return invoke_from_class(vm, instance->type, name, arg_count);
 }
 
 static bool bind_method(LitVm* vm, LitClass* klass, LitString* name) {
-	LitValue method;
+	LitValue* method = lit_table_get(&klass->methods, name);
 
-	if (!lit_table_get(&klass->methods, name, &method)) {
-		runtime_error("Undefined property '%s'", name->chars);
+	if (method == NULL) {
+		runtime_error(vm, "Undefined property '%s'", name->chars);
 		return false;
 	}
 
-	LitMethod* bound = lit_new_bound_method(vm, lit_peek(vm, 0), AS_CLOSURE(method));
+	LitMethod* bound = lit_new_bound_method(vm, lit_peek(vm, 0), AS_CLOSURE(*method));
 	lit_pop(vm);
 	lit_push(vm, MAKE_OBJECT_VALUE(bound));
 
@@ -363,9 +363,9 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		functions[OP_INVOKE] = &&op_invoke;
 	}
 
-#ifdef DEBUG_TRACE_EXECUTION
-	printf("== start vm ==\n");
-#endif
+	if (DEBUG_TRACE_EXECUTION) {
+		printf("== start vm ==\n");
+	}
 
 	LitFrame* frame = &vm->frames[vm->frame_count - 1];
 	LitValue* stack = vm->stack;
@@ -383,17 +383,17 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 			return INTERPRET_RUNTIME_ERROR;
 		}
 
-#ifdef DEBUG_TRACE_EXECUTION
-		if (vm->stack != vm->stack_top) {
-			for (LitValue* slot = vm->stack; slot < vm->stack_top; slot++) {
-				printf("[%s]", lit_to_string(vm, *slot));
+		if (DEBUG_TRACE_EXECUTION) {
+			if (vm->stack != vm->stack_top) {
+				for (LitValue* slot = vm->stack; slot < vm->stack_top; slot++) {
+					printf("[%s]", lit_to_string(vm, *slot));
+				}
+
+				printf("\n");
 			}
 
-			printf("\n");
+			lit_disassemble_instruction(vm, &frame->closure->function->chunk, (int) (frame->ip - frame->closure->function->chunk.code));
 		}
-
-		lit_disassemble_instruction(vm, &frame->closure->function->chunk, (int) (frame->ip - frame->closure->function->chunk.code));
-#endif
 
 		goto *functions[*frame->ip++];
 
@@ -597,14 +597,14 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 
 		op_get_global: {
 			LitString* name = READ_STRING();
-			LitValue value;
+			LitValue* value = lit_table_get(&vm->globals, name);
 
-			if (!lit_table_get(&vm->globals, name, &value)) {
+			if (value == NULL) {
 				runtime_error(vm, "Undefined variable '%s'", name->chars);
 				return INTERPRET_RUNTIME_ERROR;
 			}
 
-			PUSH(value);
+			PUSH(*value);
 			continue;
 		};
 
@@ -724,11 +724,11 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 
 			LitInstance* instance = AS_INSTANCE(PEEK(0));
 			LitString* name = READ_STRING();
-			LitValue value;
+			LitValue* value = lit_table_get(&instance->fields, name);
 
-			if (lit_table_get(&instance->fields, name, &value)) {
+			if (value != NULL) {
 				POP();
-				PUSH(value);
+				PUSH(*value);
 				continue;
 			}
 

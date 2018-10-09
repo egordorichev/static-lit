@@ -2,4 +2,4 @@ fun test(int a, int b) {
     return a + b
 }
 
-var c = test(10, "test")
+test()

@@ -6,7 +6,16 @@
 #include "lit_memory.h"
 #include "lit_object.h"
 
-DEFINE_ARRAY(LitScopes, LitTable*, scopes)
+DEFINE_ARRAY(LitScopes, LitLetals*, scopes)
+
+static inline LitLetal nil_letal() {
+	LitLetal letal;
+  lit_init_letal(&letal);
+  letal.nil = true;
+  return letal;
+}
+
+DEFINE_TABLE(LitLetals, LitLetal, letals, nil_letal());
 
 /*
  * TODO: type work: ensure argument types, ensure argument types are defined
@@ -24,14 +33,14 @@ static void error(LitResolver* resolver, const char* message) {
 }
 
 static void push_scope(LitResolver* resolver) {
-	LitTable* table = (LitTable*) reallocate(resolver->vm, NULL, 0, sizeof(LitTable));
-	lit_init_table(table);
+	LitLetals* table = (LitLetals*) reallocate(resolver->vm, NULL, 0, sizeof(LitLetals));
+	lit_init_letals(table);
 	lit_scopes_write(resolver->vm, &resolver->scopes, table);
 
 	resolver->depth ++;
 }
 
-static LitTable* peek_scope(LitResolver* resolver) {
+static LitLetals* peek_scope(LitResolver* resolver) {
 	return resolver->scopes.values[resolver->depth - 1];
 }
 
@@ -42,19 +51,24 @@ static void pop_scope(LitResolver* resolver) {
 	}
 
 	resolver->scopes.count --;
-	lit_free_table(resolver->vm, resolver->scopes.values[resolver->scopes.count]);
+	lit_free_letals(resolver->vm, resolver->scopes.values[resolver->scopes.count]);
 
 	resolver->depth --;
+}
+
+void lit_init_letal(LitLetal* letal) {
+	letal->type = NULL;
+	letal->defined = false;
+	letal->nil = false;
 }
 
 static void resolve_local(LitResolver* resolver, const char* name) {
 	LitString *str = lit_copy_string(resolver->vm, name, (int) strlen(name));
 
 	for (int i = resolver->scopes.count - 1; i >= 0; i --) {
-		LitValue value = NIL_VALUE;
-		lit_table_get(resolver->scopes.values[i], str, &value);
+		LitLetal* value = lit_letals_get(resolver->scopes.values[i], str);
 
-		if (value != NIL_VALUE) {
+		if (!(value == NULL || value->nil)) {
 			return;
 		}
 	}
@@ -63,19 +77,32 @@ static void resolve_local(LitResolver* resolver, const char* name) {
 }
 
 static void declare(LitResolver* resolver, const char* name) {
-	LitTable* scope = peek_scope(resolver);
-	LitValue value = NIL_VALUE;
+	LitLetals* scope = peek_scope(resolver);
 	LitString* str = lit_copy_string(resolver->vm, name, (int) strlen(name));
+	LitLetal* value = lit_letals_get(scope, str);
 
-	if (lit_table_get(scope, str, &value)) {
+	if (value != NULL) {
 		error(resolver, "Variable with this name already exists in this scope");
 	}
 
-	lit_table_set(resolver->vm, scope, str, FALSE_VALUE);
+	lit_init_letal(value);
+	lit_letals_set(resolver->vm, scope, str, *value);
 }
 
 static void define(LitResolver* resolver, const char* name) {
-	lit_table_set(resolver->vm, peek_scope(resolver), lit_copy_string(resolver->vm, name, (int) strlen(name)), TRUE_VALUE);
+	LitLetals* scope = peek_scope(resolver);
+	LitString* str = lit_copy_string(resolver->vm, name, (int) strlen(name));
+
+	LitLetal* value = lit_letals_get(scope, str);
+
+	if (value == NULL) {
+		LitLetal value;
+		lit_init_letal(&value);
+		value.defined = true;
+		lit_letals_set(resolver->vm, scope, str, value);
+	} else {
+		value->defined = true;
+	}
 }
 
 static void resolve_var_statement(LitResolver* resolver, LitVarStatement* statement) {
@@ -89,7 +116,7 @@ static void resolve_var_statement(LitResolver* resolver, LitVarStatement* statem
 }
 
 static void resolve_expression_statement(LitResolver* resolver, LitExpressionStatement* statement) {
-	resolve_expression(resolver, statement->expression);
+	resolve_expression(resolver, statement->expr);
 }
 
 static void resolve_if_statement(LitResolver* resolver, LitIfStatement* statement) {
@@ -180,10 +207,9 @@ static void resolve_grouping_expression(LitResolver* resolver, LitGroupingExpres
 }
 
 static void resolve_var_expression(LitResolver* resolver, LitVarExpression* expression) {
-	LitValue value;
-	lit_table_get(peek_scope(resolver), lit_copy_string(resolver->vm, expression->name, (int) strlen(expression->name)), &value);
+	LitLetal* value = lit_letals_get(peek_scope(resolver), lit_copy_string(resolver->vm, expression->name, (int) strlen(expression->name)));
 
-	if (value == FALSE_VALUE) {
+	if (value == NULL || value->nil) {
 		error(resolver, "Can't use local variable in it's own initializer");
 	}
 
@@ -208,6 +234,8 @@ static void resolve_expression(LitResolver* resolver, LitExpression* expression)
 	if (expression == NULL) {
 		return;
 	}
+
+	// printf("%p\n", expression);
 
 	switch (expression->type) {
 		case BINARY_EXPRESSION: resolve_binary_expression(resolver, (LitBinaryExpression*) expression); break;

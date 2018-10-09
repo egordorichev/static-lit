@@ -31,9 +31,9 @@ void lit_gray_object(LitVm* vm, LitObject* object) {
 		return;
 	}
 
-#ifdef DEBUG_TRACE_GC
-	printf("%p gray %s\n", object, lit_to_string(vm, MAKE_OBJECT_VALUE(object)));
-#endif
+	if (DEBUG_TRACE_GC) {
+		printf("%p gray %s\n", object, lit_to_string(vm, MAKE_OBJECT_VALUE(object)));
+	}
 
 	object->dark = true;
 
@@ -58,9 +58,9 @@ static void gray_array(LitVm* vm, LitArray* array) {
 }
 
 static void blacken_object(LitVm* vm, LitObject* object) {
-#ifdef DEBUG_TRACE_GC
-	printf("%p blacken %s\n", object, lit_to_string(vm, MAKE_OBJECT_VALUE(object)));
-#endif
+	if (DEBUG_TRACE_GC) {
+		printf("%p blacken %s\n", object, lit_to_string(vm, MAKE_OBJECT_VALUE(object)));
+	}
 
 	switch (object->type) {
 		case OBJECT_FUNCTION: {
@@ -105,9 +105,9 @@ static void blacken_object(LitVm* vm, LitObject* object) {
 }
 
 static void free_object(LitVm* vm, LitObject* object) {
-#ifdef DEBUG_TRACE_GC
-	printf("%p free %s\n", object, lit_to_string(vm, MAKE_OBJECT_VALUE(object)));
-#endif
+	if (DEBUG_TRACE_GC) {
+		printf("%p free %s\n", object, lit_to_string(vm, MAKE_OBJECT_VALUE(object)));
+	}
 
 	switch (object->type) {
 		case OBJECT_STRING: {
@@ -146,10 +146,11 @@ static void free_object(LitVm* vm, LitObject* object) {
 }
 
 void lit_collect_garbage(LitVm* vm) {
-#ifdef DEBUG_TRACE_GC
-	printf("-- gc begin\n");
 	size_t before = vm->bytes_allocated;
-#endif
+
+	if (DEBUG_TRACE_GC) {
+		printf("-- gc begin\n");
+	}
 
 	for (LitValue* slot = vm->stack; slot < vm->stack_top; slot++) {
 		lit_gray_value(vm, *slot);
@@ -188,10 +189,10 @@ void lit_collect_garbage(LitVm* vm) {
 
 	vm->next_gc = vm->bytes_allocated * GC_HEAP_GROW_FACTOR;
 
-#ifdef DEBUG_TRACE_GC
-	printf("-- gc collected %ld bytes (from %ld to %ld) next at %ld\n",
-		before - vm->bytes_allocated, before, vm->bytes_allocated, vm->next_gc);
-#endif
+	if (DEBUG_TRACE_GC) {
+		printf("-- gc collected %ld bytes (from %ld to %ld) next at %ld\n",
+		       before - vm->bytes_allocated, before, vm->bytes_allocated, vm->next_gc);
+	}
 }
 
 void lit_free_objects(LitVm* vm) {

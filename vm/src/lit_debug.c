@@ -168,6 +168,7 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 
 				break;
 			}
+			default: UNREACHABLE();
 		}
 	}
 
@@ -225,7 +226,7 @@ void lit_trace_expression(LitVm* vm, LitExpression* expression, int depth) {
 				LitLiteralExpression* literal = (LitLiteralExpression*) expression;
 
 				printf("\"type\" : \"literal\",\n");
-				printf("\"value\" : %s\n", lit_to_string(vm, literal->value));
+				printf("\"value\" : \"%s\"\n", lit_to_string(vm, literal->value));
 				break;
 			}
 			case UNARY_EXPRESSION: {
@@ -300,6 +301,7 @@ void lit_trace_expression(LitVm* vm, LitExpression* expression, int depth) {
 
 				break;
 			}
+			default: UNREACHABLE();
 		}
 	}
 
