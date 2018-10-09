@@ -416,6 +416,10 @@ static LitStatement* parse_fun_statement(LitLexer* lexer) {
 	return (LitStatement*) lit_make_function_statement(lexer->vm, copy_token(lexer, &function_name), parameters, parse_block_statement(lexer), (LitParameter) {NULL, 0, return_type.type, return_type.type_length});
 }
 
+static LitStatement* parse_return_statement(LitLexer* lexer) {
+	return (LitStatement*) lit_make_return_statement(lexer->vm, lexer->current.type != TOKEN_RIGHT_BRACE ? parse_expression(lexer) : NULL);
+}
+
 static LitStatement* parse_statement(LitLexer* lexer) {
 	if (match(lexer, TOKEN_LEFT_BRACE)) {
 		return parse_block_statement(lexer);
@@ -427,6 +431,10 @@ static LitStatement* parse_statement(LitLexer* lexer) {
 
 	if (match(lexer, TOKEN_FUN)) {
 		return parse_fun_statement(lexer);
+	}
+
+	if (match(lexer, TOKEN_RETURN)) {
+		return parse_return_statement(lexer);
 	}
 
 	if (match(lexer, TOKEN_FOR)) {

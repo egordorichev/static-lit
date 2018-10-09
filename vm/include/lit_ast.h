@@ -100,7 +100,8 @@ typedef enum {
 	IF_STATEMENT,
 	BLOCK_STATEMENT,
 	WHILE_STATEMENT,
-	FUNCTION_STATEMENT
+	FUNCTION_STATEMENT,
+	RETURN_STATEMENT
 } LitStatementType;
 
 typedef struct {
@@ -163,5 +164,12 @@ typedef struct {
 } LitFunctionStatement;
 
 LitFunctionStatement* lit_make_function_statement(LitVm* vm, LitToken* name, LitParameters* parameters, LitStatement* body, LitParameter return_type);
+
+typedef struct {
+	LitExpression* expression;
+	LitExpression* value;
+} LitReturnStatement;
+
+LitReturnStatement* lit_make_return_statement(LitVm* vm, LitExpression* value);
 
 #endif

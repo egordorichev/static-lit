@@ -91,6 +91,8 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 				int cn = block->statements->count;
 
 				if (cn > 0) {
+					printf("\n");
+
 					for (int i = 0; i < cn; i++) {
 						lit_trace_statement(vm, block->statements->values[i], depth + 1);
 
@@ -101,8 +103,8 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 						}
 					}
 				}
-				printf("]\n");
 
+				printf("]\n");
 				break;
 			}
 			case WHILE_STATEMENT: {
@@ -117,15 +119,18 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 				lit_trace_statement(vm, while_statement->body, depth + 1);
 
 				printf("\n");
+				break;
 			}
 			case FUNCTION_STATEMENT: {
 				LitFunctionStatement* function = (LitFunctionStatement*) statement;
 
 				printf("\"type\" : \"function\",\n");
+				printf("\"name\" : \"%.*s\",\n", function->name->length, function->name->start);
 				printf("\"return_type\" : \"%.*s\",\n", function->return_type.type_length, function->return_type.type);
 				printf("\"args\" : [");
 
 				if (function->parameters != NULL) {
+					printf("\n");
 					int cn = function->parameters->count;
 
 					for (int i = 0; i < cn; i++) {
@@ -146,6 +151,22 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 				lit_trace_statement(vm, function->body, depth + 1);
 
 				printf("\n");
+				break;
+			}
+			case RETURN_STATEMENT: {
+				LitReturnStatement* return_statement = (LitReturnStatement*) statement;
+
+				printf("\"type\" : \"return\",\n");
+				printf("\"value\" : ");
+
+				if (return_statement->value == NULL) {
+					printf("[]\n");
+				} else {
+					lit_trace_expression(vm, return_statement->value, depth + 1);
+					printf("\n");
+				}
+
+				break;
 			}
 		}
 	}

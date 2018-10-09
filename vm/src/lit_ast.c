@@ -154,3 +154,11 @@ LitFunctionStatement* lit_make_function_statement(LitVm* vm, LitToken* name, Lit
 
 	return statement;
 }
+
+LitReturnStatement* lit_make_return_statement(LitVm* vm, LitExpression* value) {
+	LitReturnStatement* statement = ALLOCATE_STATEMENT(vm, LitReturnStatement, RETURN_STATEMENT);
+
+	statement->value = value;
+
+	return statement;
+}
