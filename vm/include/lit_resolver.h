@@ -22,6 +22,7 @@ typedef struct LitResolver {
 	LitVm* vm;
 	int depth;
 
+	bool had_return;
 	bool had_error;
 } LitResolver;
 

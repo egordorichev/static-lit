@@ -1,5 +1,5 @@
-fun test(int a, int b) {
+fun test(int a, int b) > int {
     return a + b
 }
 
-test()
+var b = test(20, 10)

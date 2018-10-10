@@ -424,11 +424,11 @@ static LitStatement* parse_fun_statement(LitLexer* lexer) {
 	if (match(lexer, TOKEN_GREATER)) {
 		LitToken type = consume(lexer, TOKEN_IDENTIFIER, "Expected return type");
 
-		return_type.type = type.start;
+		return_type.type = copy_string(lexer, &type);
 	}
 
 	consume(lexer, TOKEN_LEFT_BRACE, "Expected '{' before function body");
-	return (LitStatement*) lit_make_function_statement(lexer->vm, copy_string(lexer, &function_name), parameters, parse_block_statement(lexer), (LitParameter) {NULL, return_type.type,});
+	return (LitStatement*) lit_make_function_statement(lexer->vm, copy_string(lexer, &function_name), parameters, parse_block_statement(lexer), (LitParameter) {NULL, return_type.type});
 }
 
 static LitStatement* parse_return_statement(LitLexer* lexer) {
