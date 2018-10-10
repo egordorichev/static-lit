@@ -20,6 +20,7 @@ static inline LitLetal nil_letal() {
 }
 
 DEFINE_TABLE(LitLetals, LitLetal, letals, nil_letal());
+DEFINE_TABLE(LitTypes, char *, types, NULL)
 
 static void resolve_statement(LitResolver* resolver, LitStatement* statement);
 static void resolve_statements(LitResolver* resolver, LitStatements* statements);
@@ -60,6 +61,16 @@ static void pop_scope(LitResolver* resolver) {
 	lit_free_letals(resolver->vm, resolver->scopes.values[resolver->scopes.count]);
 
 	resolver->depth --;
+}
+
+static void resolve_type(LitResolver* resolver, const char* type) {
+	if (lit_types_get(&resolver->types, lit_copy_string(resolver->vm, type, (int) strlen(type))) == NULL) {
+		error(resolver, "Type %s is not defined", type);
+	}
+}
+
+static void define_type(LitResolver* resolver, const char* type) {
+	lit_types_set(resolver->vm, &resolver->types, lit_copy_string(resolver->vm, type, (int) strlen(type)), (char*) type);
 }
 
 void lit_init_letal(LitLetal* letal) {
@@ -170,10 +181,12 @@ static void resolve_function(LitResolver* resolver, LitFunctionStatement* statem
 	if (statement->parameters != NULL) {
 		for (int i = 0; i < statement->parameters->count; i++) {
 			LitParameter parameter = statement->parameters->values[i];
+			resolve_type(resolver, parameter.type);
 			define(resolver, parameter.name, parameter.type);
 		}
 	}
 
+	resolve_type(resolver, statement->return_type.type);
 	resolve_statement(resolver, statement->body);
 
 	if (!resolver->had_return && strcmp(statement->return_type.type, "void") != 0) {
@@ -397,15 +410,22 @@ static void resolve_expressions(LitResolver* resolver, LitExpressions* expressio
 
 void lit_init_resolver(LitResolver* resolver) {
 	lit_init_scopes(&resolver->scopes);
+	lit_init_types(&resolver->types);
+
 	resolver->had_error = false;
 	resolver->depth = 0;
 	resolver->function = NULL;
 
 	push_scope(resolver); // Global scope
+
+	define_type(resolver, "int");
+	define_type(resolver, "bool");
+	define_type(resolver, "object");
 }
 
 void lit_free_resolver(LitResolver* resolver) {
 	lit_free_scopes(resolver->vm, &resolver->scopes);
+	lit_free_types(resolver->vm, &resolver->types);
 }
 
 bool lit_resolve(LitVm* vm, LitStatements* statements) {

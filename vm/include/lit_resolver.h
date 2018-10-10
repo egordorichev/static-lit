@@ -15,10 +15,12 @@ typedef struct LitLetal {
 void lit_init_letal(LitLetal* letal);
 
 DECLARE_TABLE(LitLetals, LitLetal, letals)
+DECLARE_TABLE(LitTypes, char *, types)
 DECLARE_ARRAY(LitScopes, LitLetals*, scopes)
 
 typedef struct LitResolver {
 	LitScopes scopes;
+	LitTypes types;
 	LitVm* vm;
 	int depth;
 
