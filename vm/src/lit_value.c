@@ -57,11 +57,11 @@ char *lit_to_string(LitVm* vm, LitValue value) {
 			case OBJECT_CLOSURE: case OBJECT_BOUND_METHOD: {
 				char *name = AS_CLOSURE(value)->function->name->chars;
 				int len = strlen(name);
-				char* buffer = ALLOCATE(vm, char, len + 5);
+				char* buffer = ALLOCATE(vm, char, len + 6);
 
-				sprintf(buffer, "<fn %s", name);
-				buffer[len + 4] = '>';
-				buffer[len + 5] = '\0';
+				sprintf(buffer, "<fun %s", name);
+				buffer[len + 5] = '>';
+				buffer[len + 6] = '\0';
 
 				return buffer;
 			}

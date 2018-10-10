@@ -1,1 +1,2 @@
-true && false
+var a = 10
+a = 3

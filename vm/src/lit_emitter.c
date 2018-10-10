@@ -1,18 +1,20 @@
 #include <stdio.h>
+#include <memory.h>
 
 #include "lit_emitter.h"
+#include "lit_debug.h"
 
 static void emit_byte(LitEmitter* emitter, uint8_t byte) {
-	lit_chunk_write(emitter->vm, &emitter->function->chunk, byte);
+	lit_chunk_write(emitter->vm, &emitter->function->function->chunk, byte);
 }
 
 static void emit_bytes(LitEmitter* emitter, uint8_t a, uint8_t b) {
-	lit_chunk_write(emitter->vm, &emitter->function->chunk, a);
-	lit_chunk_write(emitter->vm, &emitter->function->chunk, b);
+	lit_chunk_write(emitter->vm, &emitter->function->function->chunk, a);
+	lit_chunk_write(emitter->vm, &emitter->function->function->chunk, b);
 }
 
 static uint8_t make_constant(LitEmitter* emitter, LitValue value) {
-	int constant = lit_chunk_add_constant(emitter->vm, &emitter->function->chunk, value);
+	int constant = lit_chunk_add_constant(emitter->vm, &emitter->function->function->chunk, value);
 
 	if (constant > UINT8_MAX) {
 		printf("Too many constants in one chunk\n");
@@ -30,11 +32,11 @@ static int emit_jump(LitEmitter* emitter, uint8_t instruction) {
 	emit_byte(emitter, instruction);
 	emit_bytes(emitter, 0xff, 0xff);
 
-	return emitter->function->chunk.count - 2;
+	return emitter->function->function->chunk.count - 2;
 }
 
 static void patch_jump(LitEmitter* emitter, int offset) {
-	LitChunk* chunk = &emitter->function->chunk;
+	LitChunk* chunk = &emitter->function->function->chunk;
 	int jump = chunk->count - offset - 2;
 
 	if (jump > UINT16_MAX) {
@@ -43,6 +45,18 @@ static void patch_jump(LitEmitter* emitter, int offset) {
 
 	chunk->code[offset] = (uint8_t) ((jump >> 8) & 0xff);
 	chunk->code[offset + 1] = (uint8_t) (jump & 0xff);
+}
+
+static int resolve_local(LitEmitter* emitter, const char* name) {
+	for (int i = emitter->function->local_count - 1; i >= 0; i--) {
+		LitLocal* local = &emitter->function->locals[i];
+
+		if (strcmp(name, local->name) == 0) {
+			return i;
+		}
+	}
+
+	return -1;
 }
 
 static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
@@ -81,8 +95,24 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 			break;
 		}
 		case GROUPING_EXPRESSION: emit_expression(emitter, ((LitGroupingExpression*) expression)->expr); break;
-		case VAR_EXPRESSION: break;
-		case ASSIGN_EXPRESSION: break;
+		case VAR_EXPRESSION: {
+			LitVarExpression* expr = (LitVarExpression*) expression;
+			int local = resolve_local(emitter, expr->name);
+
+			emit_bytes(emitter, OP_GET_LOCAL, local);
+
+			break;
+		}
+		case ASSIGN_EXPRESSION: {
+			LitAssignExpression* expr = (LitAssignExpression*) expression;
+
+			emit_expression(emitter, expr->value);
+
+			int local = resolve_local(emitter, expr->name);
+			emit_bytes(emitter, OP_SET_LOCAL, local);
+
+			break;
+		}
 		case LOGICAL_EXPRESSION: {
 			LitLogicalExpression* expr = (LitLogicalExpression*) expression;
 
@@ -114,7 +144,15 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 
 			break;
 		}
-		case CALL_EXPRESSION: break;
+		case CALL_EXPRESSION: {
+			LitCallExpression* expr = (LitCallExpression*) expression;
+
+			// todo: emit callee
+			emit_constant(emitter, MAKE_NUMBER_VALUE(expr->args->count));
+			emit_byte(emitter, OP_CALL);
+
+			break;
+		}
 	}
 }
 
@@ -124,18 +162,80 @@ static void emit_expressions(LitEmitter* emitter, LitExpressions* expressions) {
 	}
 }
 
+static void emit_statements(LitEmitter* emitter, LitStatements* statements);
+
+static int add_local(LitEmitter* emitter, const char* name) {
+	if (emitter->function->local_count == UINT8_COUNT) {
+		printf("Too many local variables in function.\n");
+		return -1;
+	}
+
+	LitLocal* local = &emitter->function->locals[emitter->function->local_count];
+
+	local->name = name;
+	local->depth = emitter->function->depth;
+	local->upvalue = false;
+
+	emitter->function->local_count++;
+	return emitter->function->local_count - 1;
+}
+
 static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 	switch (statement->type) {
-		case VAR_STATEMENT: break;
+		case VAR_STATEMENT: {
+			LitVarStatement* stmt = (LitVarStatement*) statement;
+			int local = add_local(emitter, stmt->name);
+
+			if (stmt->init != NULL && local > -1) {
+				emit_expression(emitter, stmt->init);
+			} else {
+				emit_byte(emitter, OP_NIL);
+			}
+
+			emit_bytes(emitter, OP_SET_LOCAL, (uint8_t) local);
+
+			break;
+		}
 		case EXPRESSION_STATEMENT:
 			emit_expression(emitter, ((LitExpressionStatement*) statement)->expr);
-			emit_byte(emitter, OP_POP);
+			// emit_byte(emitter, OP_POP);
 			break;
 		case IF_STATEMENT: break;
-		case BLOCK_STATEMENT: break;
+		case BLOCK_STATEMENT: {
+			emit_statements(emitter, ((LitBlockStatement*) statement)->statements);
+			break;
+		}
 		case WHILE_STATEMENT: break;
-		case FUNCTION_STATEMENT: break;
-		case RETURN_STATEMENT: break;
+		case FUNCTION_STATEMENT: {
+			LitFunctionStatement* stmt = (LitFunctionStatement*) statement;
+			LitEmitterFunction function;
+
+			function.function = lit_new_function(emitter->vm);
+			function.depth = emitter->function->depth + 1;
+			function.local_count = 0;
+			function.enclosing = emitter->function;
+			function.function = lit_new_function(emitter->vm);
+			function.function->name = lit_copy_string(emitter->vm, stmt->name, strlen(stmt->name));
+
+			emitter->function = &function;
+			emit_statement(emitter, stmt->body);
+
+			if (DEBUG_PRINT_CODE) {
+				lit_trace_chunk(emitter->vm, &function.function->chunk, stmt->name);
+			}
+
+			emitter->function = function.enclosing;
+			emit_bytes(emitter, OP_CLOSURE, make_constant(emitter, MAKE_OBJECT_VALUE(function.function)));
+
+			break;
+		}
+		case RETURN_STATEMENT: {
+			LitReturnStatement* stmt = (LitReturnStatement*) statement;
+
+			emit_expression(emitter, stmt->value);
+			emit_byte(emitter, OP_RETURN);
+			break;
+		}
 	}
 }
 
@@ -145,26 +245,22 @@ static void emit_statements(LitEmitter* emitter, LitStatements* statements) {
 	}
 }
 
-static void init_emitter(LitEmitter* emitter) {
-	emitter->function = lit_new_function(emitter->vm);
-	emitter->depth = 0;
-}
-
-static void free_emitter(LitEmitter* emitter) {
-
-}
 
 LitFunction* lit_emit(LitVm* vm, LitStatements* statements) {
 	LitEmitter emitter;
-	emitter.vm = vm;
+	LitEmitterFunction main;
 
-	init_emitter(&emitter);
+	main.function = lit_new_function(vm);
+	main.depth = 0;
+	main.local_count = 0;
+	main.enclosing = NULL;
+
+	emitter.vm = vm;
+	emitter.function = &main;
+
 	emit_statements(&emitter, statements);
 	emit_byte(&emitter, OP_NIL);
 	emit_byte(&emitter, OP_RETURN);
 
-	LitFunction *function = emitter.function;
-	free_emitter(&emitter);
-
-	return function;
+	return main.function;
 }

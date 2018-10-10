@@ -356,9 +356,6 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		functions[OP_LESS_EQUAL] = &&op_less_equal;
 		functions[OP_NOT_EQUAL] = &&op_not_equal;
 		functions[OP_CLOSE_UPVALUE] = &&op_close_upvalue;
-		functions[OP_DEFINE_GLOBAL] = &&op_define_global;
-		functions[OP_GET_GLOBAL] = &&op_get_global;
-		functions[OP_SET_GLOBAL] = &&op_set_global;
 		functions[OP_GET_LOCAL] = &&op_get_local;
 		functions[OP_SET_LOCAL] = &&op_set_local;
 		functions[OP_GET_UPVALUE] = &&op_get_upvalue;
@@ -602,43 +599,13 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 			continue;
 		};
 
-		op_define_global: {
-			lit_table_set(vm, &vm->globals, READ_STRING(), vm->stack_top[-1]);
-			POP();
-			continue;
-		};
-
-		op_get_global: {
-			LitString* name = READ_STRING();
-			LitValue* value = lit_table_get(&vm->globals, name);
-
-			if (value == NULL) {
-				runtime_error(vm, "Undefined variable '%s'", name->chars);
-				return INTERPRET_RUNTIME_ERROR;
-			}
-
-			PUSH(*value);
-			continue;
-		};
-
-		op_set_global: {
-			LitString* name = READ_STRING();
-
-			if (lit_table_set(vm, &vm->globals, name, PEEK(0))) {
-				runtime_error(vm, "Undefined variable '%s'", name->chars);
-				return INTERPRET_RUNTIME_ERROR;
-			}
-
-			continue;
-		};
-
 		op_get_local: {
 			PUSH(frame->slots[READ_BYTE()]);
 			continue;
 		};
 
 		op_set_local: {
-			frame->slots[READ_BYTE()] = vm->stack_top[-1];
+			frame->slots[READ_BYTE()] = POP();
 			continue;
 		};
 
@@ -648,7 +615,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		};
 
 		op_set_upvalue: {
-			*frame->closure->upvalues[READ_BYTE()]->value = vm->stack_top[-1];
+			*frame->closure->upvalues[READ_BYTE()]->value = POP();
 			continue;
 		};
 

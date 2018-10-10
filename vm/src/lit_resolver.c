@@ -334,6 +334,8 @@ static const char* resolve_assign_expression(LitResolver* resolver, LitAssignExp
 	resolve_expression(resolver, expression->value);
 	LitLetal* letal = resolve_local(resolver, expression->name);
 
+	resolve_local(resolver, expression->name);
+
 	if (letal == NULL) {
 		return "object";
 	}
