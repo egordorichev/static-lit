@@ -3,6 +3,7 @@
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
+#include <zconf.h>
 
 #include "lit_resolver.h"
 #include "lit_table.h"
@@ -26,9 +27,15 @@ static void resolve_statements(LitResolver* resolver, LitStatements* statements)
 static const char* resolve_expression(LitResolver* resolver, LitExpression* expression);
 static void resolve_expressions(LitResolver* resolver, LitExpressions* expressions);
 
-static void error(LitResolver* resolver, const char* message) {
+static void error(LitResolver* resolver, const char* format, ...) {
+	va_list vargs;
+	va_start(vargs, format);
+	fprintf(stderr, "Error: ");
+	vfprintf(stderr, format, vargs);
+	fprintf(stderr, "\n");
+	va_end(vargs);
+
 	resolver->had_error = true;
-	printf("Error: %s\n", message);
 }
 
 static void push_scope(LitResolver* resolver) {
@@ -72,7 +79,7 @@ static LitLetal* resolve_local(LitResolver* resolver, const char* name) {
 		}
 	}
 
-	error(resolver, "Variable is not defined!");
+	error(resolver, "Variable %s is not defined", name);
 	return NULL;
 }
 
@@ -82,7 +89,7 @@ static void declare(LitResolver* resolver, const char* name) {
 	LitLetal* value = lit_letals_get(scope, str);
 
 	if (value != NULL) {
-		error(resolver, "Variable with this name already exists in this scope");
+		error(resolver, "Variable %s is already defined in current scope", name);
 	}
 
 	value = (LitLetal*) reallocate(resolver->vm, NULL, 0, sizeof(LitLetal));
@@ -120,7 +127,7 @@ static void resolve_var_statement(LitResolver* resolver, LitVarStatement* statem
 	}
 
 	if (strcmp(type, "void") == 0) {
-		error(resolver, "Can't define variable with void type!");
+		error(resolver, "Can't set variable's %s type to void", statement->name);
 	} else {
 		define(resolver, statement->name, type);
 	}
@@ -170,7 +177,7 @@ static void resolve_function(LitResolver* resolver, LitFunctionStatement* statem
 	resolve_statement(resolver, statement->body);
 
 	if (!resolver->had_return && strcmp(statement->return_type.type, "void") != 0) {
-		error(resolver, "Missing return statement in non-void returning function!");
+		error(resolver, "Missing return statement in function %s", statement->name);
 	}
 
 	pop_scope(resolver);
@@ -219,13 +226,24 @@ static const char* get_function_signature(LitResolver* resolver, LitFunctionStat
 static void resolve_function_statement(LitResolver* resolver, LitFunctionStatement* statement) {
 	const char* type = get_function_signature(resolver, statement);
 
+	LitFunctionStatement* last = resolver->function;
+	resolver->function = statement;
+
 	define(resolver, statement->name, type);
 	resolve_function(resolver, statement);
+
+	resolver->function = last;
 }
 
 static void resolve_return_statement(LitResolver* resolver, LitReturnStatement* statement) {
-	resolve_expression(resolver, statement->value);
+	const char* type = resolve_expression(resolver, statement->value);
 	resolver->had_return = true;
+
+	if (resolver->function == NULL) {
+		error(resolver, "Can't return from top-level code!");
+	} else if (strcmp(type, resolver->function->return_type.type) != 0) {
+		error(resolver, "Return type mismatch: required %s, but got %s", resolver->function->return_type.type, type);
+	}
 }
 
 static void resolve_statement(LitResolver* resolver, LitStatement* statement) {
@@ -251,7 +269,7 @@ static const char* resolve_binary_expression(LitResolver* resolver, LitBinaryExp
 	const char* b = resolve_expression(resolver, expression->right);
 
 	if (strcmp(a, "int") != 0 || strcmp(b, "int") != 0) {
-		error(resolver, "Can't perform binary operations on non-int's");
+		error(resolver, "Can't perform binary operation on %s and %s", a, b);
 	}
 
 	return a;
@@ -287,7 +305,7 @@ static const char* resolve_var_expression(LitResolver* resolver, LitVarExpressio
 	LitLetal* value = lit_letals_get(peek_scope(resolver), lit_copy_string(resolver->vm, expression->name, (int) strlen(expression->name)));
 
 	if (value != NULL && !value->defined) {
-		error(resolver, "Can't use local variable in it's own initializer");
+		error(resolver, "Can't use local variable %s in it's own initializer", expression->name);
 	}
 
 	LitLetal* letal = resolve_local(resolver, expression->name);
@@ -318,7 +336,7 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 	char* return_type = "void";
 
 	if (expression->callee->type != VAR_EXPRESSION) {
-		error(resolver, "Can't call non-vars!");
+		error(resolver, "Can't call non-variable of type %s", expression->callee->type);
 	} else {
 		const char* type = resolve_var_expression(resolver, (LitVarExpression*) expression->callee);
 		char *arg = strtok((char*) &type[9], ", ");
@@ -327,7 +345,7 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 
 		while (arg != NULL) {
 			if (i > cn) {
-				error(resolver, "Not enough arguments for function call!");
+				error(resolver, "Not enough arguments for function %s", type);
 				break;
 			}
 
@@ -335,7 +353,7 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 				const char* given_type = resolve_expression(resolver, expression->args->values[i]);
 
 				if (strcmp(given_type, arg) != 0) {
-					error(resolver, "Not matching arg type!");
+					error(resolver, "Argument #%i type mismatch: required %s, but got %s", i + 1, arg, given_type);
 				}
 			} else {
 				size_t len = strlen(arg);
@@ -381,6 +399,7 @@ void lit_init_resolver(LitResolver* resolver) {
 	lit_init_scopes(&resolver->scopes);
 	resolver->had_error = false;
 	resolver->depth = 0;
+	resolver->function = NULL;
 
 	push_scope(resolver); // Global scope
 }

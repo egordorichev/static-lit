@@ -432,7 +432,7 @@ static LitStatement* parse_fun_statement(LitLexer* lexer) {
 }
 
 static LitStatement* parse_return_statement(LitLexer* lexer) {
-	return (LitStatement*) lit_make_return_statement(lexer->vm, lexer->current.type != TOKEN_RIGHT_BRACE ? parse_expression(lexer) : NULL);
+	return (LitStatement*) lit_make_return_statement(lexer->vm, (lexer->current.type != TOKEN_RIGHT_BRACE && lexer->current.type != TOKEN_EOF) ? parse_expression(lexer) : NULL);
 }
 
 static LitStatement* parse_statement(LitLexer* lexer) {

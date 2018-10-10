@@ -24,6 +24,8 @@ typedef struct LitResolver {
 
 	bool had_return;
 	bool had_error;
+
+	LitFunctionStatement* function;
 } LitResolver;
 
 void lit_init_resolver(LitResolver* resolver);
