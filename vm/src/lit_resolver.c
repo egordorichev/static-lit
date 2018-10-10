@@ -189,8 +189,12 @@ static void resolve_function(LitResolver* resolver, LitFunctionStatement* statem
 	resolve_type(resolver, statement->return_type.type);
 	resolve_statement(resolver, statement->body);
 
-	if (!resolver->had_return && strcmp(statement->return_type.type, "void") != 0) {
-		error(resolver, "Missing return statement in function %s", statement->name);
+	if (!resolver->had_return) {
+		if (strcmp(statement->return_type.type, "void") != 0) {
+			error(resolver, "Missing return statement in function %s", statement->name);
+		} else {
+			lit_statements_write(resolver->vm, ((LitBlockStatement*) statement->body)->statements, (LitStatement*) lit_make_return_statement(resolver->vm, NULL));
+		}
 	}
 
 	pop_scope(resolver);
@@ -249,7 +253,7 @@ static void resolve_function_statement(LitResolver* resolver, LitFunctionStateme
 }
 
 static void resolve_return_statement(LitResolver* resolver, LitReturnStatement* statement) {
-	const char* type = resolve_expression(resolver, statement->value);
+	const char* type = statement->value == NULL ? "void" : resolve_expression(resolver, statement->value);
 	resolver->had_return = true;
 
 	if (resolver->function == NULL) {
@@ -423,6 +427,7 @@ void lit_init_resolver(LitResolver* resolver) {
 	define_type(resolver, "int");
 	define_type(resolver, "bool");
 	define_type(resolver, "object");
+	define_type(resolver, "void");
 }
 
 void lit_free_resolver(LitResolver* resolver) {

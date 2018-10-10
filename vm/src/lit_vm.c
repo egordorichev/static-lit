@@ -90,10 +90,10 @@ static void runtime_error(LitVm* vm, const char* format, ...) {
 }
 
 static bool call(LitVm* vm, LitClosure* closure, int arg_count) {
-	if (arg_count != closure->function->arity) {
+	/*if (arg_count != closure->function->arity) {
 		runtime_error(vm, "Expected %d arguments but got %d",	closure->function->arity, arg_count);
 		return false;
-	}
+	}*/
 
 	if (vm->frame_count == FRAMES_MAX) {
 		runtime_error(vm, "Stack overflow");
@@ -104,7 +104,7 @@ static bool call(LitVm* vm, LitClosure* closure, int arg_count) {
 
 	frame->closure = closure;
 	frame->ip = closure->function->chunk.code;
-	frame->slots = vm->stack_top - (arg_count + 1);
+	frame->slots = vm->stack_top - (arg_count );
 
 	return true;
 }
@@ -174,6 +174,16 @@ static int print_function(LitVm* vm, int count) {
 	}
 
 	return 0;
+}
+
+static void trace_stack(LitVm* vm) {
+	if (vm->stack != vm->stack_top) {
+		for (LitValue* slot = vm->stack; slot < vm->stack_top; slot++) {
+			printf("[%s]", lit_to_string(vm, *slot));
+		}
+
+		printf("\n");
+	}
 }
 
 LitInterpretResult lit_execute(LitVm* vm, const char* code) {
@@ -356,6 +366,9 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		functions[OP_LESS_EQUAL] = &&op_less_equal;
 		functions[OP_NOT_EQUAL] = &&op_not_equal;
 		functions[OP_CLOSE_UPVALUE] = &&op_close_upvalue;
+		functions[OP_DEFINE_GLOBAL] = &&op_define_global;
+		functions[OP_GET_GLOBAL] = &&op_get_global;
+		functions[OP_SET_GLOBAL] = &&op_set_global;
 		functions[OP_GET_LOCAL] = &&op_get_local;
 		functions[OP_SET_LOCAL] = &&op_set_local;
 		functions[OP_GET_UPVALUE] = &&op_get_upvalue;
@@ -394,14 +407,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		}
 
 		if (DEBUG_TRACE_EXECUTION) {
-			if (vm->stack != vm->stack_top) {
-				for (LitValue* slot = vm->stack; slot < vm->stack_top; slot++) {
-					printf("[%s]", lit_to_string(vm, *slot));
-				}
-
-				printf("\n");
-			}
-
+			trace_stack(vm);
 			lit_disassemble_instruction(vm, &frame->closure->function->chunk, (int) (frame->ip - frame->closure->function->chunk.code));
 		}
 
@@ -595,7 +601,31 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		};
 
 		op_close_upvalue: {
+			printf("Close upvalues\n");
 			close_upvalues(vm, vm->stack_top - 1);
+			continue;
+		};
+
+		op_define_global: {
+			lit_table_set(vm, &vm->globals, READ_STRING(), vm->stack_top[-1]);
+			POP();
+			continue;
+		};
+
+		op_get_global: {
+			LitString* name = READ_STRING();
+			PUSH(*lit_table_get(&vm->globals, name));
+			continue;
+		};
+
+		op_set_global: {
+			LitString* name = READ_STRING();
+
+			if (lit_table_set(vm, &vm->globals, name, PEEK(0))) {
+				runtime_error(vm, "Undefined variable '%s'", name->chars);
+				return INTERPRET_RUNTIME_ERROR;
+			}
+
 			continue;
 		};
 
@@ -605,7 +635,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		};
 
 		op_set_local: {
-			frame->slots[READ_BYTE()] = POP();
+			frame->slots[READ_BYTE()] = vm->stack_top[-1];
 			continue;
 		};
 
@@ -615,7 +645,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		};
 
 		op_set_upvalue: {
-			*frame->closure->upvalues[READ_BYTE()]->value = POP();
+			*frame->closure->upvalues[READ_BYTE()]->value = vm->stack_top[-1];
 			continue;
 		};
 

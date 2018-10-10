@@ -1,2 +1,5 @@
-var a = 10
-a = 3
+fun test(int a) {
+
+}
+
+test(3)

@@ -97,9 +97,12 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 		case GROUPING_EXPRESSION: emit_expression(emitter, ((LitGroupingExpression*) expression)->expr); break;
 		case VAR_EXPRESSION: {
 			LitVarExpression* expr = (LitVarExpression*) expression;
-			int local = resolve_local(emitter, expr->name);
 
-			emit_bytes(emitter, OP_GET_LOCAL, local);
+			if (emitter->function->depth > 0) {
+				emit_bytes(emitter, OP_GET_LOCAL, resolve_local(emitter, expr->name));
+			} else {
+				emit_bytes(emitter, OP_GET_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, expr->name, strlen(expr->name)))));
+			}
 
 			break;
 		}
@@ -108,8 +111,11 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 
 			emit_expression(emitter, expr->value);
 
-			int local = resolve_local(emitter, expr->name);
-			emit_bytes(emitter, OP_SET_LOCAL, local);
+			if (emitter->function->depth > 0) {
+				emit_bytes(emitter, OP_SET_LOCAL, resolve_local(emitter, expr->name));
+			} else {
+				emit_bytes(emitter, OP_SET_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, expr->name, strlen(expr->name)))));
+			}
 
 			break;
 		}
@@ -147,8 +153,18 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 		case CALL_EXPRESSION: {
 			LitCallExpression* expr = (LitCallExpression*) expression;
 
-			// todo: emit callee
-			emit_constant(emitter, MAKE_NUMBER_VALUE(expr->args->count));
+			emit_expression(emitter, expr->callee);
+
+			if (expr->args != NULL) {
+				for (int i = 0; i < expr->args->count; i++) {
+					emit_expression(emitter, expr->args->values[i]);
+				}
+
+				emit_constant(emitter, MAKE_NUMBER_VALUE(expr->args->count));
+			} else {
+				emit_constant(emitter, MAKE_NUMBER_VALUE(0));
+			}
+
 			emit_byte(emitter, OP_CALL);
 
 			break;
@@ -192,7 +208,12 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 				emit_byte(emitter, OP_NIL);
 			}
 
-			emit_bytes(emitter, OP_SET_LOCAL, (uint8_t) local);
+			if (emitter->function->depth == 0) {
+				int str = make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, stmt->name, strlen(stmt->name))));
+				emit_bytes(emitter, OP_DEFINE_GLOBAL, str);
+			} else {
+				emit_bytes(emitter, OP_SET_LOCAL, (uint8_t) local);
+			}
 
 			break;
 		}
@@ -215,9 +236,17 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 			function.local_count = 0;
 			function.enclosing = emitter->function;
 			function.function = lit_new_function(emitter->vm);
-			function.function->name = lit_copy_string(emitter->vm, stmt->name, strlen(stmt->name));
+			function.function->name = lit_copy_string(emitter->vm, stmt->name, (int) strlen(stmt->name));
+			function.function->arity = stmt->parameters == NULL ? 0 : stmt->parameters->count;
 
 			emitter->function = &function;
+
+			if (stmt->parameters != NULL) {
+				for (int i = 0; i < stmt->parameters->count; i++) {
+					add_local(emitter, stmt->parameters->values[i].name);
+				}
+			}
+
 			emit_statement(emitter, stmt->body);
 
 			if (DEBUG_PRINT_CODE) {
@@ -226,13 +255,19 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 
 			emitter->function = function.enclosing;
 			emit_bytes(emitter, OP_CLOSURE, make_constant(emitter, MAKE_OBJECT_VALUE(function.function)));
+			emit_bytes(emitter, OP_DEFINE_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, stmt->name, strlen(stmt->name)))));
 
 			break;
 		}
 		case RETURN_STATEMENT: {
 			LitReturnStatement* stmt = (LitReturnStatement*) statement;
 
-			emit_expression(emitter, stmt->value);
+			if (stmt->value == NULL) {
+				emit_byte(emitter, OP_NIL);
+			} else {
+				emit_expression(emitter, stmt->value);
+			}
+
 			emit_byte(emitter, OP_RETURN);
 			break;
 		}

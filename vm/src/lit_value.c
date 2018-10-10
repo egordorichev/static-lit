@@ -54,7 +54,8 @@ char *lit_to_string(LitVm* vm, LitValue value) {
 				return buffer;
 			}
 			case OBJECT_UPVALUE: return "upvalue";
-			case OBJECT_CLOSURE: case OBJECT_BOUND_METHOD: {
+			case OBJECT_BOUND_METHOD: return "todo method";
+			case OBJECT_CLOSURE: {
 				char *name = AS_CLOSURE(value)->function->name->chars;
 				int len = strlen(name);
 				char* buffer = ALLOCATE(vm, char, len + 6);
