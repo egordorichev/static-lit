@@ -79,10 +79,11 @@ LitAssignExpression* lit_make_assign_expression(LitVm* vm, const char* name, Lit
 	return expression;
 }
 
-LitLogicalExpression* lit_make_logical_expression(LitVm* vm, LitTokenType operator, LitExpression* right) {
+LitLogicalExpression* lit_make_logical_expression(LitVm* vm, LitTokenType operator, LitExpression* left, LitExpression* right) {
 	LitLogicalExpression* expression = ALLOCATE_EXPRESSION(vm, LitLogicalExpression, LOGICAL_EXPRESSION);
 
 	expression->operator = operator;
+	expression->left = left;
 	expression->right = right;
 
 	return expression;

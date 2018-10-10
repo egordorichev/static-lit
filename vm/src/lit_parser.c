@@ -234,7 +234,7 @@ static LitExpression* parse_and(LitLexer* lexer) {
 		LitTokenType operator = lexer->previous.type;
 		LitExpression* right = parse_equality(lexer);
 
-		expression = (LitExpression*) lit_make_logical_expression(lexer->vm, operator, right);
+		expression = (LitExpression*) lit_make_logical_expression(lexer->vm, operator, expression, right);
 	}
 
 	return expression;
@@ -247,7 +247,7 @@ static LitExpression* parse_or(LitLexer* lexer) {
 		LitTokenType operator = lexer->previous.type;
 		LitExpression* right = parse_and(lexer);
 
-		expression = (LitExpression*) lit_make_logical_expression(lexer->vm, operator, right);
+		expression = (LitExpression*) lit_make_logical_expression(lexer->vm, operator, expression, right);
 	}
 
 	return expression;

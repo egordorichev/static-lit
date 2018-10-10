@@ -211,7 +211,9 @@ void lit_trace_expression(LitVm* vm, LitExpression* expression, int depth) {
 				LitLogicalExpression* logic = (LitLogicalExpression*) expression;
 
 				printf("\"type\" : \"logic\",\n");
-				printf("\"right\" : ");
+				printf("\"left\" : ");
+				lit_trace_expression(vm, logic->left, depth + 1);
+				printf(",\n\"right\" : ");
 				lit_trace_expression(vm, logic->right, depth + 1);
 				printf(",\n\"operator\" : ");
 

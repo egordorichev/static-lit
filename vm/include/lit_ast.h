@@ -78,10 +78,11 @@ LitAssignExpression* lit_make_assign_expression(LitVm* vm, const char* name, Lit
 typedef struct {
 	LitExpression* expression;
 	LitTokenType operator;
+	LitExpression* left;
 	LitExpression* right;
 } LitLogicalExpression;
 
-LitLogicalExpression* lit_make_logical_expression(LitVm* vm, LitTokenType operator, LitExpression* right);
+LitLogicalExpression* lit_make_logical_expression(LitVm* vm, LitTokenType operator, LitExpression* left, LitExpression* right);
 
 typedef struct {
 	LitExpression* expression;

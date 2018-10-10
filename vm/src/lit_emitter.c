@@ -26,6 +26,25 @@ static void emit_constant(LitEmitter* emitter, LitValue constant) {
 	emit_bytes(emitter, OP_CONSTANT, make_constant(emitter, constant));
 }
 
+static int emit_jump(LitEmitter* emitter, uint8_t instruction) {
+	emit_byte(emitter, instruction);
+	emit_bytes(emitter, 0xff, 0xff);
+
+	return emitter->function->chunk.count - 2;
+}
+
+static void patch_jump(LitEmitter* emitter, int offset) {
+	LitChunk* chunk = &emitter->function->chunk;
+	int jump = chunk->count - offset - 2;
+
+	if (jump > UINT16_MAX) {
+		printf("Too much code to jump over\n");
+	}
+
+	chunk->code[offset] = (uint8_t) ((jump >> 8) & 0xff);
+	chunk->code[offset + 1] = (uint8_t) (jump & 0xff);
+}
+
 static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 	switch (expression->type) {
 		case BINARY_EXPRESSION: {
@@ -64,7 +83,37 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 		case GROUPING_EXPRESSION: emit_expression(emitter, ((LitGroupingExpression*) expression)->expr); break;
 		case VAR_EXPRESSION: break;
 		case ASSIGN_EXPRESSION: break;
-		case LOGICAL_EXPRESSION: break;
+		case LOGICAL_EXPRESSION: {
+			LitLogicalExpression* expr = (LitLogicalExpression*) expression;
+
+			switch (expr->operator) {
+				case TOKEN_OR: {
+					emit_expression(emitter, expr->left);
+
+					int else_jump = emit_jump(emitter, OP_JUMP_IF_FALSE);
+					int end_jump = emit_jump(emitter, OP_JUMP);
+
+					patch_jump(emitter, else_jump);
+					emit_byte(emitter, OP_POP);
+					emit_expression(emitter, expr->right);
+					patch_jump(emitter, end_jump);
+
+					break;
+				}
+				case TOKEN_AND: {
+					emit_expression(emitter, expr->left);
+					int endJump = emit_jump(emitter, OP_JUMP_IF_FALSE);
+
+					emit_byte(emitter, OP_POP);
+					emit_expression(emitter, expr->right);
+					patch_jump(emitter, endJump);
+
+					break;
+				}
+			}
+
+			break;
+		}
 		case CALL_EXPRESSION: break;
 	}
 }
@@ -78,15 +127,16 @@ static void emit_expressions(LitEmitter* emitter, LitExpressions* expressions) {
 static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 	switch (statement->type) {
 		case VAR_STATEMENT: break;
-		case EXPRESSION_STATEMENT: emit_expression(emitter, ((LitExpressionStatement*) statement)->expr); break;
+		case EXPRESSION_STATEMENT:
+			emit_expression(emitter, ((LitExpressionStatement*) statement)->expr);
+			emit_byte(emitter, OP_POP);
+			break;
 		case IF_STATEMENT: break;
 		case BLOCK_STATEMENT: break;
 		case WHILE_STATEMENT: break;
 		case FUNCTION_STATEMENT: break;
 		case RETURN_STATEMENT: break;
 	}
-
-	emit_byte(emitter, OP_POP);
 }
 
 static void emit_statements(LitEmitter* emitter, LitStatements* statements) {
