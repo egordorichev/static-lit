@@ -346,13 +346,6 @@ static int jump_instruction(const char* name, int sign, LitChunk* chunk, int off
 
 int lit_disassemble_instruction(LitVm* vm, LitChunk* chunk, int offset) {
 	printf("%04d ", offset);
-
-	if (offset > 0 && chunk->lines[offset] == chunk->lines[offset - 1]) {
-		printf("| ");
-	} else {
-		printf("%d ", chunk->lines[offset]);
-	}
-
 	uint8_t instruction = chunk->code[offset];
 
 	switch (instruction) {

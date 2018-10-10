@@ -10,6 +10,7 @@
 #include "lit_object.h"
 #include "lit_parser.h"
 #include "lit_resolver.h"
+#include "lit_emitter.h"
 
 static inline void reset_stack(LitVm *vm) {
 	vm->stack_top = vm->stack;
@@ -77,13 +78,10 @@ static void runtime_error(LitVm* vm, const char* format, ...) {
 		LitFrame* frame = &vm->frames[i];
 		LitFunction* function = frame->closure->function;
 
-		size_t instruction = frame->ip - function->chunk.code - 1;
-		fprintf(stderr, "[line %d] in ", function->chunk.lines[instruction]);
-
 		if (function->name == NULL) {
-			fprintf(stderr, "script\n");
+			fprintf(stderr, "in script\n");
 		} else {
-			fprintf(stderr, "%s()\n", function->name->chars);
+			fprintf(stderr, "in %s()\n", function->name->chars);
 		}
 	}
 
@@ -209,7 +207,22 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 		return INTERPRET_COMPILE_ERROR;
 	}
 
+	LitFunction* function = lit_emit(vm, &statements);
+
+	if (DEBUG_PRINT_CODE) {
+		lit_trace_chunk(vm, &function->chunk, "top-level");
+	}
+
 	lit_free_statements(vm, &statements);
+
+	if (!DEBUG_NO_EXECUTE) {
+		lit_push(vm, MAKE_OBJECT_VALUE(function));
+		LitClosure* closure = lit_new_closure(vm, function);
+		lit_pop(vm);
+		call_value(vm, MAKE_OBJECT_VALUE(closure), 0);
+
+		return lit_interpret(vm);
+	}
 
 	return INTERPRET_OK;
 }

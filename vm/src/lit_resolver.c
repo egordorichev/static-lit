@@ -436,5 +436,5 @@ bool lit_resolve(LitVm* vm, LitStatements* statements) {
 	resolve_statements(&resolver, statements);
 	lit_free_resolver(&resolver);
 
-	return resolver.had_error;
+	return !resolver.had_error;
 }

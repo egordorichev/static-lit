@@ -53,7 +53,6 @@ typedef enum {
 typedef struct {
 	int count;
 	int capacity;
-	int* lines;
 	uint8_t* code;
 
 	LitArray constants;
@@ -62,7 +61,7 @@ typedef struct {
 void lit_init_chunk(LitChunk* chunk);
 void lit_free_chunk(LitVm* vm, LitChunk* chunk);
 
-void lit_chunk_write(LitVm* vm, LitChunk* chunk, uint8_t byte, int line);
+void lit_chunk_write(LitVm* vm, LitChunk* chunk, uint8_t byte);
 int lit_chunk_add_constant(LitVm* vm, LitChunk* chunk, LitValue constant);
 
 #endif

@@ -1,6 +1,1 @@
-fun t(int a, int b) > int {
-    return a + b
-}
-
-var test = t
-var b = test(20, 10)
+10 + 10
