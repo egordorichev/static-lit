@@ -132,7 +132,6 @@ static bool call_value(LitVm* vm, LitValue callee, int arg_count) {
 					lit_push(vm, values[i]);
 				}
 
-				// vm->stack_top -= arg_count + 1;
 				return true;
 			}
 			case OBJECT_BOUND_METHOD: {
@@ -431,7 +430,6 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 			vm->stack_top = frame->slots;
 			PUSH(result);
 			frame = &vm->frames[vm->frame_count - 1];
-			// ip = frame->ip;
 			continue;
 		};
 
@@ -441,76 +439,33 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		};
 
 		op_negate: {
-			if (!IS_NUMBER(vm->stack_top[-1])) {
-				runtime_error(vm, "Operand must be a number!\n");
-				return INTERPRET_RUNTIME_ERROR;
-			}
-
 			vm->stack_top[-1] = MAKE_NUMBER_VALUE(-AS_NUMBER(vm->stack_top[-1]));
 			continue;
 		};
 
 		op_add: {
-			LitValue b = POP();
-			LitValue a = POP();
-
-			if (IS_NUMBER(a) && IS_NUMBER(b)) {
-				PUSH(MAKE_NUMBER_VALUE(AS_NUMBER(a) + AS_NUMBER(b)));
-			} else {
-				char *as = lit_to_string(vm, a);
-				char *bs = lit_to_string(vm, b);
-
-				size_t al = strlen(as);
-				size_t bl = strlen(bs);
-				size_t length = al + bl;
-
-				char* chars = ALLOCATE(vm, char, length + 1);
-
-				memcpy(chars, as, al);
-				memcpy(chars + al, bs, bl);
-				chars[length] = '\0';
-
-				PUSH(MAKE_OBJECT_VALUE(lit_make_string(vm, chars, length)));
-			}
+			PUSH(MAKE_NUMBER_VALUE(AS_NUMBER(POP()) + AS_NUMBER(POP())));
 			continue;
 		};
 
 		op_subtract: {
 			LitValue b = POP();
-			LitValue a = POP();
+			PUSH(MAKE_NUMBER_VALUE(AS_NUMBER(POP()) - AS_NUMBER(b)));
 
-			if (IS_NUMBER(a) && IS_NUMBER(b)) {
-				PUSH(MAKE_NUMBER_VALUE(AS_NUMBER(a) - AS_NUMBER(b)));
-			} else {
-				runtime_error(vm, "Operands must be two numbers");
-				return INTERPRET_RUNTIME_ERROR;
-			}
 			continue;
 		};
 
 		op_multiply: {
 			LitValue b = POP();
-			LitValue a = POP();
+			PUSH(MAKE_NUMBER_VALUE(AS_NUMBER(POP()) * AS_NUMBER(b)));
 
-			if (IS_NUMBER(a) && IS_NUMBER(b)) {
-				PUSH(MAKE_NUMBER_VALUE(AS_NUMBER(a) * AS_NUMBER(b)));
-			} else {
-				runtime_error(vm, "Operands must be two numbers");
-				return INTERPRET_RUNTIME_ERROR;
-			}
 			continue;
 		};
 
 		op_divide: {
 			LitValue b = POP();
-			LitValue a = POP();
+			PUSH(MAKE_NUMBER_VALUE(AS_NUMBER(POP()) / AS_NUMBER(b)));
 
-			if (IS_NUMBER(a) && IS_NUMBER(b)) {
-				PUSH(MAKE_NUMBER_VALUE(AS_NUMBER(a) / AS_NUMBER(b)));
-			} else {
-				runtime_error(vm, "Operands must be two numbers");
-				return INTERPRET_RUNTIME_ERROR;
-			}
 			continue;
 		};
 
@@ -541,51 +496,28 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 
 		op_greater: {
 			LitValue a = POP();
+			vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) < AS_NUMBER(vm->stack_top[-1]));
 
-			if (IS_NUMBER(a) && IS_NUMBER(vm->stack_top[-1])) {
-				vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) < AS_NUMBER(vm->stack_top[-1]));
-			} else {
-				runtime_error(vm, "Operands must be two numbers");
-				return INTERPRET_RUNTIME_ERROR;
-			}
 			continue;
 		};
 
 		op_less: {
 			LitValue a = POP();
-
-			if (IS_NUMBER(a) && IS_NUMBER(vm->stack_top[-1])) {
-				vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) > AS_NUMBER(vm->stack_top[-1]));
-			} else {
-				runtime_error(vm, "Operands must be two numbers");
-				return INTERPRET_RUNTIME_ERROR;
-			}
+			vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) > AS_NUMBER(vm->stack_top[-1]));
 
 			continue;
 		};
 
 		op_greater_equal: {
 			LitValue a = POP();
-
-			if (IS_NUMBER(a) && IS_NUMBER(vm->stack_top[-1])) {
-				vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) <= AS_NUMBER(vm->stack_top[-1]));
-			} else {
-				runtime_error(vm, "Operands must be two numbers");
-				return INTERPRET_RUNTIME_ERROR;
-			}
+			vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) <= AS_NUMBER(vm->stack_top[-1]));
 
 			continue;
 		};
 
 		op_less_equal: {
 			LitValue a = POP();
-
-			if (IS_NUMBER(a) && IS_NUMBER(vm->stack_top[-1])) {
-				vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) >= AS_NUMBER(vm->stack_top[-1]));
-			} else {
-				runtime_error(vm, "Operands must be two numbers");
-				return INTERPRET_RUNTIME_ERROR;
-			}
+			vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) >= AS_NUMBER(vm->stack_top[-1]));
 
 			continue;
 		};
@@ -601,7 +533,6 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		};
 
 		op_close_upvalue: {
-			printf("Close upvalues\n");
 			close_upvalues(vm, vm->stack_top - 1);
 			continue;
 		};
@@ -609,23 +540,19 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		op_define_global: {
 			lit_table_set(vm, &vm->globals, READ_STRING(), vm->stack_top[-1]);
 			POP();
+
 			continue;
 		};
 
 		op_get_global: {
 			LitString* name = READ_STRING();
 			PUSH(*lit_table_get(&vm->globals, name));
+
 			continue;
 		};
 
 		op_set_global: {
-			LitString* name = READ_STRING();
-
-			if (lit_table_set(vm, &vm->globals, name, PEEK(0))) {
-				runtime_error(vm, "Undefined variable '%s'", name->chars);
-				return INTERPRET_RUNTIME_ERROR;
-			}
-
+			lit_table_set(vm, &vm->globals, READ_STRING(), PEEK(0));
 			continue;
 		};
 
@@ -698,7 +625,6 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 
 			if (!last_native) {
 				frame = &vm->frames[vm->frame_count - 1];
-				// ip = frame->ip;
 			}
 
 			continue;

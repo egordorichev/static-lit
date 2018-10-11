@@ -311,6 +311,7 @@ static const char* resolve_literal_expression(LitResolver* resolver, LitLiteralE
 }
 
 static const char* resolve_unary_expression(LitResolver* resolver, LitUnaryExpression* expression) {
+	printf("UNARY\n");
 	return resolve_expression(resolver, expression->right);
 }
 

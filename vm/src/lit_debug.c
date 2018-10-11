@@ -284,6 +284,10 @@ void lit_trace_expression(LitVm* vm, LitExpression* expression, int depth) {
 				lit_trace_expression(vm, call->callee, depth + 1);
 				printf(",\n\"args\" : [");
 
+				// SEGFAULT HERE
+				// emits wront ast somehow, when I use -
+				// also, I forgot to validate types in unary expr
+				// add easter egg with -"muffin"
 				if (call->args->count > 0) {
 					printf("\n");
 					int cn = call->args->count;

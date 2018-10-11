@@ -53,7 +53,6 @@ LitUnaryExpression* lit_make_unary_expression(LitVm* vm, LitExpression* right, L
 	return expression;
 }
 
-
 LitGroupingExpression* lit_make_grouping_expression(LitVm* vm, LitExpression* expr) {
 	LitGroupingExpression* expression = ALLOCATE_EXPRESSION(vm, LitGroupingExpression, GROUPING_EXPRESSION);
 
@@ -96,7 +95,6 @@ LitCallExpression* lit_make_call_expression(LitVm* vm, LitExpression* callee, Li
 	expression->args = args;
 
 	return expression;
-
 }
 
 LitVarStatement* lit_make_var_statement(LitVm* vm, const char* name, LitExpression* init) {
