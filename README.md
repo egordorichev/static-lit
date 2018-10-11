@@ -14,13 +14,13 @@ class Test {
 var test = Test()
 test.do_stuff() // -> Hi!
 
-fun do_thing(a) {
+fun do_thing(string a) > int {
     print(a)
-    return 3, "hi"
+    return 3
 }
 
 var x = 10
-var a, b = do_thing(a) // -> 10, a and b are now 3 and "hi"
+var a = do_thing(a) // -> 10, a is 3
 ```
 
 Please note, that the language is still in it's early stages, and I would recommend not using it right now. Tho it's growing pretty fast ;)
