@@ -5,15 +5,6 @@ lit is a tiny and fast language, designed to be embeddable and used as a scripti
 Here is how it looks:
 
 ```js
-class Test {
-    do_stuff() {
-        print("Hi!")
-    }
-}
-
-var test = Test()
-test.do_stuff() // -> Hi!
-
 fun do_thing(string a) > int {
     print(a)
     return 3
