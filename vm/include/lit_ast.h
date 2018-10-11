@@ -47,6 +47,8 @@ typedef struct {
 LitLiteralExpression* lit_make_literal_expression(LitVm* vm, LitValue value);
 
 typedef struct {
+	LitExpression *expression;
+
 	LitTokenType operator;
 	LitExpression* right;
 } LitUnaryExpression;

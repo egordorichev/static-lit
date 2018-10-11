@@ -49,14 +49,4 @@ LitValue lit_peek(LitVm* vm, int depth);
 LitInterpretResult lit_execute(LitVm* vm, const char* code);
 LitInterpretResult lit_interpret(LitVm* vm);
 
-/*
- * Source code ->
- * Lexer ->
- * Parser ->
- * AST ->
- * Compiler ->
- * Bytecode ->
- * VM
- */
-
 #endif

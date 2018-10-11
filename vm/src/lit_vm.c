@@ -90,11 +90,6 @@ static void runtime_error(LitVm* vm, const char* format, ...) {
 }
 
 static bool call(LitVm* vm, LitClosure* closure, int arg_count) {
-	/*if (arg_count != closure->function->arity) {
-		runtime_error(vm, "Expected %d arguments but got %d",	closure->function->arity, arg_count);
-		return false;
-	}*/
-
 	if (vm->frame_count == FRAMES_MAX) {
 		runtime_error(vm, "Stack overflow");
 		return false;

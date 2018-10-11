@@ -275,13 +275,7 @@ static LitExpression* parse_expression(LitLexer* lexer) {
 }
 
 static LitStatement* parse_expression_statement(LitLexer* lexer) {
-	LitExpressionStatement* statement = lit_make_expression_statement(lexer->vm, parse_expression(lexer));
-
-	/*if (statement->expr->type != ASSIGN_EXPRESSION) {
-		error(lexer, &lexer->previous, "Expression statement is not a valid statement\n");
-	}*/
-
-	return (LitStatement*) statement;
+	return (LitStatement*) lit_make_expression_statement(lexer->vm, parse_expression(lexer));
 }
 
 static LitStatement* parse_if_statement(LitLexer* lexer) {

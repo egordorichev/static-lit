@@ -1,1 +1,2 @@
--b
+var b = 10
+var a = -b
