@@ -18,12 +18,34 @@ static inline void reset_stack(LitVm *vm) {
 	vm->frame_count = 0;
 }
 
-static void define_native(LitVm* vm, const char* name, LitNativeFn function) {
-	lit_push(vm, MAKE_OBJECT_VALUE(lit_copy_string(vm, name, (int) strlen(name))));
-	lit_push(vm, MAKE_OBJECT_VALUE(lit_new_native(vm, function)));
-	lit_table_set(vm, &vm->globals, AS_STRING(vm->stack[0]), vm->stack[1]);
-	lit_pop(vm);
-	lit_pop(vm);
+void lit_define_native(LitVm* vm, const char* name, const char* type, LitNativeFn function) {
+	LitString* str = lit_copy_string(vm, name, (int) strlen(name));
+	LitLetal* letal = (LitLetal*) reallocate(vm, NULL, 0, sizeof(LitLetal));
+
+	lit_table_set(vm, &vm->globals, AS_STRING(MAKE_OBJECT_VALUE(str)), MAKE_OBJECT_VALUE(lit_new_native(vm, function)));
+
+	size_t len = strlen(type);
+	char* tp = (char*) reallocate(vm, NULL, 0, len);
+	strncpy(tp, type, len);
+
+	letal->type = tp;
+	letal->defined = true;
+	letal->nil = false;
+
+	lit_letals_set(vm, &vm->resolver.externals, str, *letal);
+}
+
+static int time_function(LitVm* vm) {
+	lit_push(vm, MAKE_NUMBER_VALUE((double) clock() / CLOCKS_PER_SEC));
+	return 1;
+}
+
+static int print_function(LitVm* vm, int count) {
+	for (int i = count - 1; i >= 0; i--) {
+		printf("%s\n", lit_to_string(vm, lit_peek(vm, i)));
+	}
+
+	return 0;
 }
 
 void lit_init_vm(LitVm* vm) {
@@ -35,18 +57,24 @@ void lit_init_vm(LitVm* vm) {
 	vm->bytes_allocated = 0;
 	vm->next_gc = 1024 * 1024;
 	vm->objects = NULL;
-
 	vm->gray_capacity = 0;
 	vm->gray_count = 0;
 	vm->gray_stack = NULL;
 
 	vm->init_string = lit_copy_string(vm, "init", 4);
+
+	vm->resolver.vm = vm;
+	lit_init_letals(&vm->resolver.externals);
+
+	lit_define_native(vm, "print", "function<any, void>", print_function);
+	lit_define_native(vm, "time", "function<double>", time_function);
 }
 
 void lit_free_vm(LitVm* vm) {
 	lit_free_table(vm, &vm->strings);
 	lit_free_table(vm, &vm->globals);
 	lit_free_objects(vm);
+	lit_free_letals(vm, &vm->resolver.externals);
 
 	vm->init_string = NULL;
 }
@@ -70,9 +98,10 @@ LitValue lit_peek(LitVm* vm, int depth) {
 static void runtime_error(LitVm* vm, const char* format, ...) {
 	va_list args;
 	va_start(args, format);
+	fprintf(stderr, "Runtime error: ");
 	vfprintf(stderr, format, args);
+	fprintf(stderr, ", ");
 	va_end(args);
-	fputs("\n", stderr);
 
 	for (int i = vm->frame_count - 1; i >= 0; i--) {
 		LitFrame* frame = &vm->frames[i];
@@ -102,6 +131,16 @@ static bool call(LitVm* vm, LitClosure* closure, int arg_count) {
 	frame->slots = vm->stack_top - (arg_count );
 
 	return true;
+}
+
+static void trace_stack(LitVm* vm) {
+	if (vm->stack != vm->stack_top) {
+		for (LitValue* slot = vm->stack; slot < vm->stack_top; slot++) {
+			printf("[%s]", lit_to_string(vm, *slot));
+		}
+
+		printf("\n");
+	}
 }
 
 static bool last_native;
@@ -155,29 +194,6 @@ static bool call_value(LitVm* vm, LitValue callee, int arg_count) {
 
 	runtime_error(vm, "Can only call functions and classes");
 	return false;
-}
-
-static int time_function(LitVm* vm) {
-	lit_push(vm, MAKE_NUMBER_VALUE((double) clock() / CLOCKS_PER_SEC));
-	return 1;
-}
-
-static int print_function(LitVm* vm, int count) {
-	for (int i = count - 1; i >= 0; i--) {
-		printf("%s\n", lit_to_string(vm, lit_peek(vm, i)));
-	}
-
-	return 0;
-}
-
-static void trace_stack(LitVm* vm) {
-	if (vm->stack != vm->stack_top) {
-		for (LitValue* slot = vm->stack; slot < vm->stack_top; slot++) {
-			printf("[%s]", lit_to_string(vm, *slot));
-		}
-
-		printf("\n");
-	}
 }
 
 LitInterpretResult lit_execute(LitVm* vm, const char* code) {

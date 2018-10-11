@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <zconf.h>
+#include <lit.h>
 
 #include "lit_resolver.h"
 #include "lit_table.h"
@@ -88,6 +89,12 @@ static LitLetal* resolve_local(LitResolver* resolver, const char* name) {
 		if (!(value == NULL || value->nil)) {
 			return value;
 		}
+	}
+
+	LitLetal* value = lit_letals_get(&resolver->externals, str);
+
+	if (!(value == NULL || value->nil)) {
+		return value;
 	}
 
 	error(resolver, "Variable %s is not defined", name);
@@ -258,7 +265,7 @@ static void resolve_return_statement(LitResolver* resolver, LitReturnStatement* 
 
 	if (resolver->function == NULL) {
 		error(resolver, "Can't return from top-level code!");
-	} else if (strcmp(type, resolver->function->return_type.type) != 0) {
+	} else if (strcmp(type, resolver->function->return_type.type) != 0 && strcmp(resolver->function->return_type.type, "any") != 0) {
 		error(resolver, "Return type mismatch: required %s, but got %s", resolver->function->return_type.type, type);
 	}
 }
@@ -359,6 +366,12 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 		error(resolver, "Can't call non-variable of type %s", expression->callee->type);
 	} else {
 		const char* type = resolve_var_expression(resolver, (LitVarExpression*) expression->callee);
+
+		if (strcmp(type, "object") == 0) {
+			error(resolver, "Can't call non-defined function %s", ((LitVarExpression*) expression->callee)->name);
+			return "void";
+		}
+
 		char *arg = strtok((char*) &type[9], ", ");
 		int i = 0;
 		int cn = expression->args->count;
@@ -372,7 +385,9 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 			if (i < cn) {
 				const char* given_type = resolve_expression(resolver, expression->args->values[i]);
 
-				if (strcmp(given_type, arg) != 0) {
+				if (given_type == NULL) {
+					error(resolver, "Got null type resolved somehow");
+				} else if (strcmp(given_type, arg) != 0 && strcmp(arg, "any") != 0) {
 					error(resolver, "Argument #%i type mismatch: required %s, but got %s", i + 1, arg, given_type);
 				}
 			} else {
@@ -429,6 +444,8 @@ void lit_init_resolver(LitResolver* resolver) {
 	define_type(resolver, "bool");
 	define_type(resolver, "object");
 	define_type(resolver, "void");
+	define_type(resolver, "any");
+	define_type(resolver, "double");
 }
 
 void lit_free_resolver(LitResolver* resolver) {
@@ -437,12 +454,9 @@ void lit_free_resolver(LitResolver* resolver) {
 }
 
 bool lit_resolve(LitVm* vm, LitStatements* statements) {
-	LitResolver resolver;
-	resolver.vm = vm;
+	lit_init_resolver(&vm->resolver);
+	resolve_statements(&vm->resolver, statements);
+	lit_free_resolver(&vm->resolver);
 
-	lit_init_resolver(&resolver);
-	resolve_statements(&resolver, statements);
-	lit_free_resolver(&resolver);
-
-	return !resolver.had_error;
+	return !vm->resolver.had_error;
 }

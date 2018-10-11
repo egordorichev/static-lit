@@ -104,7 +104,7 @@ static void skip_whitespace(LitLexer* lexer) {
 					advance(lexer);
 					advance(lexer);
 
-					while (peek(lexer) != '*' && peek_next(lexer) != '/' && !is_at_end(lexer)) {
+					while ((peek(lexer) != '*' || peek_next(lexer) != '/') && !is_at_end(lexer)) {
 						if (peek(lexer) == '\n') {
 							lexer->line++;
 						}
@@ -112,11 +112,12 @@ static void skip_whitespace(LitLexer* lexer) {
 						advance(lexer);
 					}
 
-					advance(lexer);
-					advance(lexer);
+					advance(lexer); // Star
+					advance(lexer); // Slash
 				} else {
 					return;
 				}
+
 				break;
 			default:
 				return;

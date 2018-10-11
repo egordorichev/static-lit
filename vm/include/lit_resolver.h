@@ -20,6 +20,7 @@ DECLARE_ARRAY(LitScopes, LitLetals*, scopes)
 
 typedef struct LitResolver {
 	LitScopes scopes;
+	LitLetals externals;
 	LitTypes types;
 	LitVm* vm;
 	int depth;

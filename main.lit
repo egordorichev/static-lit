@@ -1,2 +1,10 @@
-var b = 10
-var a = -b
+/*
+ * Broken case
+
+fun a(double c) {
+    print(c)
+}
+
+a(time())*/
+
+print(time(), 10) // Fixme, shouldn't allow second arg here

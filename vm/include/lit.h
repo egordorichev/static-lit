@@ -5,6 +5,7 @@
 #include "lit_chunk.h"
 #include "lit_table.h"
 #include "lit_object.h"
+#include "lit_resolver.h"
 
 #define FRAMES_MAX 64
 #define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
@@ -37,6 +38,8 @@ typedef struct _LitVm {
 	int gray_count;
 	int gray_capacity;
 	LitObject** gray_stack;
+
+	LitResolver resolver;
 } _LitVm;
 
 void lit_init_vm(LitVm* vm);
@@ -48,5 +51,6 @@ LitValue lit_peek(LitVm* vm, int depth);
 
 LitInterpretResult lit_execute(LitVm* vm, const char* code);
 LitInterpretResult lit_interpret(LitVm* vm);
+void lit_define_native(LitVm* vm, const char* name, const char* type, LitNativeFn function);
 
 #endif
