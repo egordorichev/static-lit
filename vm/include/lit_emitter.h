@@ -10,6 +10,11 @@ typedef struct LitLocal {
 	bool upvalue;
 } LitLocal;
 
+typedef struct LitEmvalue {
+	uint8_t index;
+	bool local;
+} LitEmvalue;
+
 typedef struct LitEmitterFunction {
 	LitFunction* function;
 	struct LitEmitterFunction* enclosing;
@@ -18,7 +23,7 @@ typedef struct LitEmitterFunction {
 	int depth;
 
 	LitLocal locals[UINT8_COUNT];
-	LitUpvalue upvalues[UINT8_COUNT];
+	LitEmvalue upvalues[UINT8_COUNT];
 } LitEmitterFunction;
 
 typedef struct LitEmitter {

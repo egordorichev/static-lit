@@ -47,13 +47,36 @@ static void patch_jump(LitEmitter* emitter, int offset) {
 	chunk->code[offset + 1] = (uint8_t) (jump & 0xff);
 }
 
-static int resolve_local(LitEmitter* emitter, const char* name) {
-	for (int i = emitter->function->local_count - 1; i >= 0; i--) {
-		LitLocal* local = &emitter->function->locals[i];
+static int resolve_local(LitEmitterFunction* function, const char* name) {
+	for (int i = function->local_count - 1; i >= 0; i--) {
+		LitLocal* local = &function->locals[i];
 
 		if (strcmp(name, local->name) == 0) {
 			return i;
 		}
+	}
+
+	return -1;
+}
+
+static int add_upvalue(LitEmitterFunction* function, uint8_t index, bool is_local);
+
+static int resolve_upvalue(LitEmitter* emitter, LitEmitterFunction* function, char* name) {
+	if (function->enclosing == NULL) {
+		return -1;
+	}
+
+	int local = resolve_local(function->enclosing, name);
+
+	if (local != -1) {
+		function->enclosing->locals[local].upvalue = true;
+		return add_upvalue(function, (uint8_t) local, true);
+	}
+
+	int upvalue = resolve_upvalue(emitter, function->enclosing, name);
+
+	if (upvalue != -1) {
+		return add_upvalue(function, (uint8_t) upvalue, false);
 	}
 
 	return -1;
@@ -98,12 +121,18 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 		case VAR_EXPRESSION: {
 			LitVarExpression* expr = (LitVarExpression*) expression;
 
-			int local = resolve_local(emitter, expr->name);
+			int local = resolve_local(emitter->function, expr->name);
 
 			if (local != -1) {
-				emit_bytes(emitter, OP_GET_LOCAL, local);
+				emit_bytes(emitter, OP_GET_LOCAL, (uint8_t) local);
 			} else {
-				emit_bytes(emitter, OP_GET_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, expr->name, strlen(expr->name)))));
+				int upvalue = resolve_upvalue(emitter, emitter->function, (char*) expr->name);
+
+				if (upvalue != -1) {
+					emit_bytes(emitter, OP_GET_UPVALUE, (uint8_t) upvalue);
+				} else {
+					emit_bytes(emitter, OP_GET_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, expr->name, strlen(expr->name)))));
+				}
 			}
 
 			break;
@@ -112,12 +141,18 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 			LitAssignExpression* expr = (LitAssignExpression*) expression;
 
 			emit_expression(emitter, expr->value);
-			int local = resolve_local(emitter, expr->name);
+			int local = resolve_local(emitter->function, expr->name);
 
 			if (local != -1) {
-				emit_bytes(emitter, OP_SET_LOCAL, local);
+				emit_bytes(emitter, OP_SET_LOCAL, (uint8_t) local);
 			} else {
-				emit_bytes(emitter, OP_SET_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, expr->name, strlen(expr->name)))));
+				int upvalue = resolve_upvalue(emitter, emitter->function, (char*) expr->name);
+
+				if (upvalue != -1) {
+					emit_bytes(emitter, OP_SET_UPVALUE, (uint8_t) upvalue);
+				} else {
+					emit_bytes(emitter, OP_SET_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, expr->name, strlen(expr->name)))));
+				}
 			}
 
 			break;
@@ -183,6 +218,28 @@ static void emit_expressions(LitEmitter* emitter, LitExpressions* expressions) {
 
 static void emit_statements(LitEmitter* emitter, LitStatements* statements);
 
+static int add_upvalue(LitEmitterFunction* function, uint8_t index, bool is_local) {
+	int upvalue_count = function->function->upvalue_count;
+
+	for (int i = 0; i < upvalue_count; i++) {
+		LitEmvalue* upvalue = &function->upvalues[i];
+
+		if (upvalue->index == index && upvalue->local == is_local) {
+			return i;
+		}
+	}
+
+	if (upvalue_count == UINT8_COUNT) {
+		printf("Too many closure variables in function");
+		return 0;
+	}
+
+	function->upvalues[upvalue_count].local = is_local;
+	function->upvalues[upvalue_count].index = index;
+
+	return function->function->upvalue_count++;
+}
+
 static int add_local(LitEmitter* emitter, const char* name) {
 	if (emitter->function->local_count == UINT8_COUNT) {
 		printf("Too many local variables in function.\n");
@@ -203,9 +260,8 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 	switch (statement->type) {
 		case VAR_STATEMENT: {
 			LitVarStatement* stmt = (LitVarStatement*) statement;
-			int local = add_local(emitter, stmt->name);
 
-			if (stmt->init != NULL && local > -1) {
+			if (stmt->init != NULL) {
 				emit_expression(emitter, stmt->init);
 			} else {
 				emit_byte(emitter, OP_NIL);
@@ -213,16 +269,16 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 
 			if (emitter->function->depth == 0) {
 				int str = make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, stmt->name, strlen(stmt->name))));
-				emit_bytes(emitter, OP_DEFINE_GLOBAL, str);
+				emit_bytes(emitter, OP_DEFINE_GLOBAL, (uint8_t) str);
 			} else {
-				emit_bytes(emitter, OP_SET_LOCAL, (uint8_t) local);
+				emit_bytes(emitter, OP_SET_LOCAL, (uint8_t) add_local(emitter, stmt->name));
 			}
 
 			break;
 		}
 		case EXPRESSION_STATEMENT:
 			emit_expression(emitter, ((LitExpressionStatement*) statement)->expr);
-			// emit_byte(emitter, OP_POP); fixme: sometimes needed
+			emit_byte(emitter, OP_POP);
 			break;
 		case IF_STATEMENT: break;
 		case BLOCK_STATEMENT: {
@@ -258,7 +314,17 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 
 			emitter->function = function.enclosing;
 			emit_bytes(emitter, OP_CLOSURE, make_constant(emitter, MAKE_OBJECT_VALUE(function.function)));
-			emit_bytes(emitter, OP_DEFINE_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, stmt->name, strlen(stmt->name)))));
+
+			for (int i = 0; i < function.function->upvalue_count; i++) {
+				emit_byte(emitter, (uint8_t) (function.upvalues[i].local ? 1 : 0));
+				emit_byte(emitter, function.upvalues[i].index);
+			}
+
+			if (emitter->function->depth == 0) {
+				emit_bytes(emitter, OP_DEFINE_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, stmt->name, strlen(stmt->name)))));
+			} else {
+				emit_bytes(emitter, OP_SET_LOCAL, (uint8_t) add_local(emitter, stmt->name));
+			}
 
 			break;
 		}

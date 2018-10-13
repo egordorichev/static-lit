@@ -1,7 +1,20 @@
-fun a(double c, double b) > double {
-    print(-c)
-    print(b)
-    return 20
+fun c() {
+    var m = 32
+
+    fun a() {
+        var e = 10
+        var d = "test"
+
+        fun b() {
+            print(d)
+            print(e)
+            print(m)
+        }
+
+        b()
+    }
+
+    a()
 }
 
-print(a(10, 40))
+c()

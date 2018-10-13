@@ -154,6 +154,12 @@ static bool call_value(LitVm* vm, LitValue callee, int arg_count) {
 			case OBJECT_NATIVE: {
 				last_native = true;
 				int count = AS_NATIVE(callee)(vm, arg_count);
+
+				if (count == 0) {
+					count = 1;
+					lit_push(vm, NIL_VALUE);
+				}
+
 				LitValue values[count];
 
 				for (int i = 0; i < count; i++) {
