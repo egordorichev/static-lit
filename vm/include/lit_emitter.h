@@ -15,6 +15,13 @@ typedef struct LitEmvalue {
 	bool local;
 } LitEmvalue;
 
+typedef struct LitClassCompiler {
+	struct LitClassCompiler* enclosing;
+
+	char* name;
+	bool has_super;
+} LitClassCompiler;
+
 typedef struct LitEmitterFunction {
 	LitFunction* function;
 	struct LitEmitterFunction* enclosing;
@@ -28,6 +35,7 @@ typedef struct LitEmitterFunction {
 
 typedef struct LitEmitter {
 	LitEmitterFunction* function;
+	LitClassCompiler* class;
 	LitVm* vm;
 } LitEmitter;
 

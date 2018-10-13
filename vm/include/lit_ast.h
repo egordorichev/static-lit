@@ -103,7 +103,8 @@ typedef enum {
 	BLOCK_STATEMENT,
 	WHILE_STATEMENT,
 	FUNCTION_STATEMENT,
-	RETURN_STATEMENT
+	RETURN_STATEMENT,
+	CLASS_STATEMENT
 } LitStatementType;
 
 typedef struct {
@@ -123,7 +124,7 @@ typedef struct {
 LitLambdaExpression* lit_make_lambda_expression(LitVm* vm, LitParameters* parameters, LitStatement* body, LitParameter return_type);
 
 typedef struct {
-	LitExpression* expression;
+	LitStatement* expression;
 
 	const char* name;
 	LitExpression* init;
@@ -132,14 +133,14 @@ typedef struct {
 LitVarStatement* lit_make_var_statement(LitVm* vm, const char* name, LitExpression* init);
 
 typedef struct {
-	LitExpression* expression;
+	LitStatement* expression;
 	LitExpression* expr;
 } LitExpressionStatement;
 
 LitExpressionStatement* lit_make_expression_statement(LitVm* vm, LitExpression* expr);
 
 typedef struct {
-	LitExpression* expression;
+	LitStatement* expression;
 
 	LitExpression* condition;
 	LitStatement* if_branch;
@@ -151,14 +152,14 @@ typedef struct {
 LitIfStatement* lit_make_if_statement(LitVm* vm, LitExpression* condition, LitStatement* if_branch, LitStatement* else_branch, LitStatements* else_if_branches, LitExpressions* else_if_conditions);
 
 typedef struct {
-	LitExpression* expression;
+	LitStatement* expression;
 	LitStatements* statements;
 } LitBlockStatement;
 
 LitBlockStatement* lit_make_block_statement(LitVm* vm, LitStatements* statements);
 
 typedef struct {
-	LitExpression* expression;
+	LitStatement* expression;
 
 	LitExpression* condition;
 	LitStatement* body;
@@ -167,7 +168,7 @@ typedef struct {
 LitWhileStatement* lit_make_while_statement(LitVm* vm, LitExpression* condition, LitStatement* body);
 
 typedef struct {
-	LitExpression* expression;
+	LitStatement* expression;
 
 	LitParameters* parameters;
 	LitStatement* body;
@@ -176,12 +177,23 @@ typedef struct {
 } LitFunctionStatement;
 
 LitFunctionStatement* lit_make_function_statement(LitVm* vm, const char* name, LitParameters* parameters, LitStatement* body, LitParameter return_type);
+DECLARE_ARRAY(LitFunctions, LitFunctionStatement*, functions)
 
 typedef struct {
-	LitExpression* expression;
+	LitStatement* expression;
 	LitExpression* value;
 } LitReturnStatement;
 
 LitReturnStatement* lit_make_return_statement(LitVm* vm, LitExpression* value);
+
+typedef struct {
+	LitStatement* expression;
+
+	const char* name;
+	LitVarExpression* super;
+	LitFunctions* methods;
+} LitClassStatement;
+
+LitClassStatement* lit_make_class_statement(LitVm* vm, const char* name, LitVarExpression* super, LitFunctions* methods);
 
 #endif

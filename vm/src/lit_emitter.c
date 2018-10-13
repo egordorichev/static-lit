@@ -385,6 +385,20 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 			emit_byte(emitter, OP_RETURN);
 			break;
 		}
+		case CLASS_STATEMENT: {
+			LitClassStatement* stmt = (LitClassStatement*) statement;
+
+			if (stmt->super != NULL) {
+				emit_expression(emitter, (LitExpression*) stmt->super);
+				emit_bytes(emitter, OP_SUBCLASS, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, stmt->name, strlen(stmt->name)))));
+			} else {
+				emit_bytes(emitter, OP_CLASS, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, stmt->name, strlen(stmt->name)))));
+			}
+
+			emit_bytes(emitter, OP_DEFINE_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, stmt->name, strlen(stmt->name)))));
+
+			break;
+		}
 	}
 }
 
@@ -406,6 +420,7 @@ LitFunction* lit_emit(LitVm* vm, LitStatements* statements) {
 
 	emitter.vm = vm;
 	emitter.function = &main;
+	emitter.class = NULL;
 
 	emit_statements(&emitter, statements);
 	emit_byte(&emitter, OP_NIL);

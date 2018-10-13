@@ -135,6 +135,24 @@ static void declare(LitResolver* resolver, const char* name) {
 	lit_letals_set(resolver->vm, scope, str, *value);
 }
 
+static void declare_and_define(LitResolver* resolver, const char* name,  const char* type) {
+	LitLetals* scope = peek_scope(resolver);
+	LitString* str = lit_copy_string(resolver->vm, name, (int) strlen(name));
+	LitLetal* value = lit_letals_get(scope, str);
+
+	if (value != NULL) {
+		error(resolver, "Variable %s is already defined in current scope", name);
+	}
+
+	value = (LitLetal*) reallocate(resolver->vm, NULL, 0, sizeof(LitLetal));
+	lit_init_letal(value);
+
+	value->defined = true;
+	value->type = type;
+
+	lit_letals_set(resolver->vm, scope, str, *value);
+}
+
 static void define(LitResolver* resolver, const char* name, const char* type) {
 	LitLetals* scope = peek_scope(resolver);
 	LitString* str = lit_copy_string(resolver->vm, name, (int) strlen(name));
@@ -274,8 +292,7 @@ static void resolve_function_statement(LitResolver* resolver, LitFunctionStateme
 	LitFunctionStatement* last = resolver->function;
 	resolver->function = statement;
 
-	declare(resolver, statement->name);
-	define(resolver, statement->name, type);
+	declare_and_define(resolver, statement->name, type);
 	resolve_function(resolver, statement->parameters, &statement->return_type, statement->body, "Missing return statement in function %s", statement->name);
 
 	resolver->function = last;
@@ -292,6 +309,55 @@ static void resolve_return_statement(LitResolver* resolver, LitReturnStatement* 
 	}
 }
 
+static const char* resolve_var_expression(LitResolver* resolver, LitVarExpression* expression);
+
+static void resolve_method_statement(LitResolver* resolver, LitFunctionStatement* statement) {
+	push_scope(resolver);
+
+	resolver->had_return = false;
+
+	if (statement->parameters != NULL) {
+		for (int i = 0; i < statement->parameters->count; i++) {
+			LitParameter parameter = statement->parameters->values[i];
+			resolve_type(resolver, parameter.type);
+			define(resolver, parameter.name, parameter.type);
+		}
+	}
+
+	resolve_type(resolver, statement->return_type.type);
+
+	LitFunctionStatement* enclosing = resolver->function;
+
+	resolver->function = statement;
+	resolve_statement(resolver, statement->body);
+	resolver->function = enclosing;
+
+	if (!resolver->had_return) {
+		if (strcmp(statement->return_type.type, "void") != 0) {
+			error(resolver, "Missing return statement in method %s", statement->name);
+		} else {
+			lit_statements_write(resolver->vm, ((LitBlockStatement*) statement->body)->statements, (LitStatement*) lit_make_return_statement(resolver->vm, NULL));
+		}
+	}
+
+	pop_scope(resolver);
+}
+
+static void resolve_class_statement(LitResolver* resolver, LitClassStatement* statement) {
+	declare_and_define(resolver, statement->name, "class");
+	define_type(resolver, statement->name);
+
+	if (statement->super != NULL) {
+		resolve_var_expression(resolver, statement->super);
+	}
+
+	if (statement->methods != NULL) {
+		for (int i = 0; i < statement->methods->count; i++) {
+			resolve_method_statement(resolver, statement->methods->values[i]);
+		}
+	}
+}
+
 static void resolve_statement(LitResolver* resolver, LitStatement* statement) {
 	switch (statement->type) {
 		case VAR_STATEMENT: resolve_var_statement(resolver, (LitVarStatement*) statement); break;
@@ -301,6 +367,7 @@ static void resolve_statement(LitResolver* resolver, LitStatement* statement) {
 		case WHILE_STATEMENT: resolve_while_statement(resolver, (LitWhileStatement*) statement); break;
 		case FUNCTION_STATEMENT: resolve_function_statement(resolver, (LitFunctionStatement*) statement); break;
 		case RETURN_STATEMENT: resolve_return_statement(resolver, (LitReturnStatement*) statement); break;
+		case CLASS_STATEMENT: resolve_class_statement(resolver, (LitClassStatement*) statement); break;
 	}
 }
 
@@ -523,6 +590,7 @@ void lit_init_resolver(LitResolver* resolver) {
 	define_type(resolver, "any");
 	define_type(resolver, "double");
 	define_type(resolver, "function");
+	define_type(resolver, "class");
 }
 
 void lit_free_resolver(LitResolver* resolver) {

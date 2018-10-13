@@ -7,6 +7,7 @@
 DEFINE_ARRAY(LitParameters, LitParameter, parameters)
 DEFINE_ARRAY(LitExpressions, LitExpression*, expressions)
 DEFINE_ARRAY(LitStatements, LitStatement*, statements)
+DEFINE_ARRAY(LitFunctions, LitFunctionStatement*, functions)
 
 #define ALLOCATE_EXPRESSION(vm, type, object_type) \
     (type*) allocate_expression(vm, sizeof(type), object_type)
@@ -168,6 +169,16 @@ LitReturnStatement* lit_make_return_statement(LitVm* vm, LitExpression* value) {
 	LitReturnStatement* statement = ALLOCATE_STATEMENT(vm, LitReturnStatement, RETURN_STATEMENT);
 
 	statement->value = value;
+
+	return statement;
+}
+
+LitClassStatement* lit_make_class_statement(LitVm* vm, const char* name, LitVarExpression* super, LitFunctions* methods) {
+	LitClassStatement* statement = ALLOCATE_STATEMENT(vm, LitClassStatement, CLASS_STATEMENT);
+
+	statement->name = name;
+	statement->super = super;
+	statement->methods = methods;
 
 	return statement;
 }

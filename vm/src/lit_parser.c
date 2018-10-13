@@ -530,9 +530,40 @@ static LitStatement* parse_var_declaration(LitLexer* lexer) {
 	return (LitStatement*) lit_make_var_statement(lexer->vm, copy_string(lexer, &name), init);
 }
 
+static LitStatement* parse_class_declaration(LitLexer* lexer) {
+	LitToken name = consume(lexer, TOKEN_IDENTIFIER, "Expect class name.");
+	LitVarExpression* super = NULL;
+
+	if (match(lexer, TOKEN_LESS)) {
+		consume(lexer, TOKEN_IDENTIFIER, "Expected superclass name");
+		super = lit_make_var_expression(lexer->vm, copy_string(lexer, &lexer->previous));
+	}
+
+	LitFunctions* functions = NULL;
+
+	if (match(lexer, TOKEN_LEFT_BRACE)) {
+		if (lexer->current.type != TOKEN_RIGHT_BRACE && !is_at_end(lexer)) {
+			functions = (LitFunctions*) reallocate(lexer->vm, NULL, 0, sizeof(functions));
+			lit_init_functions(functions);
+
+			while (lexer->current.type != TOKEN_RIGHT_BRACE && !is_at_end(lexer)) {
+				lit_functions_write(lexer->vm, functions, (LitFunctionStatement*) parse_function_statement(lexer));
+			}
+		}
+
+		consume(lexer, TOKEN_RIGHT_BRACE, "Expect '}' after class body");
+	}
+
+	return (LitStatement*) lit_make_class_statement(lexer->vm, copy_string(lexer, &name), super, functions);
+}
+
 static LitStatement* parse_declaration(LitLexer* lexer) {
 	if (match(lexer, TOKEN_VAR)) {
 		return parse_var_declaration(lexer);
+	}
+
+	if (match(lexer, TOKEN_CLASS)) {
+		return parse_class_declaration(lexer);
 	}
 
 	return parse_statement(lexer);
@@ -540,9 +571,9 @@ static LitStatement* parse_declaration(LitLexer* lexer) {
 
 bool lit_parse(LitVm* vm, LitStatements* statements) {
 	LitLexer lexer;
-
 	lit_init_lexer(&lexer, vm->code);
 	lexer.vm = vm;
+
 	advance(&lexer);
 
 	while (!is_at_end(&lexer)) {

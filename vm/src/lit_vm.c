@@ -658,7 +658,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		};
 
 		op_subclass: {
-			LitValue super = PEEK(0);
+			LitValue super = POP();
 
 			if (!IS_CLASS(super)) {
 				runtime_error(vm, "Superclass must be a class");

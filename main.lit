@@ -1,13 +1,10 @@
-fun do() {
-    var a = 10
+class Good
 
-    fun run(function<int, int, int> callee) > int {
-        return callee(a, 5)
+class Awesome < Good {
+    doStuff(int a) > int {
+        return -a
     }
-
-    print(run(fun(int a, int b) > int {
-      return a + b
-    }))
 }
 
-do()
+var a = Awesome()
+a.doStuff()

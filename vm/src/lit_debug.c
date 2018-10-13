@@ -168,6 +168,42 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 
 				break;
 			}
+			case CLASS_STATEMENT: {
+				LitClassStatement* class = (LitClassStatement*) statement;
+
+				printf("\"name\" : \"%s\",\n", class->name);
+				printf("\"super\" : ");
+
+				if (class->super == NULL) {
+					printf("[],\n");
+				} else {
+					lit_trace_expression(vm, (LitExpression*) class->super, depth + 1);
+					printf(",\n");
+				}
+
+				printf("\"methods\" : [");
+
+				if (class->methods != NULL) {
+					int cn = class->methods->count;
+
+					if (cn > 0) {
+						printf("\n");
+
+						for (int i = 0; i < cn; i++) {
+							lit_trace_statement(vm, (LitStatement*) class->methods->values[i], depth + 1);
+
+							if (i < cn - 1) {
+								printf(",\n");
+							} else {
+								printf("\n");
+							}
+						}
+					}
+				}
+
+				printf("]\n");
+				break;
+			}
 			default: UNREACHABLE();
 		}
 	}
