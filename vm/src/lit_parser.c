@@ -399,7 +399,26 @@ static LitStatement* parse_block_statement(LitLexer* lexer) {
 	return (LitStatement*) lit_make_block_statement(lexer->vm, statements);
 }
 
-static LitStatement* parse_fun_statement(LitLexer* lexer) {
+static char* parse_argument_type(LitLexer* lexer) {
+	consume(lexer, TOKEN_IDENTIFIER, "Expected argument type");
+	char* start = (char*) lexer->previous.start;
+
+	if (!match(lexer, TOKEN_LESS)) {
+		return (char*) copy_string_native(lexer, start, lexer->previous.length);
+	}
+
+	while (!match(lexer, TOKEN_GREATER)) {
+		consume(lexer, TOKEN_IDENTIFIER, "Expected template type name");
+
+		if (lexer->current.type != TOKEN_GREATER) {
+			consume(lexer, TOKEN_COMMA, "Expected ',' after template type name");
+		}
+	}
+
+	return (char*) copy_string_native(lexer, start, (int) (lexer->current.start - start - 1));
+}
+
+static LitStatement* parse_function_statement(LitLexer* lexer) {
 	LitToken function_name = consume(lexer, TOKEN_IDENTIFIER, "Expected function name");
 	consume(lexer, TOKEN_LEFT_PAREN, "Expected '(' after function name");
 
@@ -410,10 +429,10 @@ static LitStatement* parse_fun_statement(LitLexer* lexer) {
 		lit_init_parameters(parameters);
 
 		do {
-			LitToken type = consume(lexer, TOKEN_IDENTIFIER, "Expected argument type");
+			char* type = parse_argument_type(lexer);
 			LitToken name = consume(lexer, TOKEN_IDENTIFIER, "Expected argument name");
 
-			lit_parameters_write(lexer->vm, parameters, (LitParameter) {copy_string_native(lexer, name.start, name.length), copy_string_native(lexer, type.start, type.length)});
+			lit_parameters_write(lexer->vm, parameters, (LitParameter) {copy_string_native(lexer, name.start, name.length), type});
 		} while (match(lexer, TOKEN_COMMA));
 	}
 
@@ -445,7 +464,7 @@ static LitStatement* parse_statement(LitLexer* lexer) {
 	}
 
 	if (match(lexer, TOKEN_FUN)) {
-		return parse_fun_statement(lexer);
+		return parse_function_statement(lexer);
 	}
 
 	if (match(lexer, TOKEN_RETURN)) {

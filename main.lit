@@ -1,20 +1,9 @@
-fun c() {
-    var m = 32
-
-    fun a() {
-        var e = 10
-        var d = "test"
-
-        fun b() {
-            print(d)
-            print(e)
-            print(m)
-        }
-
-        b()
-    }
-
-    a()
+fun run(function<int, int, int> callee) > int {
+    return callee(8, 5)
 }
 
-c()
+fun test(int a, int b) > int {
+    return a + b
+}
+
+print(run(test))

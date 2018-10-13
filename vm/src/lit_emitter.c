@@ -283,6 +283,13 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 		case IF_STATEMENT: break;
 		case BLOCK_STATEMENT: {
 			emit_statements(emitter, ((LitBlockStatement*) statement)->statements);
+
+			if (emitter->function->locals[emitter->function->local_count - 1].upvalue) {
+				emit_byte(emitter, OP_CLOSE_UPVALUE);
+			} else {
+				emit_byte(emitter, OP_POP);
+			}
+
 			break;
 		}
 		case WHILE_STATEMENT: break;

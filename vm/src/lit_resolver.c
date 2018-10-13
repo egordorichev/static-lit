@@ -76,8 +76,15 @@ static void pop_scope(LitResolver* resolver) {
 	resolver->depth --;
 }
 
+static size_t strlen_ignoring(const char *str) {
+	const char *s;
+	for (s = str; *s && *s != '<'; ++s);
+
+	return s - str;
+}
+
 static void resolve_type(LitResolver* resolver, const char* type) {
-	if (lit_types_get(&resolver->types, lit_copy_string(resolver->vm, type, (int) strlen(type))) == NULL) {
+	if (lit_types_get(&resolver->types, lit_copy_string(resolver->vm, type, (int) strlen_ignoring(type))) == NULL) {
 		error(resolver, "Type %s is not defined", type);
 	}
 }
@@ -265,6 +272,7 @@ static void resolve_function_statement(LitResolver* resolver, LitFunctionStateme
 	LitFunctionStatement* last = resolver->function;
 	resolver->function = statement;
 
+	declare(resolver, statement->name);
 	define(resolver, statement->name, type);
 	resolve_function(resolver, statement);
 
@@ -272,12 +280,12 @@ static void resolve_function_statement(LitResolver* resolver, LitFunctionStateme
 }
 
 static void resolve_return_statement(LitResolver* resolver, LitReturnStatement* statement) {
-	const char* type = statement->value == NULL ? "void" : resolve_expression(resolver, statement->value);
+	char* type = (char*) (statement->value == NULL ? "void" : resolve_expression(resolver, statement->value));
 	resolver->had_return = true;
 
 	if (resolver->function == NULL) {
 		error(resolver, "Can't return from top-level code!");
-	} else if (!compare_arg(resolver->function->return_type.type, type)) {
+	} else if (!compare_arg((char*) resolver->function->return_type.type, type)) {
 		error(resolver, "Return type mismatch: required %s, but got %s", resolver->function->return_type.type, type);
 	}
 }
@@ -370,6 +378,39 @@ static const char* resolve_logical_expression(LitResolver* resolver, LitLogicalE
 	return resolve_expression(resolver, expression->right);
 }
 
+static char* last_string;
+
+static char* tok(char* string) {
+	char* start = string == NULL ? last_string : string;
+
+	if (*start == '\0' || *start == '>') {
+		return NULL;
+	}
+
+	if (*start == ' ') {
+		start++;
+	}
+
+	char* where_started = start;
+
+	while (*start != '\0' && *start != ',' && *start != '>') {
+		start++;
+
+		if (*start == '<') {
+			while (*start != '>') {
+				start++;
+			}
+
+			start++;
+		}
+	}
+
+	*start = '\0';
+	last_string = start + 1;
+
+	return where_started;
+}
+
 static const char* resolve_call_expression(LitResolver* resolver, LitCallExpression* expression) {
 	char* return_type = "void";
 
@@ -387,13 +428,15 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 		char* tp = (char*) reallocate(resolver->vm, NULL, 0, len);
 		strncpy(tp, type, len);
 
-		char *arg = strtok(&tp[9], ", ");
+		char *arg = tok(&tp[9]);
 		int i = 0;
 		int cn = expression->args->count;
 
 		while (arg != NULL) {
+			printf("Arg: '%s'\n", arg);
+
 			if (i > cn) {
-				error(resolver, "Not enough arguments for %s, expected %i, got %i", type, i, cn);
+				error(resolver, "Not enough arguments for %s, expected %i, got %i, in function %s", type, i, cn, ((LitVarExpression*) expression->callee)->name);
 				break;
 			}
 
@@ -403,16 +446,16 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 				if (given_type == NULL) {
 					error(resolver, "Got null type resolved somehow");
 				} else if (!compare_arg(arg, given_type)) {
-					error(resolver, "Argument #%i type mismatch: required %s, but got %s", i + 1, arg, given_type);
+					error(resolver, "Argument #%i type mismatch: required %s, but got %s, in function %s", i + 1, arg, given_type, ((LitVarExpression*) expression->callee)->name);
 				}
 			} else {
 				size_t len = strlen(arg);
-				return_type = (char*) reallocate(resolver->vm, NULL, 0, len);
-				strncpy(return_type, arg, len - 1);
-				return_type[len - 1] = '\0';
+				return_type = (char*) reallocate(resolver->vm, NULL, 0, len + 1);
+				strncpy(return_type, arg, len);
+				return_type[len] = '\0';
 			}
 
-			arg = strtok(NULL, ", ");
+			arg = tok(NULL);
 			i++;
 
 			if (arg == NULL) {
@@ -423,7 +466,7 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 		reallocate(resolver->vm, tp, len, 0);
 
 		if (i < cn) {
-			error(resolver, "Too many arguments for function %s, expected %i, got %i", type, i, cn);
+			error(resolver, "Too many arguments for function %s, expected %i, got %i, in function %s", type, i, cn, ((LitVarExpression*) expression->callee)->name);
 		}
 	}
 
@@ -466,6 +509,7 @@ void lit_init_resolver(LitResolver* resolver) {
 	define_type(resolver, "void");
 	define_type(resolver, "any");
 	define_type(resolver, "double");
+	define_type(resolver, "function");
 }
 
 void lit_free_resolver(LitResolver* resolver) {
