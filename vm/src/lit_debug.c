@@ -303,6 +303,37 @@ void lit_trace_expression(LitVm* vm, LitExpression* expression, int depth) {
 
 				break;
 			}
+			case LAMBDA_EXPRESSION: {
+				LitLambdaExpression* lamba = (LitLambdaExpression*) expression;
+
+				printf("\"type\" : \"function\",\n");
+				printf("\"return_type\" : \"%s\",\n", lamba->return_type.type);
+				printf("\"args\" : [");
+
+				if (lamba->parameters != NULL) {
+					printf("\n");
+					int cn = lamba->parameters->count;
+
+					for (int i = 0; i < cn; i++) {
+						LitParameter parameter = lamba->parameters->values[i];
+
+						printf("{\n\"name\" : \"%s\",\n", parameter.name);
+						printf("\"type\" : \"%s\"\n}", parameter.type);
+
+						if (i < cn - 1) {
+							printf(",\n");
+						} else {
+							printf("\n");
+						}
+					}
+				}
+
+				printf("],\n\"body\" : ");
+				lit_trace_statement(vm, lamba->body, depth + 1);
+
+				printf("\n");
+				break;
+			}
 			default: UNREACHABLE();
 		}
 	}

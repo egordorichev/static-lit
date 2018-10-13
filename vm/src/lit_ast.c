@@ -97,6 +97,16 @@ LitCallExpression* lit_make_call_expression(LitVm* vm, LitExpression* callee, Li
 	return expression;
 }
 
+LitLambdaExpression* lit_make_lambda_expression(LitVm* vm, LitParameters* parameters, LitStatement* body, LitParameter return_type) {
+	LitLambdaExpression* expression = ALLOCATE_EXPRESSION(vm, LitLambdaExpression, LAMBDA_EXPRESSION);
+
+	expression->parameters = parameters;
+	expression->body = body;
+	expression->return_type = return_type;
+
+	return expression;
+}
+
 LitVarStatement* lit_make_var_statement(LitVm* vm, const char* name, LitExpression* init) {
 	LitVarStatement* statement = ALLOCATE_STATEMENT(vm, LitVarStatement, VAR_STATEMENT);
 

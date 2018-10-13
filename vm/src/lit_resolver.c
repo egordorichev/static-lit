@@ -199,55 +199,57 @@ static void resolve_while_statement(LitResolver* resolver, LitWhileStatement* st
 	resolve_statement(resolver, statement->body);
 }
 
-static void resolve_function(LitResolver* resolver, LitFunctionStatement* statement) {
+static void resolve_function(LitResolver* resolver, LitParameters* parameters, LitParameter* return_type, LitStatement* body,
+	const char* message, const char* name) {
+
 	push_scope(resolver);
 
 	resolver->had_return = false;
 
-	if (statement->parameters != NULL) {
-		for (int i = 0; i < statement->parameters->count; i++) {
-			LitParameter parameter = statement->parameters->values[i];
+	if (parameters != NULL) {
+		for (int i = 0; i < parameters->count; i++) {
+			LitParameter parameter = parameters->values[i];
 			resolve_type(resolver, parameter.type);
 			define(resolver, parameter.name, parameter.type);
 		}
 	}
 
-	resolve_type(resolver, statement->return_type.type);
-	resolve_statement(resolver, statement->body);
+	resolve_type(resolver, return_type->type);
+	resolve_statement(resolver, body);
 
 	if (!resolver->had_return) {
-		if (strcmp(statement->return_type.type, "void") != 0) {
-			error(resolver, "Missing return statement in function %s", statement->name);
+		if (strcmp(return_type->type, "void") != 0) {
+			error(resolver, message, name);
 		} else {
-			lit_statements_write(resolver->vm, ((LitBlockStatement*) statement->body)->statements, (LitStatement*) lit_make_return_statement(resolver->vm, NULL));
+			lit_statements_write(resolver->vm, ((LitBlockStatement*) body)->statements, (LitStatement*) lit_make_return_statement(resolver->vm, NULL));
 		}
 	}
 
 	pop_scope(resolver);
 }
 
-static const char* get_function_signature(LitResolver* resolver, LitFunctionStatement* statement) {
+static const char* get_function_signature(LitResolver* resolver, LitParameters* parameters, LitParameter* return_type) {
 	size_t len = 11;
 
-	if (statement->parameters != NULL) {
-		int cn = statement->parameters->count;
+	if (parameters != NULL) {
+		int cn = parameters->count;
 
 		for (int i = 0; i < cn; i++) {
-			len += strlen(statement->parameters->values[i].type) + 2; // ', '
+			len += strlen(parameters->values[i].type) + 2; // ', '
 		}
 	}
 
-	len += strlen(statement->return_type.type);
+	len += strlen(return_type->type);
 	char* type = (char*) reallocate(resolver->vm, NULL, 0, len);
 
 	strncpy(type, "function<", 9);
 	int place = 9;
 
-	if (statement->parameters != NULL) {
-		int cn = statement->parameters->count;
+	if (parameters != NULL) {
+		int cn = parameters->count;
 
 		for (int i = 0; i < cn; i++) {
-			const char* tp = statement->parameters->values[i].type;
+			const char* tp = parameters->values[i].type;
 			size_t l = strlen(tp);
 
 			strncpy(&type[place], tp, l);
@@ -257,8 +259,8 @@ static const char* get_function_signature(LitResolver* resolver, LitFunctionStat
 		}
 	}
 
-	size_t l = strlen(statement->return_type.type); // minus \0
-	strncpy(&type[place], statement->return_type.type, l);
+	size_t l = strlen(return_type->type); // minus \0
+	strncpy(&type[place], return_type->type, l);
 
 	type[len - 2] = '>';
 	type[len - 1] = '\0';
@@ -267,14 +269,14 @@ static const char* get_function_signature(LitResolver* resolver, LitFunctionStat
 }
 
 static void resolve_function_statement(LitResolver* resolver, LitFunctionStatement* statement) {
-	const char* type = get_function_signature(resolver, statement);
+	const char* type = get_function_signature(resolver, statement->parameters, &statement->return_type);
 
 	LitFunctionStatement* last = resolver->function;
 	resolver->function = statement;
 
 	declare(resolver, statement->name);
 	define(resolver, statement->name, type);
-	resolve_function(resolver, statement);
+	resolve_function(resolver, statement->parameters, &statement->return_type, statement->body, "Missing return statement in function %s", statement->name);
 
 	resolver->function = last;
 }
@@ -433,8 +435,6 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 		int cn = expression->args->count;
 
 		while (arg != NULL) {
-			printf("Arg: '%s'\n", arg);
-
 			if (i > cn) {
 				error(resolver, "Not enough arguments for %s, expected %i, got %i, in function %s", type, i, cn, ((LitVarExpression*) expression->callee)->name);
 				break;
@@ -474,6 +474,18 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 	return return_type;
 }
 
+
+static const char* resolve_lambda_expression(LitResolver* resolver, LitLambdaExpression* expression) {
+	const char* type = get_function_signature(resolver, expression->parameters, &expression->return_type);
+	LitFunctionStatement* last = resolver->function;
+
+	resolver->function = (LitFunctionStatement*) expression; // HACKZ
+	resolve_function(resolver, expression->parameters, &expression->return_type, expression->body, "Missing return statement in lambda", NULL);
+	resolver->function = last;
+
+	return type;
+}
+
 static const char* resolve_expression(LitResolver* resolver, LitExpression* expression) {
 	switch (expression->type) {
 		case BINARY_EXPRESSION: return resolve_binary_expression(resolver, (LitBinaryExpression*) expression);
@@ -484,6 +496,7 @@ static const char* resolve_expression(LitResolver* resolver, LitExpression* expr
 		case ASSIGN_EXPRESSION: return resolve_assign_expression(resolver, (LitAssignExpression*) expression);
 		case LOGICAL_EXPRESSION: return resolve_logical_expression(resolver, (LitLogicalExpression*) expression);
 		case CALL_EXPRESSION: return resolve_call_expression(resolver, (LitCallExpression*) expression);
+		case LAMBDA_EXPRESSION: return resolve_lambda_expression(resolver, (LitLambdaExpression*) expression);
 	}
 }
 

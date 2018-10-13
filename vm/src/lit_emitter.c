@@ -60,6 +60,8 @@ static int resolve_local(LitEmitterFunction* function, const char* name) {
 }
 
 static int add_upvalue(LitEmitterFunction* function, uint8_t index, bool is_local);
+static int add_local(LitEmitter* emitter, const char* name);
+static void emit_statement(LitEmitter* emitter, LitStatement* statement);
 
 static int resolve_upvalue(LitEmitter* emitter, LitEmitterFunction* function, char* name) {
 	if (function->enclosing == NULL) {
@@ -204,6 +206,42 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 			}
 
 			emit_byte(emitter, OP_CALL);
+
+			break;
+		}
+		case LAMBDA_EXPRESSION: {
+			LitLambdaExpression* expr = (LitFunctionStatement*) expression;
+			LitEmitterFunction function;
+
+			function.function = lit_new_function(emitter->vm);
+			function.depth = emitter->function->depth + 1;
+			function.local_count = 0;
+			function.enclosing = emitter->function;
+			function.function = lit_new_function(emitter->vm);
+			function.function->name = lit_copy_string(emitter->vm, "lambda", 6);
+			function.function->arity = expr->parameters == NULL ? 0 : expr->parameters->count;
+
+			emitter->function = &function;
+
+			if (expr->parameters != NULL) {
+				for (int i = 0; i < expr->parameters->count; i++) {
+					add_local(emitter, expr->parameters->values[i].name);
+				}
+			}
+
+			emit_statement(emitter, expr->body);
+
+			if (DEBUG_PRINT_CODE) {
+				lit_trace_chunk(emitter->vm, &function.function->chunk, "lambda");
+			}
+
+			emitter->function = function.enclosing;
+			emit_bytes(emitter, OP_CLOSURE, make_constant(emitter, MAKE_OBJECT_VALUE(function.function)));
+
+			for (int i = 0; i < function.function->upvalue_count; i++) {
+				emit_byte(emitter, (uint8_t) (function.upvalues[i].local ? 1 : 0));
+				emit_byte(emitter, function.upvalues[i].index);
+			}
 
 			break;
 		}

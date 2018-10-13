@@ -107,7 +107,13 @@ static LitToken consume(LitLexer* lexer, LitTokenType type, const char* message)
 	return lexer->previous;
 }
 
+static LitExpression* parse_lambda(LitLexer* lexer);
+
 static LitExpression* parse_primary(LitLexer* lexer) {
+	if (match(lexer, TOKEN_FUN)) {
+		return parse_lambda(lexer);
+	}
+
 	if (match(lexer, TOKEN_IDENTIFIER)) {
 		return (LitExpression*) lit_make_var_expression(lexer->vm, copy_string(lexer, &lexer->previous));
 	}
@@ -416,6 +422,37 @@ static char* parse_argument_type(LitLexer* lexer) {
 	}
 
 	return (char*) copy_string_native(lexer, start, (int) (lexer->current.start - start - 1));
+}
+
+static LitExpression* parse_lambda(LitLexer* lexer) {
+	consume(lexer, TOKEN_LEFT_PAREN, "Expected '(' after 'fun'");
+
+	LitParameters* parameters = NULL;
+
+	if (lexer->current.type != TOKEN_RIGHT_PAREN) {
+		parameters = (LitParameters*) reallocate(lexer->vm, NULL, 0, sizeof(LitParameters));
+		lit_init_parameters(parameters);
+
+		do {
+			char* type = parse_argument_type(lexer);
+			LitToken name = consume(lexer, TOKEN_IDENTIFIER, "Expected argument name");
+
+			lit_parameters_write(lexer->vm, parameters, (LitParameter) {copy_string_native(lexer, name.start, name.length), type});
+		} while (match(lexer, TOKEN_COMMA));
+	}
+
+	consume(lexer, TOKEN_RIGHT_PAREN, "Expected ')' after parameters");
+
+	LitParameter return_type = (LitParameter) {NULL, "void"};
+
+	if (match(lexer, TOKEN_GREATER)) {
+		LitToken type = consume(lexer, TOKEN_IDENTIFIER, "Expected return type");
+
+		return_type.type = copy_string(lexer, &type);
+	}
+
+	consume(lexer, TOKEN_LEFT_BRACE, "Expected '{' before lambda body");
+	return (LitExpression*) lit_make_lambda_expression(lexer->vm, parameters, parse_block_statement(lexer), (LitParameter) {NULL, return_type.type});
 }
 
 static LitStatement* parse_function_statement(LitLexer* lexer) {

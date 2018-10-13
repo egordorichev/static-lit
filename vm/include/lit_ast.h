@@ -19,7 +19,8 @@ typedef enum {
 	VAR_EXPRESSION,
 	ASSIGN_EXPRESSION,
 	LOGICAL_EXPRESSION,
-	CALL_EXPRESSION
+	CALL_EXPRESSION,
+	LAMBDA_EXPRESSION
 } LitExpresionType;
 
 typedef struct LitExpression {
@@ -114,6 +115,16 @@ DECLARE_ARRAY(LitStatements, LitStatement*, statements)
 typedef struct {
 	LitExpression* expression;
 
+	LitParameters* parameters;
+	LitStatement* body;
+	LitParameter return_type;
+} LitLambdaExpression;
+
+LitLambdaExpression* lit_make_lambda_expression(LitVm* vm, LitParameters* parameters, LitStatement* body, LitParameter return_type);
+
+typedef struct {
+	LitExpression* expression;
+
 	const char* name;
 	LitExpression* init;
 } LitVarStatement;
@@ -158,10 +169,10 @@ LitWhileStatement* lit_make_while_statement(LitVm* vm, LitExpression* condition,
 typedef struct {
 	LitExpression* expression;
 
-	const char* name;
 	LitParameters* parameters;
 	LitStatement* body;
 	LitParameter return_type;
+	const char* name;
 } LitFunctionStatement;
 
 LitFunctionStatement* lit_make_function_statement(LitVm* vm, const char* name, LitParameters* parameters, LitStatement* body, LitParameter return_type);
