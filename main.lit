@@ -1,5 +1,7 @@
-fun a(double c) {
-    print(c)
+fun a(double c, double b) > double {
+    print(-c)
+    print(b)
+    return 20
 }
 
-a(10)
+print(a(10, 40))

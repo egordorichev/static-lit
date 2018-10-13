@@ -128,7 +128,7 @@ static bool call(LitVm* vm, LitClosure* closure, int arg_count) {
 
 	frame->closure = closure;
 	frame->ip = closure->function->chunk.code;
-	frame->slots = vm->stack_top - (arg_count );
+	frame->slots = vm->stack_top - arg_count;
 
 	return true;
 }
@@ -443,7 +443,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 				return INTERPRET_OK;
 			}
 
-			vm->stack_top = frame->slots;
+			vm->stack_top = frame->slots - 1;
 			PUSH(result);
 			frame = &vm->frames[vm->frame_count - 1];
 			continue;

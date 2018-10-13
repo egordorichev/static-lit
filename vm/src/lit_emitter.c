@@ -222,7 +222,7 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 		}
 		case EXPRESSION_STATEMENT:
 			emit_expression(emitter, ((LitExpressionStatement*) statement)->expr);
-			// emit_byte(emitter, OP_POP);
+			// emit_byte(emitter, OP_POP); fixme: sometimes needed
 			break;
 		case IF_STATEMENT: break;
 		case BLOCK_STATEMENT: {

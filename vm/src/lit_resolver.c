@@ -40,6 +40,18 @@ static void error(LitResolver* resolver, const char* format, ...) {
 	resolver->had_error = true;
 }
 
+static bool compare_arg(char* needed, char* given) {
+	if (strcmp(given, needed) == 0 || strcmp(needed, "any") == 0) {
+		return true;
+	}
+
+	if ((strcmp(given, "double") == 0 || strcmp(given, "int") == 0) && (strcmp(needed, "double") == 0 || strcmp(needed, "int") == 0)) {
+		return true;
+	}
+
+	return false;
+}
+
 static void push_scope(LitResolver* resolver) {
 	LitLetals* table = (LitLetals*) reallocate(resolver->vm, NULL, 0, sizeof(LitLetals));
 	lit_init_letals(table);
@@ -265,7 +277,7 @@ static void resolve_return_statement(LitResolver* resolver, LitReturnStatement* 
 
 	if (resolver->function == NULL) {
 		error(resolver, "Can't return from top-level code!");
-	} else if (strcmp(type, resolver->function->return_type.type) != 0 && strcmp(resolver->function->return_type.type, "any") != 0) {
+	} else if (!compare_arg(resolver->function->return_type.type, type)) {
 		error(resolver, "Return type mismatch: required %s, but got %s", resolver->function->return_type.type, type);
 	}
 }
@@ -318,7 +330,6 @@ static const char* resolve_literal_expression(LitResolver* resolver, LitLiteralE
 }
 
 static const char* resolve_unary_expression(LitResolver* resolver, LitUnaryExpression* expression) {
-	printf("UNARY\n");
 	return resolve_expression(resolver, expression->right);
 }
 
@@ -357,18 +368,6 @@ static const char* resolve_assign_expression(LitResolver* resolver, LitAssignExp
 
 static const char* resolve_logical_expression(LitResolver* resolver, LitLogicalExpression* expression) {
 	return resolve_expression(resolver, expression->right);
-}
-
-static bool compare_arg(char* needed, char* given) {
-	if (strcmp(given, needed) == 0 || strcmp(needed, "any") == 0) {
-		return true;
-	}
-
-	if ((strcmp(given, "double") == 0 || strcmp(given, "int") == 0) && (strcmp(needed, "double") == 0 || strcmp(needed, "int") == 0)) {
-		return true;
-	}
-
-	return false;
 }
 
 static const char* resolve_call_expression(LitResolver* resolver, LitCallExpression* expression) {
