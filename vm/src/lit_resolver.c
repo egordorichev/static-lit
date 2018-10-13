@@ -359,6 +359,18 @@ static const char* resolve_logical_expression(LitResolver* resolver, LitLogicalE
 	return resolve_expression(resolver, expression->right);
 }
 
+static bool compare_arg(char* needed, char* given) {
+	if (strcmp(given, needed) == 0 || strcmp(needed, "any") == 0) {
+		return true;
+	}
+
+	if ((strcmp(given, "double") == 0 || strcmp(given, "int") == 0) && (strcmp(needed, "double") == 0 || strcmp(needed, "int") == 0)) {
+		return true;
+	}
+
+	return false;
+}
+
 static const char* resolve_call_expression(LitResolver* resolver, LitCallExpression* expression) {
 	char* return_type = "void";
 
@@ -372,13 +384,17 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 			return "void";
 		}
 
-		char *arg = strtok((char*) &type[9], ", ");
+		size_t len = strlen(type);
+		char* tp = (char*) reallocate(resolver->vm, NULL, 0, len);
+		strncpy(tp, type, len);
+
+		char *arg = strtok(&tp[9], ", ");
 		int i = 0;
 		int cn = expression->args->count;
 
 		while (arg != NULL) {
 			if (i > cn) {
-				error(resolver, "Not enough arguments for function %s", type);
+				error(resolver, "Not enough arguments for %s, expected %i, got %i", type, i, cn);
 				break;
 			}
 
@@ -387,7 +403,7 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 
 				if (given_type == NULL) {
 					error(resolver, "Got null type resolved somehow");
-				} else if (strcmp(given_type, arg) != 0 && strcmp(arg, "any") != 0) {
+				} else if (!compare_arg(arg, given_type)) {
 					error(resolver, "Argument #%i type mismatch: required %s, but got %s", i + 1, arg, given_type);
 				}
 			} else {
@@ -398,12 +414,17 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 			}
 
 			arg = strtok(NULL, ", ");
+			i++;
 
 			if (arg == NULL) {
 				break;
 			}
+		}
 
-			i++;
+		reallocate(resolver->vm, tp, len, 0);
+
+		if (i < cn) {
+			error(resolver, "Too many arguments for function %s, expected %i, got %i", type, i, cn);
 		}
 	}
 

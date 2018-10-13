@@ -98,8 +98,10 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 		case VAR_EXPRESSION: {
 			LitVarExpression* expr = (LitVarExpression*) expression;
 
-			if (emitter->function->depth > 0) {
-				emit_bytes(emitter, OP_GET_LOCAL, resolve_local(emitter, expr->name));
+			int local = resolve_local(emitter, expr->name);
+
+			if (local != -1) {
+				emit_bytes(emitter, OP_GET_LOCAL, local);
 			} else {
 				emit_bytes(emitter, OP_GET_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, expr->name, strlen(expr->name)))));
 			}
@@ -110,9 +112,10 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 			LitAssignExpression* expr = (LitAssignExpression*) expression;
 
 			emit_expression(emitter, expr->value);
+			int local = resolve_local(emitter, expr->name);
 
-			if (emitter->function->depth > 0) {
-				emit_bytes(emitter, OP_SET_LOCAL, resolve_local(emitter, expr->name));
+			if (local != -1) {
+				emit_bytes(emitter, OP_SET_LOCAL, local);
 			} else {
 				emit_bytes(emitter, OP_SET_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, expr->name, strlen(expr->name)))));
 			}

@@ -160,7 +160,12 @@ static bool call_value(LitVm* vm, LitValue callee, int arg_count) {
 					values[i] = lit_pop(vm);
 				}
 
-				lit_pop(vm); // native fn
+				// Pop args
+				for (int i = 0; i < arg_count; i++) {
+					lit_pop(vm);
+				}
+
+				lit_to_string(vm, lit_pop(vm)); // Pop native function
 
 				for (int i = 0; i < count; i++) {
 					lit_push(vm, values[i]);
