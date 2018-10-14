@@ -161,11 +161,27 @@ static LitExpression* finish_call(LitLexer* lexer, LitExpression* callee) {
 	return (LitExpression*) lit_make_call_expression(lexer->vm, callee, args);
 }
 
+static LitExpression* parse_equality(LitLexer* lexer);
+
 static LitExpression* parse_call(LitLexer* lexer) {
 	LitExpression* expression = parse_primary(lexer);
 
-	while (match(lexer, TOKEN_LEFT_PAREN)) {
-		expression = finish_call(lexer, expression);
+	while (true) {
+		if (match(lexer, TOKEN_LEFT_PAREN)) {
+			expression = finish_call(lexer, expression);
+		} else if (match(lexer, TOKEN_DOT)) {
+			LitToken token = consume(lexer, TOKEN_IDENTIFIER, "Expected property name after '.'");
+
+			if (match(lexer, TOKEN_LEFT_PAREN)) {
+				expression = finish_call(lexer, expression);
+			} else if (match(lexer, TOKEN_EQUAL)) {
+				expression = (LitExpression*) lit_make_set_expression(lexer->vm, expression, parse_equality(lexer), copy_string(lexer, &token));
+			} else {
+				expression = (LitExpression*) lit_make_get_expression(lexer->vm, expression, copy_string(lexer, &token));
+			}
+		} else {
+			break;
+		}
 	}
 
 	return expression;
@@ -540,13 +556,23 @@ static LitStatement* parse_class_declaration(LitLexer* lexer) {
 	}
 
 	LitFunctions* functions = NULL;
+	LitStatements* fields = NULL;
 
 	if (match(lexer, TOKEN_LEFT_BRACE)) {
-		if (lexer->current.type != TOKEN_RIGHT_BRACE && !is_at_end(lexer)) {
-			functions = (LitFunctions*) reallocate(lexer->vm, NULL, 0, sizeof(functions));
-			lit_init_functions(functions);
+		while (lexer->current.type != TOKEN_RIGHT_BRACE && !is_at_end(lexer)) {
+			if (match(lexer, TOKEN_VAR)) {
+				if (fields == NULL) {
+					fields = (LitStatements*) reallocate(lexer->vm, NULL, 0, sizeof(LitStatements));
+					lit_init_statements(fields);
+				}
 
-			while (lexer->current.type != TOKEN_RIGHT_BRACE && !is_at_end(lexer)) {
+				lit_statements_write(lexer->vm, fields, parse_var_declaration(lexer));
+			} else {
+				if (functions == NULL) {
+					functions = (LitFunctions*) reallocate(lexer->vm, NULL, 0, sizeof(functions));
+					lit_init_functions(functions);
+				}
+
 				lit_functions_write(lexer->vm, functions, (LitFunctionStatement*) parse_function_statement(lexer));
 			}
 		}
@@ -554,7 +580,7 @@ static LitStatement* parse_class_declaration(LitLexer* lexer) {
 		consume(lexer, TOKEN_RIGHT_BRACE, "Expect '}' after class body");
 	}
 
-	return (LitStatement*) lit_make_class_statement(lexer->vm, copy_string(lexer, &name), super, functions);
+	return (LitStatement*) lit_make_class_statement(lexer->vm, copy_string(lexer, &name), super, functions, fields);
 }
 
 static LitStatement* parse_declaration(LitLexer* lexer) {

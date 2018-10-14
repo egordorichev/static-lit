@@ -5,6 +5,7 @@
 #include "lit_ast.h"
 #include "lit_table.h"
 #include "lit_vm.h"
+#include "lit_object.h"
 
 typedef struct LitLetal {
 	bool defined;
@@ -16,12 +17,14 @@ void lit_init_letal(LitLetal* letal);
 
 DECLARE_TABLE(LitLetals, LitLetal, letals)
 DECLARE_TABLE(LitTypes, char *, types)
+DECLARE_TABLE(LitClasses, LitClass*, classes)
 DECLARE_ARRAY(LitScopes, LitLetals*, scopes)
 
 typedef struct LitResolver {
 	LitScopes scopes;
 	LitLetals externals;
 	LitTypes types;
+	LitClasses classes;
 	LitVm* vm;
 	int depth;
 

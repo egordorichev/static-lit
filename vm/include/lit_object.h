@@ -6,6 +6,7 @@
 #include "lit_vm.h"
 #include "lit_chunk.h"
 #include "lit_table.h"
+#include "lit_ast.h"
 
 #define OBJECT_TYPE(value) (AS_OBJECT(value)->type)
 #define IS_STRING(value) lit_is_object_type(value, OBJECT_STRING)
@@ -44,6 +45,7 @@ struct sLitObject {
 
 struct sLitString {
 	LitObject object;
+
 	int length;
 	char* chars;
 	uint32_t hash;
@@ -51,14 +53,15 @@ struct sLitString {
 
 typedef struct sLitUpvalue {
 	LitObject object;
+
 	LitValue* value;
 	LitValue closed;
-
 	struct sLitUpvalue* next;
 } LitUpvalue;
 
 typedef struct {
 	LitObject object;
+
 	int arity;
 	int upvalue_count;
 	LitChunk chunk;
@@ -74,6 +77,7 @@ typedef struct {
 
 typedef struct {
 	LitObject object;
+
 	LitFunction* function;
 	LitUpvalue** upvalues;
 	int upvalue_count;
@@ -81,19 +85,23 @@ typedef struct {
 
 typedef struct sLitClass {
 	LitObject object;
+
 	LitString* name;
 	struct sLitClass* super;
 	LitTable methods;
+	LitFields fields;
 } LitClass;
 
 typedef struct {
 	LitObject object;
+
 	LitClass* type;
-	LitTable fields;
+	LitFields fields;
 } LitInstance;
 
 typedef struct {
 	LitObject object;
+
 	LitValue receiver;
 	LitClosure* method;
 } LitMethod;
@@ -104,7 +112,7 @@ LitFunction* lit_new_function(LitVm* vm);
 LitNative* lit_new_native(LitVm* vm, LitNativeFn function);
 LitMethod* lit_new_bound_method(LitVm* vm, LitValue receiver, LitClosure* method);
 LitClass* lit_new_class(LitVm* vm, LitString* name, LitClass* super);
-LitInstance* lit_new_instance(LitVm* vm, LitClass* klass);
+LitInstance* lit_new_instance(LitVm* vm, LitClass* class);
 
 LitString* lit_make_string(LitVm* vm, char* chars, int length);
 LitString* lit_copy_string(LitVm* vm, const char* chars, size_t length);

@@ -1,13 +1,16 @@
 #include <stdio.h>
+#include <memory.h>
 
 #include "lit_ast.h"
 #include "lit_memory.h"
 #include "lit_array.h"
+#include "lit_object.h"
 
 DEFINE_ARRAY(LitParameters, LitParameter, parameters)
 DEFINE_ARRAY(LitExpressions, LitExpression*, expressions)
 DEFINE_ARRAY(LitStatements, LitStatement*, statements)
 DEFINE_ARRAY(LitFunctions, LitFunctionStatement*, functions)
+DEFINE_TABLE(LitFields, LitField, fields, (LitField) {});
 
 #define ALLOCATE_EXPRESSION(vm, type, object_type) \
     (type*) allocate_expression(vm, sizeof(type), object_type)
@@ -98,6 +101,25 @@ LitCallExpression* lit_make_call_expression(LitVm* vm, LitExpression* callee, Li
 	return expression;
 }
 
+LitGetExpression* lit_make_get_expression(LitVm* vm, LitExpression* object, const char* property) {
+	LitGetExpression* expression = ALLOCATE_EXPRESSION(vm, LitGetExpression, GET_EXPRESSION);
+
+	expression->object = object;
+	expression->property = property;
+
+	return expression;
+}
+
+LitSetExpression* lit_make_set_expression(LitVm* vm, LitExpression* object, LitExpression* value, const char* property) {
+	LitSetExpression* expression = ALLOCATE_EXPRESSION(vm, LitSetExpression, SET_EXPRESSION);
+
+	expression->object = object;
+	expression->value = value;
+	expression->property = property;
+
+	return expression;
+}
+
 LitLambdaExpression* lit_make_lambda_expression(LitVm* vm, LitParameters* parameters, LitStatement* body, LitParameter return_type) {
 	LitLambdaExpression* expression = ALLOCATE_EXPRESSION(vm, LitLambdaExpression, LAMBDA_EXPRESSION);
 
@@ -173,12 +195,13 @@ LitReturnStatement* lit_make_return_statement(LitVm* vm, LitExpression* value) {
 	return statement;
 }
 
-LitClassStatement* lit_make_class_statement(LitVm* vm, const char* name, LitVarExpression* super, LitFunctions* methods) {
+LitClassStatement* lit_make_class_statement(LitVm* vm, const char* name, LitVarExpression* super, LitFunctions* methods, LitStatements* fields) {
 	LitClassStatement* statement = ALLOCATE_STATEMENT(vm, LitClassStatement, CLASS_STATEMENT);
 
 	statement->name = name;
 	statement->super = super;
 	statement->methods = methods;
+	statement->fields = fields;
 
 	return statement;
 }

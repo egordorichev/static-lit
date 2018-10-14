@@ -22,6 +22,7 @@ static inline LitLetal nil_letal() {
 
 DEFINE_TABLE(LitLetals, LitLetal, letals, nil_letal());
 DEFINE_TABLE(LitTypes, char *, types, NULL)
+DEFINE_TABLE(LitClasses, LitClass*, classes, NULL)
 
 static void resolve_statement(LitResolver* resolver, LitStatement* statement);
 static void resolve_statements(LitResolver* resolver, LitStatements* statements);
@@ -173,7 +174,7 @@ static void define(LitResolver* resolver, const char* name, const char* type) {
 	}
 }
 
-static void resolve_var_statement(LitResolver* resolver, LitVarStatement* statement) {
+static const char* resolve_var_statement(LitResolver* resolver, LitVarStatement* statement) {
 	declare(resolver, statement->name);
 	char *type = "any";
 
@@ -186,6 +187,8 @@ static void resolve_var_statement(LitResolver* resolver, LitVarStatement* statem
 	} else {
 		define(resolver, statement->name, type);
 	}
+
+	return type;
 }
 
 static void resolve_expression_statement(LitResolver* resolver, LitExpressionStatement* statement) {
@@ -344,18 +347,52 @@ static void resolve_method_statement(LitResolver* resolver, LitFunctionStatement
 }
 
 static void resolve_class_statement(LitResolver* resolver, LitClassStatement* statement) {
-	declare_and_define(resolver, statement->name, "class");
+	size_t len = strlen(statement->name);
+	char* type = (char*) reallocate(resolver->vm, NULL, 0, 7 + len);
+
+	strncpy(type, "class<", 6);
+	strncpy(type + 6, statement->name, len);
+	type[6 + len] = '>';
+	type[7 + len] = '\0';
+
+	declare_and_define(resolver, statement->name, type);
 	define_type(resolver, statement->name);
 
 	if (statement->super != NULL) {
 		resolve_var_expression(resolver, statement->super);
 	}
 
-	if (statement->methods != NULL) {
-		for (int i = 0; i < statement->methods->count; i++) {
-			resolve_method_statement(resolver, statement->methods->values[i]);
+	LitString* name = lit_copy_string(resolver->vm, statement->name, strlen(statement->name));
+	LitClass* super = NULL;
+	LitClass* class = lit_new_class(resolver->vm, name, super);
+
+	if (super != NULL) {
+		lit_table_add_all(resolver->vm, &class->methods, &super->methods);
+		lit_fields_add_all(resolver->vm, &class->fields, &super->fields);
+	}
+
+	push_scope(resolver);
+
+	if (statement->fields != NULL) {
+		for (int i = 0; i < statement->fields->count; i++) {
+			const char* name = ((LitVarStatement*) statement->fields->values[i])->name;
+			const char* type = resolve_var_statement(resolver, (LitVarStatement*) statement->fields->values[i]);
+
+			lit_fields_set(resolver->vm, &class->fields, lit_copy_string(resolver->vm, name, strlen(name)), (LitField) { 0, type });
 		}
 	}
+
+	if (statement->methods != NULL) {
+		for (int i = 0; i < statement->methods->count; i++) {
+			const char* name = statement->methods->values[i]->name;
+
+			resolve_method_statement(resolver, statement->methods->values[i]);
+			lit_table_set(resolver->vm, &class->methods, lit_copy_string(resolver->vm, name, strlen(name)), MAKE_OBJECT_VALUE(lit_new_bound_method(resolver->vm, 0, NULL)));
+		}
+	}
+
+	pop_scope(resolver);
+	lit_classes_set(resolver->vm, &resolver->classes, name, class);
 }
 
 static void resolve_statement(LitResolver* resolver, LitStatement* statement) {
@@ -480,67 +517,110 @@ static char* tok(char* string) {
 	return where_started;
 }
 
+int strcmp_ignoring(const char* s1, const char* s2) {
+	while(*s1 && *s1 != '<' && *s2 != '<' && (*s1 == *s2)) {
+		s1++;
+		s2++;
+	}
+
+	return *s1 > *s2 ? 1 : (*s1 == *s2 ? 0 : -1);
+}
+
 static const char* resolve_call_expression(LitResolver* resolver, LitCallExpression* expression) {
 	char* return_type = "void";
 
 	if (expression->callee->type != VAR_EXPRESSION) {
-		error(resolver, "Can't call non-variable of type %s", expression->callee->type);
+		error(resolver, "Can't call non-variable of type %i", expression->callee->type);
 	} else {
 		const char* type = resolve_var_expression(resolver, (LitVarExpression*) expression->callee);
 
-		if (strcmp(type, "object") == 0) {
-			error(resolver, "Can't call non-defined function %s", ((LitVarExpression*) expression->callee)->name);
-			return "void";
-		}
-
-		size_t len = strlen(type);
-		char* tp = (char*) reallocate(resolver->vm, NULL, 0, len);
-		strncpy(tp, type, len);
-
-		char *arg = tok(&tp[9]);
-		int i = 0;
-		int cn = expression->args->count;
-
-		while (arg != NULL) {
-			if (i > cn) {
-				error(resolver, "Not enough arguments for %s, expected %i, got %i, in function %s", type, i, cn, ((LitVarExpression*) expression->callee)->name);
-				break;
+		if (strcmp_ignoring(type, "class<") == 0) {
+			size_t len = strlen(type);
+			return_type = (char*) reallocate(resolver->vm, NULL, 0, len - 7);
+			strncpy(return_type, &type[6], len - 7);
+		} else {
+			if (strcmp(type, "object") == 0) {
+				error(resolver, "Can't call non-defined function %s", ((LitVarExpression*) expression->callee)->name);
+				return "void";
 			}
+
+			size_t len = strlen(type);
+			char* tp = (char*) reallocate(resolver->vm, NULL, 0, len);
+			strncpy(tp, type, len);
+
+			char* arg = tok(&tp[9]);
+			int i = 0;
+			int cn = expression->args->count;
+
+			while (arg != NULL) {
+				if (i > cn) {
+					error(resolver, "Not enough arguments for %s, expected %i, got %i, in function %s", type, i, cn, ((LitVarExpression*) expression->callee)->name);
+					break;
+				}
+
+				if (i < cn) {
+					const char* given_type = resolve_expression(resolver, expression->args->values[i]);
+
+					if (given_type == NULL) {
+						error(resolver, "Got null type resolved somehow");
+					} else if (!compare_arg(arg, given_type)) {
+						error(resolver, "Argument #%i type mismatch: required %s, but got %s, in function %s", i + 1, arg, given_type, ((LitVarExpression*) expression->callee)->name);
+					}
+				} else {
+					size_t len = strlen(arg);
+					return_type = (char*) reallocate(resolver->vm, NULL, 0, len + 1);
+					strncpy(return_type, arg, len);
+					return_type[len] = '\0';
+				}
+
+				arg = tok(NULL);
+				i++;
+
+				if (arg == NULL) {
+					break;
+				}
+			}
+
+			reallocate(resolver->vm, tp, len, 0);
 
 			if (i < cn) {
-				const char* given_type = resolve_expression(resolver, expression->args->values[i]);
-
-				if (given_type == NULL) {
-					error(resolver, "Got null type resolved somehow");
-				} else if (!compare_arg(arg, given_type)) {
-					error(resolver, "Argument #%i type mismatch: required %s, but got %s, in function %s", i + 1, arg, given_type, ((LitVarExpression*) expression->callee)->name);
-				}
-			} else {
-				size_t len = strlen(arg);
-				return_type = (char*) reallocate(resolver->vm, NULL, 0, len + 1);
-				strncpy(return_type, arg, len);
-				return_type[len] = '\0';
+				error(resolver, "Too many arguments for function %s, expected %i, got %i, in function %s", type, i, cn, ((LitVarExpression*) expression->callee)->name);
 			}
-
-			arg = tok(NULL);
-			i++;
-
-			if (arg == NULL) {
-				break;
-			}
-		}
-
-		reallocate(resolver->vm, tp, len, 0);
-
-		if (i < cn) {
-			error(resolver, "Too many arguments for function %s, expected %i, got %i, in function %s", type, i, cn, ((LitVarExpression*) expression->callee)->name);
 		}
 	}
 
 	resolve_expressions(resolver, expression->args);
+
 	return return_type;
 }
 
+static const char* resolve_get_expression(LitResolver* resolver, LitGetExpression* expression) {
+	const char* type = resolve_expression(resolver, expression->object);
+	LitClass* class = *lit_classes_get(&resolver->classes, lit_copy_string(resolver->vm, type, strlen(type)));
+
+	if (class == NULL) {
+		error(resolver, "Undefined type %s", type);
+		return "object";
+	}
+
+	LitField* field = lit_fields_get(&class->fields, lit_copy_string(resolver->vm, expression->property, strlen(expression->property)));
+
+	if (field == NULL) {
+		error(resolver, "Class %s has no field %s", type, expression->property);
+		return "void";
+	}
+
+	return field->type;
+}
+
+static const char* resolve_set_expression(LitResolver* resolver, LitSetExpression* expression) {
+	const char* type = resolve_expression(resolver, expression->object);
+
+	resolve_expression(resolver, expression->value);
+
+	// FIXME: resolve the instance type, check for the field and its return type
+	return "object";
+}
 
 static const char* resolve_lambda_expression(LitResolver* resolver, LitLambdaExpression* expression) {
 	const char* type = get_function_signature(resolver, expression->parameters, &expression->return_type);
@@ -563,6 +643,8 @@ static const char* resolve_expression(LitResolver* resolver, LitExpression* expr
 		case ASSIGN_EXPRESSION: return resolve_assign_expression(resolver, (LitAssignExpression*) expression);
 		case LOGICAL_EXPRESSION: return resolve_logical_expression(resolver, (LitLogicalExpression*) expression);
 		case CALL_EXPRESSION: return resolve_call_expression(resolver, (LitCallExpression*) expression);
+		case GET_EXPRESSION: return resolve_get_expression(resolver, (LitGetExpression*) expression);
+		case SET_EXPRESSION: return resolve_set_expression(resolver, (LitSetExpression*) expression);
 		case LAMBDA_EXPRESSION: return resolve_lambda_expression(resolver, (LitLambdaExpression*) expression);
 	}
 }
@@ -576,6 +658,7 @@ static void resolve_expressions(LitResolver* resolver, LitExpressions* expressio
 void lit_init_resolver(LitResolver* resolver) {
 	lit_init_scopes(&resolver->scopes);
 	lit_init_types(&resolver->types);
+	lit_init_classes(&resolver->classes);
 
 	resolver->had_error = false;
 	resolver->depth = 0;
@@ -596,6 +679,7 @@ void lit_init_resolver(LitResolver* resolver) {
 void lit_free_resolver(LitResolver* resolver) {
 	lit_free_scopes(resolver->vm, &resolver->scopes);
 	lit_free_types(resolver->vm, &resolver->types);
+	lit_free_classes(resolver->vm, &resolver->classes);
 }
 
 bool lit_resolve(LitVm* vm, LitStatements* statements) {

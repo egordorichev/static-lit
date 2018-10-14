@@ -315,8 +315,8 @@ static void define_method(LitVm* vm, LitString* name) {
 	lit_pop(vm);
 }
 
-static bool invoke_from_class(LitVm* vm, LitClass* klass, LitString* name, int arg_count) {
-	LitValue* method = !lit_table_get(&klass->methods, name);
+static bool invoke_from_class(LitVm* vm, LitClass* class, LitString* name, int arg_count) {
+	LitValue* method = !lit_table_get(&class->methods, name);
 
 	if (method == NULL) {
 		runtime_error(vm, "Undefined property '%s'", name->chars);
@@ -345,8 +345,8 @@ static bool invoke(LitVm* vm, LitString* name, int arg_count) {
 	return invoke_from_class(vm, instance->type, name, arg_count);
 }
 
-static bool bind_method(LitVm* vm, LitClass* klass, LitString* name) {
-	LitValue* method = lit_table_get(&klass->methods, name);
+static bool bind_method(LitVm* vm, LitClass* class, LitString* name) {
+	LitValue* method = lit_table_get(&class->methods, name);
 
 	if (method == NULL) {
 		runtime_error(vm, "Undefined property '%s'", name->chars);
@@ -405,6 +405,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		functions[OP_GET_PROPERTY] = &&op_get_property;
 		functions[OP_SET_PROPERTY] = &&op_set_property;
 		functions[OP_INVOKE] = &&op_invoke;
+		functions[OP_DEFINE_PROPERTY] = &&op_define_property;
 	}
 
 	if (DEBUG_TRACE_EXECUTION) {
@@ -682,16 +683,13 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 
 			LitInstance* instance = AS_INSTANCE(PEEK(0));
 			LitString* name = READ_STRING();
-			LitValue* value = lit_table_get(&instance->fields, name);
+			LitField* field = lit_fields_get(&instance->fields, name);
 
-			if (value != NULL) {
+			if (field != NULL) {
 				POP();
-				PUSH(*value);
-				continue;
-			}
-
-			if (!bind_method(vm, instance->type, name)) {
-				return INTERPRET_RUNTIME_ERROR;
+				PUSH(field->value);
+			} else {
+				runtime_error(vm, "Class %s has no field %s", instance->type->name->chars, name->chars);
 			}
 
 			continue;
@@ -704,8 +702,10 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 			}
 
 			LitInstance* instance = AS_INSTANCE(PEEK(1));
-			lit_table_set(vm, &instance->fields, READ_STRING(), PEEK(0));
 			LitValue value = POP();
+
+			lit_fields_get(&instance->fields, READ_STRING())->value = value;
+
 			POP();
 			PUSH(value);
 
@@ -721,6 +721,18 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 			}
 
 			frame = &vm->frames[vm->frame_count - 1];
+			continue;
+		};
+
+		op_define_property: {
+			if (!IS_CLASS(PEEK(1))) {
+				runtime_error(vm, "Can't define a field in non-class");
+				return INTERPRET_RUNTIME_ERROR;
+			}
+
+			LitClass* class = AS_CLASS(PEEK(1));
+			lit_fields_set(vm, &class->fields, READ_STRING(), (LitField) { POP(), 0 });
+
 			continue;
 		};
 	}

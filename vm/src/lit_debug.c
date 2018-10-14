@@ -171,6 +171,7 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 			case CLASS_STATEMENT: {
 				LitClassStatement* class = (LitClassStatement*) statement;
 
+				printf("\"type\" : \"class\",\n");
 				printf("\"name\" : \"%s\",\n", class->name);
 				printf("\"super\" : ");
 
@@ -181,22 +182,38 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 					printf(",\n");
 				}
 
+				printf("\"fields\" : [");
+
+				if (class->fields != NULL) {
+					int cn = class->fields->count;
+					printf("\n");
+
+					for (int i = 0; i < cn; i++) {
+						lit_trace_statement(vm, class->fields->values[i], depth + 1);
+
+						if (i < cn - 1) {
+							printf(",\n");
+						} else {
+							printf("\n");
+						}
+					}
+				}
+
+				printf("],\n");
+
 				printf("\"methods\" : [");
 
 				if (class->methods != NULL) {
 					int cn = class->methods->count;
+					printf("\n");
 
-					if (cn > 0) {
-						printf("\n");
+					for (int i = 0; i < cn; i++) {
+						lit_trace_statement(vm, (LitStatement*) class->methods->values[i], depth + 1);
 
-						for (int i = 0; i < cn; i++) {
-							lit_trace_statement(vm, (LitStatement*) class->methods->values[i], depth + 1);
-
-							if (i < cn - 1) {
-								printf(",\n");
-							} else {
-								printf("\n");
-							}
+						if (i < cn - 1) {
+							printf(",\n");
+						} else {
+							printf("\n");
 						}
 					}
 				}
@@ -339,10 +356,36 @@ void lit_trace_expression(LitVm* vm, LitExpression* expression, int depth) {
 
 				break;
 			}
+			case GET_EXPRESSION: {
+				LitGetExpression* expr = (LitGetExpression*) expression;
+
+				printf("\"type\" : \"get\",\n");
+				printf("\"object\" : ");
+
+				lit_trace_expression(vm, expr->object, depth);
+
+				printf(",\n");
+				printf("\"property\" : \"%s\"\n", expr->property);
+
+				break;
+			}
+			case SET_EXPRESSION: {
+				LitSetExpression* expr = (LitSetExpression*) expression;
+
+				printf("\"type\" : \"set\",\n");
+				printf("\"object\" : ");
+
+				lit_trace_expression(vm, expr->object, depth);
+
+				printf(",\n");
+				printf("\"property\" : \"%s\"\n", expr->property);
+
+				break;
+			}
 			case LAMBDA_EXPRESSION: {
 				LitLambdaExpression* lamba = (LitLambdaExpression*) expression;
 
-				printf("\"type\" : \"function\",\n");
+				printf("\"type\" : \"lambda\",\n");
 				printf("\"return_type\" : \"%s\",\n", lamba->return_type.type);
 				printf("\"args\" : [");
 
@@ -453,6 +496,7 @@ int lit_disassemble_instruction(LitVm* vm, LitChunk* chunk, int offset) {
 		case OP_METHOD: return constant_instruction(vm, "OP_METHOD", chunk, offset);
 		case OP_GET_PROPERTY: return constant_instruction(vm, "OP_GET_PROPERTY", chunk, offset);
 		case OP_SET_PROPERTY: return constant_instruction(vm, "OP_SET_PROPERTY", chunk, offset);
+		case OP_DEFINE_PROPERTY: return constant_instruction(vm, "OP_DEFINE_PROPERTY", chunk, offset);
 		case OP_INVOKE: return constant_instruction(vm, "OP_INVOKE", chunk, offset);
 		case OP_CLOSURE: {
 			offset++;

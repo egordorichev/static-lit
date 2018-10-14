@@ -209,6 +209,23 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 
 			break;
 		}
+		case GET_EXPRESSION: {
+			LitGetExpression* expr = (LitGetExpression*) expression;
+
+			emit_expression(emitter, expr->object);
+			emit_bytes(emitter, OP_GET_PROPERTY, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, expr->property, strlen(expr->property)))));
+
+			break;
+		}
+		case SET_EXPRESSION: {
+			LitSetExpression* expr = (LitSetExpression*) expression;
+
+			emit_expression(emitter, expr->object);
+			emit_expression(emitter, expr->value);
+			emit_bytes(emitter, OP_SET_PROPERTY, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, expr->property, strlen(expr->property)))));
+
+			break;
+		}
 		case LAMBDA_EXPRESSION: {
 			LitLambdaExpression* expr = (LitFunctionStatement*) expression;
 			LitEmitterFunction function;
@@ -302,7 +319,7 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 			if (stmt->init != NULL) {
 				emit_expression(emitter, stmt->init);
 			} else {
-				emit_byte(emitter, OP_NIL);
+				emit_byte(emitter, OP_NIL); // TODO: default type! (like bool is false)
 			}
 
 			if (emitter->function->depth == 0) {
@@ -395,8 +412,21 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 				emit_bytes(emitter, OP_CLASS, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, stmt->name, strlen(stmt->name)))));
 			}
 
-			emit_bytes(emitter, OP_DEFINE_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, stmt->name, strlen(stmt->name)))));
+			if (stmt->fields != NULL) {
+				for (int i = 0; i < stmt->fields->count; i++) {
+					LitVarStatement* field = (LitVarStatement*) stmt->fields->values[i];
 
+					if (field->init != NULL) {
+						emit_expression(emitter, field->init);
+					} else {
+						emit_byte(emitter, OP_NIL); // TODO: default type! (like bool is false)
+					}
+
+					emit_bytes(emitter, OP_DEFINE_PROPERTY, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, field->name, strlen(field->name)))));
+				}
+			}
+
+			emit_bytes(emitter, OP_DEFINE_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, stmt->name, strlen(stmt->name)))));
 			break;
 		}
 	}

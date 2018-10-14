@@ -1,10 +1,11 @@
-class Good
+class Awesome {
+    var d = 10
+    var m = 3
 
-class Awesome < Good {
-    doStuff(int a) > int {
-        return -a
+    getD() > double {
+        return d
     }
 }
 
 var a = Awesome()
-a.doStuff()
+print(a.d + a.m)

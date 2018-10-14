@@ -3,6 +3,7 @@
 
 #include "lit_lexer.h"
 #include "lit_array.h"
+#include "lit_table.h"
 
 typedef struct LitParameter {
 	const char* name;
@@ -20,7 +21,9 @@ typedef enum {
 	ASSIGN_EXPRESSION,
 	LOGICAL_EXPRESSION,
 	CALL_EXPRESSION,
-	LAMBDA_EXPRESSION
+	LAMBDA_EXPRESSION,
+	GET_EXPRESSION,
+	SET_EXPRESSION
 } LitExpresionType;
 
 typedef struct LitExpression {
@@ -95,6 +98,25 @@ typedef struct {
 } LitCallExpression;
 
 LitCallExpression* lit_make_call_expression(LitVm* vm, LitExpression* callee, LitExpressions* args);
+
+typedef struct {
+	LitExpression* expression;
+
+	LitExpression* object;
+	const char* property;
+} LitGetExpression;
+
+LitGetExpression* lit_make_get_expression(LitVm* vm, LitExpression* object, const char* property);
+
+typedef struct {
+	LitExpression* expression;
+
+	LitExpression* object;
+	LitExpression* value;
+	const char* property;
+} LitSetExpression;
+
+LitSetExpression* lit_make_set_expression(LitVm* vm, LitExpression* object, LitExpression* value, const char* property);
 
 typedef enum {
 	VAR_STATEMENT,
@@ -186,14 +208,22 @@ typedef struct {
 
 LitReturnStatement* lit_make_return_statement(LitVm* vm, LitExpression* value);
 
+typedef struct LitField {
+	LitValue value;
+	const char* type;
+} LitField;
+
+DECLARE_TABLE(LitFields, LitField, fields);
+
 typedef struct {
 	LitStatement* expression;
 
 	const char* name;
 	LitVarExpression* super;
 	LitFunctions* methods;
+	LitStatements* fields;
 } LitClassStatement;
 
-LitClassStatement* lit_make_class_statement(LitVm* vm, const char* name, LitVarExpression* super, LitFunctions* methods);
+LitClassStatement* lit_make_class_statement(LitVm* vm, const char* name, LitVarExpression* super, LitFunctions* methods, LitStatements* fields);
 
 #endif

@@ -73,21 +73,24 @@ LitMethod* lit_new_bound_method(LitVm* vm, LitValue receiver, LitClosure* method
 }
 
 LitClass* lit_new_class(LitVm* vm, LitString* name, LitClass* super) {
-	LitClass* klass = ALLOCATE_OBJECT(vm, LitClass, OBJECT_CLASS);
+	LitClass* class = ALLOCATE_OBJECT(vm, LitClass, OBJECT_CLASS);
 
-	klass->name = name;
-	klass->super = super;
+	class->name = name;
+	class->super = super;
 
-	lit_init_table(&klass->methods);
+	lit_init_table(&class->methods);
+	lit_init_fields(&class->fields);
 
-	return klass;
+	return class;
 }
 
-LitInstance* lit_new_instance(LitVm* vm, LitClass* klass) {
+LitInstance* lit_new_instance(LitVm* vm, LitClass* class) {
 	LitInstance* instance = ALLOCATE_OBJECT(vm, LitInstance, OBJECT_INSTANCE);
 
-	instance->type = klass;
-	lit_init_table(&instance->fields);
+	instance->type = class;
+
+	lit_init_fields(&instance->fields);
+	lit_fields_add_all(vm, &instance->fields, &class->fields);
 
 	return instance;
 }
