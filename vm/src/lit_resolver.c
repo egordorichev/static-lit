@@ -615,11 +615,28 @@ static const char* resolve_get_expression(LitResolver* resolver, LitGetExpressio
 
 static const char* resolve_set_expression(LitResolver* resolver, LitSetExpression* expression) {
 	const char* type = resolve_expression(resolver, expression->object);
+	LitClass* class = *lit_classes_get(&resolver->classes, lit_copy_string(resolver->vm, type, strlen(type)));
 
-	resolve_expression(resolver, expression->value);
+	if (class == NULL) {
+		error(resolver, "Undefined type %s", type);
+		return "object";
+	}
 
-	// FIXME: resolve the instance type, check for the field and its return type
-	return "object";
+	LitField* field = lit_fields_get(&class->fields, lit_copy_string(resolver->vm, expression->property, strlen(expression->property)));
+
+	if (field == NULL) {
+		error(resolver, "Class %s has no field %s", type, expression->property);
+		return "object";
+	}
+
+	const char* var_type = expression->value == NULL ? "void" : resolve_expression(resolver, expression->value);
+
+	if (!compare_arg((char*) field->type, (char*) var_type)) {
+		error(resolver, "Can't assign %s value to %s field %s", var_type, field->type, expression->property);
+		return "object";
+	}
+
+	return field->type;
 }
 
 static const char* resolve_lambda_expression(LitResolver* resolver, LitLambdaExpression* expression) {
