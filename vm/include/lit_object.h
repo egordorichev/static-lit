@@ -104,6 +104,7 @@ typedef struct {
 
 	LitValue receiver;
 	LitClosure* method;
+	char* signature;
 } LitMethod;
 
 LitUpvalue* lit_new_upvalue(LitVm* vm, LitValue* slot);

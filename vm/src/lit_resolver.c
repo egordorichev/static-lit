@@ -384,10 +384,13 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 
 	if (statement->methods != NULL) {
 		for (int i = 0; i < statement->methods->count; i++) {
-			const char* name = statement->methods->values[i]->name;
+			LitFunctionStatement* method = statement->methods->values[i];
+			resolve_method_statement(resolver, method);
 
-			resolve_method_statement(resolver, statement->methods->values[i]);
-			lit_table_set(resolver->vm, &class->methods, lit_copy_string(resolver->vm, name, strlen(name)), MAKE_OBJECT_VALUE(lit_new_bound_method(resolver->vm, 0, NULL)));
+			LitMethod *m = lit_new_bound_method(resolver->vm, 0, NULL);
+			m->signature = (char*) get_function_signature(resolver, method->parameters, &method->return_type);
+
+			lit_table_set(resolver->vm, &class->methods, lit_copy_string(resolver->vm, method->name, strlen(method->name)), MAKE_OBJECT_VALUE(m));
 		}
 	}
 
@@ -418,7 +421,7 @@ static const char* resolve_binary_expression(LitResolver* resolver, LitBinaryExp
 	const char* a = resolve_expression(resolver, expression->left);
 	const char* b = resolve_expression(resolver, expression->right);
 
-	if (strcmp(a, "int") != 0 || strcmp(b, "int") != 0) {
+	if (!((strcmp(a, "int") == 0 || strcmp(a, "double") == 0) && (strcmp(b, "int") == 0 || strcmp(b, "double") == 0))) {
 		error(resolver, "Can't perform binary operation on %s and %s", a, b);
 	}
 
@@ -489,7 +492,7 @@ static char* last_string;
 static char* tok(char* string) {
 	char* start = string == NULL ? last_string : string;
 
-	if (*start == '\0' || *start == '>') {
+	if (!*start || *start == '>') {
 		return NULL;
 	}
 
@@ -526,13 +529,27 @@ int strcmp_ignoring(const char* s1, const char* s2) {
 	return *s1 > *s2 ? 1 : (*s1 == *s2 ? 0 : -1);
 }
 
+static const char* extract_callee_name(LitExpression* expression) {
+	switch (expression->type) {
+		case VAR_EXPRESSION: return ((LitVarExpression*) expression)->name;
+		case GET_EXPRESSION: return ((LitGetExpression*) expression)->property;
+		case SET_EXPRESSION: return ((LitSetExpression*) expression)->property;
+		case GROUPING_EXPRESSION: return extract_callee_name(((LitGroupingExpression*) expression)->expr);
+	}
+
+	return NULL;
+}
+
 static const char* resolve_call_expression(LitResolver* resolver, LitCallExpression* expression) {
 	char* return_type = "void";
 
-	if (expression->callee->type != VAR_EXPRESSION) {
+	if (expression->callee->type != VAR_EXPRESSION && expression->callee->type != GET_EXPRESSION && expression->callee->type != GROUPING_EXPRESSION
+		&& expression->callee->type != SET_EXPRESSION) {
+
 		error(resolver, "Can't call non-variable of type %i", expression->callee->type);
 	} else {
-		const char* type = resolve_var_expression(resolver, (LitVarExpression*) expression->callee);
+		const char* type = resolve_expression(resolver, expression->callee);
+		const char* name = extract_callee_name(expression->callee);
 
 		if (strcmp_ignoring(type, "class<") == 0) {
 			size_t len = strlen(type);
@@ -540,7 +557,7 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 			strncpy(return_type, &type[6], len - 7);
 		} else {
 			if (strcmp(type, "object") == 0) {
-				error(resolver, "Can't call non-defined function %s", ((LitVarExpression*) expression->callee)->name);
+				error(resolver, "Can't call non-defined function %s", name);
 				return "void";
 			}
 
@@ -553,8 +570,8 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 			int cn = expression->args->count;
 
 			while (arg != NULL) {
-				if (i > cn) {
-					error(resolver, "Not enough arguments for %s, expected %i, got %i, in function %s", type, i, cn, ((LitVarExpression*) expression->callee)->name);
+				if (*last_string && i > cn) {
+					error(resolver, "Not enough arguments for %s, expected %i, got %i, in function %s", type, i, cn, name);
 					break;
 				}
 
@@ -563,14 +580,16 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 
 					if (given_type == NULL) {
 						error(resolver, "Got null type resolved somehow");
-					} else if (!compare_arg(arg, given_type)) {
-						error(resolver, "Argument #%i type mismatch: required %s, but got %s, in function %s", i + 1, arg, given_type, ((LitVarExpression*) expression->callee)->name);
+					} else if (!compare_arg(arg, (char*) given_type)) {
+						error(resolver, "Argument #%i type mismatch: required %s, but got %s, in function %s", i + 1, arg, given_type, name);
 					}
 				} else {
 					size_t len = strlen(arg);
 					return_type = (char*) reallocate(resolver->vm, NULL, 0, len + 1);
 					strncpy(return_type, arg, len);
 					return_type[len] = '\0';
+
+					break;
 				}
 
 				arg = tok(NULL);
@@ -603,11 +622,18 @@ static const char* resolve_get_expression(LitResolver* resolver, LitGetExpressio
 		return "object";
 	}
 
-	LitField* field = lit_fields_get(&class->fields, lit_copy_string(resolver->vm, expression->property, strlen(expression->property)));
+	LitString* str = lit_copy_string(resolver->vm, expression->property, strlen(expression->property));
+	LitField* field = lit_fields_get(&class->fields, str);
 
 	if (field == NULL) {
-		error(resolver, "Class %s has no field %s", type, expression->property);
-		return "void";
+		LitValue* value = lit_table_get(&class->methods, str);
+
+		if (value == NULL) {
+			error(resolver, "Class %s has no field or method %s", type, expression->property);
+			return "void";
+		}
+
+		return AS_METHOD(*value)->signature;
 	}
 
 	return field->type;

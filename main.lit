@@ -9,4 +9,4 @@ class Awesome {
 
 var a = Awesome()
 a.d = 32
-print(a.d + a.m)
+print(a.getD)

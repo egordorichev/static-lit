@@ -3,6 +3,7 @@
 
 #include "lit_emitter.h"
 #include "lit_debug.h"
+#include "lit_memory.h"
 
 static void emit_byte(LitEmitter* emitter, uint8_t byte) {
 	lit_chunk_write(emitter->vm, &emitter->function->function->chunk, byte);
@@ -423,6 +424,55 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 					}
 
 					emit_bytes(emitter, OP_DEFINE_PROPERTY, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, field->name, strlen(field->name)))));
+				}
+			}
+
+			if (stmt->methods != NULL) {
+				for (int j = 0; j < stmt->methods->count; j++) {
+					LitFunctionStatement* method = stmt->methods->values[j];
+					LitEmitterFunction function;
+
+					function.function = lit_new_function(emitter->vm);
+					function.depth = emitter->function->depth + 1;
+					function.local_count = 0;
+					function.enclosing = emitter->function;
+					function.function = lit_new_function(emitter->vm);
+
+					size_t name_len = strlen(method->name);
+					size_t type_len = strlen(stmt->name);
+
+					char* name = (char*) reallocate(emitter->vm, NULL, 0, name_len + type_len + 1);
+
+					strncpy(name, stmt->name, type_len);
+					name[type_len] = '.';
+					strncpy(&name[type_len + 1], method->name, name_len);
+
+					function.function->name = lit_copy_string(emitter->vm, name, name_len + type_len + 1);
+					function.function->arity = method->parameters == NULL ? 0 : method->parameters->count;
+
+					emitter->function = &function;
+
+					if (method->parameters != NULL) {
+						for (int i = 0; i < method->parameters->count; i++) {
+							add_local(emitter, method->parameters->values[i].name);
+						}
+					}
+
+					emit_statement(emitter, method->body);
+
+					if (DEBUG_PRINT_CODE) {
+						lit_trace_chunk(emitter->vm, &function.function->chunk, method->name);
+					}
+
+					emitter->function = function.enclosing;
+					emit_bytes(emitter, OP_CLOSURE, make_constant(emitter, MAKE_OBJECT_VALUE(function.function)));
+
+					for (int i = 0; i < function.function->upvalue_count; i++) {
+						emit_byte(emitter, (uint8_t) (function.upvalues[i].local ? 1 : 0));
+						emit_byte(emitter, function.upvalues[i].index);
+					}
+
+					emit_bytes(emitter, OP_DEFINE_METHOD, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, method->name, strlen(method->name)))));
 				}
 			}
 

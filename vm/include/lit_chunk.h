@@ -48,7 +48,8 @@ typedef enum {
 	OP_SET_PROPERTY = 35,
 	OP_INVOKE = 36,
 	OP_CALL = 37,
-	OP_DEFINE_PROPERTY = 38
+	OP_DEFINE_PROPERTY = 38,
+	OP_DEFINE_METHOD = 39
 } LitOpCode;
 
 typedef struct {

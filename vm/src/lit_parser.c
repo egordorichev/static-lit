@@ -172,9 +172,7 @@ static LitExpression* parse_call(LitLexer* lexer) {
 		} else if (match(lexer, TOKEN_DOT)) {
 			LitToken token = consume(lexer, TOKEN_IDENTIFIER, "Expected property name after '.'");
 
-			if (match(lexer, TOKEN_LEFT_PAREN)) {
-				expression = finish_call(lexer, expression);
-			} else if (match(lexer, TOKEN_EQUAL)) {
+			if (match(lexer, TOKEN_EQUAL)) {
 				expression = (LitExpression*) lit_make_set_expression(lexer->vm, expression, parse_equality(lexer), copy_string(lexer, &token));
 			} else {
 				expression = (LitExpression*) lit_make_get_expression(lexer->vm, expression, copy_string(lexer, &token));

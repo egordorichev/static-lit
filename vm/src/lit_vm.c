@@ -406,6 +406,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		functions[OP_SET_PROPERTY] = &&op_set_property;
 		functions[OP_INVOKE] = &&op_invoke;
 		functions[OP_DEFINE_PROPERTY] = &&op_define_property;
+		functions[OP_DEFINE_METHOD] = &&op_define_method;
 	}
 
 	if (DEBUG_TRACE_EXECUTION) {
@@ -689,7 +690,14 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 				POP();
 				PUSH(field->value);
 			} else {
-				runtime_error(vm, "Class %s has no field %s", instance->type->name->chars, name->chars);
+				LitValue* method = lit_table_get(&instance->type->methods, name);
+
+				if (method != NULL) {
+					POP();
+					PUSH(*method);
+				} else {
+					runtime_error(vm, "Class %s has no field %s", instance->type->name->chars, name->chars);
+				}
 			}
 
 			continue;
@@ -733,6 +741,15 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 			LitClass* class = AS_CLASS(PEEK(1));
 			lit_fields_set(vm, &class->fields, READ_STRING(), (LitField) { POP(), 0 });
 
+			continue;
+		};
+
+		op_define_method: {
+			LitString* name = READ_STRING();
+			LitValue method = POP();
+			LitClass* class = AS_CLASS(PEEK(0));
+
+			lit_table_set(vm, &class->methods, name, method);
 			continue;
 		};
 	}
