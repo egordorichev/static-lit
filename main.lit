@@ -1,6 +1,12 @@
-class Awesome {
+class Great {
 	var d = 10
 
+	getA() > bool {
+		return true
+	}
+}
+
+class Awesome < Great {
 	getD() > double {
 		return this.d
 	}
@@ -8,6 +14,7 @@ class Awesome {
 
 fun a(double value) {
 	var i = Awesome()
+	print(i.getA())
 	i.d = value
 	print(i.getD())
 }

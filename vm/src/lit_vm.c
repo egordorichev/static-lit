@@ -308,6 +308,7 @@ static void create_class(LitVm* vm, LitString* name, LitClass* super) {
 
 	if (super != NULL) {
 		lit_table_add_all(vm, &class->methods, &super->methods);
+		lit_fields_add_all(vm, &class->fields, &super->fields);
 	}
 }
 

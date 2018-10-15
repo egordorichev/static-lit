@@ -444,6 +444,8 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 				emit_bytes(emitter, OP_CLASS, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, stmt->name, strlen(stmt->name)))));
 			}
 
+
+
 			if (stmt->fields != NULL) {
 				for (int i = 0; i < stmt->fields->count; i++) {
 					LitVarStatement* field = (LitVarStatement*) stmt->fields->values[i];
@@ -451,7 +453,7 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 					if (field->init != NULL) {
 						emit_expression(emitter, field->init);
 					} else {
-						emit_byte(emitter, OP_NIL); // TODO: default type! (like bool is false)
+						emit_byte(emitter, OP_NIL); // TODO: default type! (like bool is false), also, shouldn't allow something like var a, should specify type
 					}
 
 					emit_bytes(emitter, OP_DEFINE_PROPERTY, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, field->name, strlen(field->name)))));
@@ -468,6 +470,7 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 					function.local_count = 1;
 					function.enclosing = emitter->function;
 					function.function = lit_new_function(emitter->vm);
+
 
 					size_t name_len = strlen(method->name);
 					size_t type_len = strlen(stmt->name);

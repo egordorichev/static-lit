@@ -368,9 +368,21 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 
 	LitString* name = lit_copy_string(resolver->vm, statement->name, strlen(statement->name));
 	LitClass* super = NULL;
+
+	if (statement->super != NULL) {
+		LitClass** super_class = lit_classes_get(&resolver->classes, lit_copy_string(resolver->vm, statement->super->name, strlen(statement->super->name)));
+
+		if (super_class == NULL) {
+			error(resolver, "Can't inherit undefined class %s", statement->super->name);
+		} else {
+			super = *super_class;
+		}
+	}
+
 	LitClass* class = lit_new_class(resolver->vm, name, super);
 
 	if (super != NULL) {
+		printf("Copy over fields\n");
 		lit_table_add_all(resolver->vm, &class->methods, &super->methods);
 		lit_fields_add_all(resolver->vm, &class->fields, &super->fields);
 	}
@@ -567,7 +579,7 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 		} else {
 			if (strcmp(type, "error") == 0) {
 				error(resolver, "Can't call non-defined function %s", name);
-				return "void";
+				return "error";
 			}
 
 			size_t len = strlen(type);
@@ -637,7 +649,7 @@ static const char* resolve_get_expression(LitResolver* resolver, LitGetExpressio
 
 		if (value == NULL) {
 			error(resolver, "Class %s has no field or method %s", type, expression->property);
-			return "void";
+			return "error";
 		}
 
 		return AS_METHOD(*value)->signature;
