@@ -12,6 +12,15 @@ fun do_thing(string a) > int {
 
 var x = 10
 var a = do_thing("10") // -> 10, a is 3
+
+class Awesome {
+	doStuff() {
+		print("Awesome")
+	}
+}
+
+var a = Awesome()
+a.doStuff() // -> Awesome
 ```
 
 Please note, that the language is still in it's early stages, and I would recommend not using it right now. Tho it's growing pretty fast ;)
