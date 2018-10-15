@@ -128,7 +128,7 @@ static bool call(LitVm* vm, LitClosure* closure, int arg_count) {
 
 	frame->closure = closure;
 	frame->ip = closure->function->chunk.code;
-	frame->slots = vm->stack_top - arg_count;
+	frame->slots = vm->stack_top - arg_count - 1;
 
 	return true;
 }

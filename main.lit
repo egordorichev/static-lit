@@ -1,13 +1,17 @@
 class Great {
-	doStuff(int a) {
+	doStuff(String a) {
 		print(a)
 	}
 }
 
 class Awesome < Great {
-	doStuff() {
-		super.doStuff(10)
+	printGG() {
 		print("GG")
+	}
+
+	doStuff() {
+		this.printGG()
+		super.doStuff("EZ")
 	}
 }
 
