@@ -120,6 +120,14 @@ LitSetExpression* lit_make_set_expression(LitVm* vm, LitExpression* object, LitE
 	return expression;
 }
 
+LitThisExpression* lit_make_this_expression(LitVm* vm) {
+	return ALLOCATE_EXPRESSION(vm, LitThisExpression, THIS_EXPRESSION);
+}
+
+LitSuperExpression* lit_make_super_expression(LitVm* vm) {
+	return ALLOCATE_EXPRESSION(vm, LitSuperExpression, SUPER_EXPRESSION);
+}
+
 LitLambdaExpression* lit_make_lambda_expression(LitVm* vm, LitParameters* parameters, LitStatement* body, LitParameter return_type) {
 	LitLambdaExpression* expression = ALLOCATE_EXPRESSION(vm, LitLambdaExpression, LAMBDA_EXPRESSION);
 

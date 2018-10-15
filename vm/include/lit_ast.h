@@ -13,17 +13,19 @@ typedef struct LitParameter {
 DECLARE_ARRAY(LitParameters, LitParameter, parameters)
 
 typedef enum {
-	BINARY_EXPRESSION,
-	LITERAL_EXPRESSION,
-	UNARY_EXPRESSION,
-	GROUPING_EXPRESSION,
-	VAR_EXPRESSION,
-	ASSIGN_EXPRESSION,
-	LOGICAL_EXPRESSION,
-	CALL_EXPRESSION,
-	LAMBDA_EXPRESSION,
-	GET_EXPRESSION,
-	SET_EXPRESSION
+	BINARY_EXPRESSION = 0,
+	LITERAL_EXPRESSION = 1,
+	UNARY_EXPRESSION = 2,
+	GROUPING_EXPRESSION = 3,
+	VAR_EXPRESSION = 4,
+	ASSIGN_EXPRESSION = 5,
+	LOGICAL_EXPRESSION = 6,
+	CALL_EXPRESSION = 7,
+	LAMBDA_EXPRESSION = 8,
+	GET_EXPRESSION = 9,
+	SET_EXPRESSION = 10,
+	THIS_EXPRESSION = 11,
+	SUPER_EXPRESSION = 12
 } LitExpresionType;
 
 typedef struct LitExpression {
@@ -117,6 +119,18 @@ typedef struct {
 } LitSetExpression;
 
 LitSetExpression* lit_make_set_expression(LitVm* vm, LitExpression* object, LitExpression* value, const char* property);
+
+typedef struct {
+	LitExpression* expression;
+} LitThisExpression;
+
+LitThisExpression* lit_make_this_expression(LitVm* vm);
+
+typedef struct {
+	LitExpression* expression;
+} LitSuperExpression;
+
+LitSuperExpression* lit_make_super_expression(LitVm* vm);
 
 typedef enum {
 	VAR_STATEMENT,

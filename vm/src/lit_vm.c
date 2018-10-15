@@ -240,6 +240,10 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 
 	LitFunction* function = lit_emit(vm, &statements);
 
+	if (function == NULL) {
+		return INTERPRET_COMPILE_ERROR;
+	}
+
 	if (DEBUG_PRINT_CODE) {
 		lit_trace_chunk(vm, &function->chunk, "top-level");
 	}
@@ -315,18 +319,7 @@ static void define_method(LitVm* vm, LitString* name) {
 	lit_pop(vm);
 }
 
-static bool invoke_from_class(LitVm* vm, LitClass* class, LitString* name, int arg_count) {
-	LitValue* method = !lit_table_get(&class->methods, name);
-
-	if (method == NULL) {
-		runtime_error(vm, "Undefined property '%s'", name->chars);
-		return false;
-	}
-
-	return call(vm, AS_CLOSURE(*method), arg_count);
-}
-
-static bool invoke(LitVm* vm, LitString* name, int arg_count) {
+static bool invoke(LitVm* vm, int arg_count) {
 	LitValue receiver = lit_peek(vm, arg_count);
 
 	if (!IS_INSTANCE(receiver)) {
@@ -334,30 +327,14 @@ static bool invoke(LitVm* vm, LitString* name, int arg_count) {
 		return false;
 	}
 
-	LitInstance* instance = AS_INSTANCE(receiver);
-	LitValue* value = lit_table_get(&instance->fields, name);
+	bool value = call(vm, AS_CLOSURE(lit_peek(vm, arg_count + 1)), arg_count);
 
-	if (value != NULL) {
-		vm->stack_top[-arg_count] = *value;
-		return call_value(vm, *value, arg_count);
+	if (value) {
+		vm->frames[vm->frame_count - 1].slots = vm->stack_top - arg_count - 1;
+		vm->frames[vm->frame_count - 1].slots[0] = receiver;
 	}
 
-	return invoke_from_class(vm, instance->type, name, arg_count);
-}
-
-static bool bind_method(LitVm* vm, LitClass* class, LitString* name) {
-	LitValue* method = lit_table_get(&class->methods, name);
-
-	if (method == NULL) {
-		runtime_error(vm, "Undefined property '%s'", name->chars);
-		return false;
-	}
-
-	LitMethod* bound = lit_new_bound_method(vm, lit_peek(vm, 0), AS_CLOSURE(*method));
-	lit_pop(vm);
-	lit_push(vm, MAKE_OBJECT_VALUE(bound));
-
-	return true;
+	return value;
 }
 
 static void *functions[OP_CALL + 1];
@@ -696,7 +673,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 					POP();
 					PUSH(*method);
 				} else {
-					runtime_error(vm, "Class %s has no field %s", instance->type->name->chars, name->chars);
+					runtime_error(vm, "Class %s has no field or method %s", instance->type->name->chars, name->chars);
 				}
 			}
 
@@ -722,9 +699,8 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 
 		op_invoke: {
 			int arg_count = AS_NUMBER(POP());
-			LitString* method = READ_STRING();
 
-			if (!invoke(vm, method, arg_count)) {
+			if (!invoke(vm, arg_count)) {
 				return INTERPRET_RUNTIME_ERROR;
 			}
 

@@ -37,6 +37,8 @@ typedef struct LitEmitter {
 	LitEmitterFunction* function;
 	LitClassCompiler* class;
 	LitVm* vm;
+
+	bool had_error;
 } LitEmitter;
 
 LitFunction* lit_emit(LitVm* vm, LitStatements* statements);

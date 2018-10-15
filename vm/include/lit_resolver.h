@@ -10,6 +10,7 @@
 typedef struct LitLetal {
 	bool defined;
 	bool nil;
+	bool field;
 	const char* type;
 } LitLetal;
 
@@ -27,6 +28,7 @@ typedef struct LitResolver {
 	LitClasses classes;
 	LitVm* vm;
 	int depth;
+	LitClass* class;
 
 	bool had_return;
 	bool had_error;

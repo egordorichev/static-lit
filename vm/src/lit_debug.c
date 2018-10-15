@@ -413,6 +413,14 @@ void lit_trace_expression(LitVm* vm, LitExpression* expression, int depth) {
 				printf("\n");
 				break;
 			}
+			case THIS_EXPRESSION: {
+				printf("\"type\" : \"this\"\n");
+				break;
+			}
+			case SUPER_EXPRESSION: {
+				printf("\"type\" : \"super\"\n");
+				break;
+			}
 			default: UNREACHABLE();
 		}
 	}
@@ -498,7 +506,7 @@ int lit_disassemble_instruction(LitVm* vm, LitChunk* chunk, int offset) {
 		case OP_SET_PROPERTY: return constant_instruction(vm, "OP_SET_PROPERTY", chunk, offset);
 		case OP_DEFINE_PROPERTY: return constant_instruction(vm, "OP_DEFINE_PROPERTY", chunk, offset);
 		case OP_DEFINE_METHOD: return constant_instruction(vm, "OP_DEFINE_METHOD", chunk, offset);
-		case OP_INVOKE: return constant_instruction(vm, "OP_INVOKE", chunk, offset);
+		case OP_INVOKE: return constant_instruction(vm, "OP_INVOKE", chunk, offset) + 1;
 		case OP_CLOSURE: {
 			offset++;
 			uint8_t constant = chunk->code[offset++];

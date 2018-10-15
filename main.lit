@@ -1,12 +1,15 @@
 class Awesome {
-    var d = 10
-    var m = 3
+	var d = 10
 
-    getD() > double {
-        return d
-    }
+	getD() > double {
+		return this.d
+	}
 }
 
-var a = Awesome()
-a.d = 32
-print(a.getD)
+fun a(double value) {
+	var i = Awesome()
+	i.d = value
+	print(i.getD())
+}
+
+a(32)

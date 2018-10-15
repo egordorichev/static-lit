@@ -98,6 +98,7 @@ void lit_init_letal(LitLetal* letal) {
 	letal->type = NULL;
 	letal->defined = false;
 	letal->nil = false;
+	letal->field = false;
 }
 
 static LitLetal* resolve_local(LitResolver* resolver, const char* name) {
@@ -154,23 +155,26 @@ static void declare_and_define(LitResolver* resolver, const char* name,  const c
 	lit_letals_set(resolver->vm, scope, str, *value);
 }
 
-static void define(LitResolver* resolver, const char* name, const char* type) {
+static void define(LitResolver* resolver, const char* name, const char* type, bool field) {
 	LitLetals* scope = peek_scope(resolver);
 	LitString* str = lit_copy_string(resolver->vm, name, (int) strlen(name));
 
 	LitLetal* value = lit_letals_get(scope, str);
 
 	if (value == NULL) {
-		LitLetal *value = (LitLetal*) reallocate(resolver->vm, NULL, 0, sizeof(LitLetal));
+		LitLetal* value = (LitLetal*) reallocate(resolver->vm, NULL, 0, sizeof(LitLetal));
+
 		lit_init_letal(value);
 
 		value->defined = true;
 		value->type = type;
+		value->field = field;
 
 		lit_letals_set(resolver->vm, scope, str, *value);
 	} else {
 		value->defined = true;
 		value->type = type;
+		value->field = field;
 	}
 }
 
@@ -185,7 +189,7 @@ static const char* resolve_var_statement(LitResolver* resolver, LitVarStatement*
 	if (strcmp(type, "void") == 0) {
 		error(resolver, "Can't set variable's %s type to void", statement->name);
 	} else {
-		define(resolver, statement->name, type);
+		define(resolver, statement->name, type, resolver->class != NULL && resolver->depth == 2);
 	}
 
 	return type;
@@ -231,7 +235,7 @@ static void resolve_function(LitResolver* resolver, LitParameters* parameters, L
 		for (int i = 0; i < parameters->count; i++) {
 			LitParameter parameter = parameters->values[i];
 			resolve_type(resolver, parameter.type);
-			define(resolver, parameter.name, parameter.type);
+			define(resolver, parameter.name, parameter.type, false);
 		}
 	}
 
@@ -323,7 +327,7 @@ static void resolve_method_statement(LitResolver* resolver, LitFunctionStatement
 		for (int i = 0; i < statement->parameters->count; i++) {
 			LitParameter parameter = statement->parameters->values[i];
 			resolve_type(resolver, parameter.type);
-			define(resolver, parameter.name, parameter.type);
+			define(resolver, parameter.name, parameter.type, false);
 		}
 	}
 
@@ -371,6 +375,8 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 		lit_fields_add_all(resolver->vm, &class->fields, &super->fields);
 	}
 
+	resolver->class = class;
+	lit_classes_set(resolver->vm, &resolver->classes, name, class);
 	push_scope(resolver);
 
 	if (statement->fields != NULL) {
@@ -395,7 +401,6 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 	}
 
 	pop_scope(resolver);
-	lit_classes_set(resolver->vm, &resolver->classes, name, class);
 }
 
 static void resolve_statement(LitResolver* resolver, LitStatement* statement) {
@@ -443,7 +448,7 @@ static const char* resolve_literal_expression(LitResolver* resolver, LitLiteralE
 	}
 
 	// nil
-	return "object";
+	return "error";
 }
 
 static const char* resolve_unary_expression(LitResolver* resolver, LitUnaryExpression* expression) {
@@ -459,12 +464,16 @@ static const char* resolve_var_expression(LitResolver* resolver, LitVarExpressio
 
 	if (value != NULL && !value->defined) {
 		error(resolver, "Can't use local variable %s in it's own initializer", expression->name);
+		return "error";
 	}
 
 	LitLetal* letal = resolve_local(resolver, expression->name);
-
+	
 	if (letal == NULL) {
-		return "object";
+		return "error";
+	} else if (letal->field && resolver->class != NULL && resolver->depth > 2) {
+		error(resolver, "Can't access class field %s without this", expression->name);
+		return "error";
 	}
 
 	return letal->type;
@@ -477,7 +486,7 @@ static const char* resolve_assign_expression(LitResolver* resolver, LitAssignExp
 	resolve_local(resolver, expression->name);
 
 	if (letal == NULL) {
-		return "object";
+		return "error";
 	}
 
 	return letal->type;
@@ -556,7 +565,7 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 			return_type = (char*) reallocate(resolver->vm, NULL, 0, len - 7);
 			strncpy(return_type, &type[6], len - 7);
 		} else {
-			if (strcmp(type, "object") == 0) {
+			if (strcmp(type, "error") == 0) {
 				error(resolver, "Can't call non-defined function %s", name);
 				return "void";
 			}
@@ -608,25 +617,23 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 		}
 	}
 
-	resolve_expressions(resolver, expression->args);
-
 	return return_type;
 }
 
 static const char* resolve_get_expression(LitResolver* resolver, LitGetExpression* expression) {
 	const char* type = resolve_expression(resolver, expression->object);
-	LitClass* class = *lit_classes_get(&resolver->classes, lit_copy_string(resolver->vm, type, strlen(type)));
+	LitClass** class = lit_classes_get(&resolver->classes, lit_copy_string(resolver->vm, type, strlen(type)));
 
 	if (class == NULL) {
 		error(resolver, "Undefined type %s", type);
-		return "object";
+		return "error";
 	}
 
 	LitString* str = lit_copy_string(resolver->vm, expression->property, strlen(expression->property));
-	LitField* field = lit_fields_get(&class->fields, str);
+	LitField* field = lit_fields_get(&(*class)->fields, str);
 
 	if (field == NULL) {
-		LitValue* value = lit_table_get(&class->methods, str);
+		LitValue* value = lit_table_get(&(*class)->methods, str);
 
 		if (value == NULL) {
 			error(resolver, "Class %s has no field or method %s", type, expression->property);
@@ -645,21 +652,21 @@ static const char* resolve_set_expression(LitResolver* resolver, LitSetExpressio
 
 	if (class == NULL) {
 		error(resolver, "Undefined type %s", type);
-		return "object";
+		return "error";
 	}
 
 	LitField* field = lit_fields_get(&class->fields, lit_copy_string(resolver->vm, expression->property, strlen(expression->property)));
 
 	if (field == NULL) {
 		error(resolver, "Class %s has no field %s", type, expression->property);
-		return "object";
+		return "error";
 	}
 
 	const char* var_type = expression->value == NULL ? "void" : resolve_expression(resolver, expression->value);
 
 	if (!compare_arg((char*) field->type, (char*) var_type)) {
 		error(resolver, "Can't assign %s value to %s field %s", var_type, field->type, expression->property);
-		return "object";
+		return "error";
 	}
 
 	return field->type;
@@ -689,7 +696,30 @@ static const char* resolve_expression(LitResolver* resolver, LitExpression* expr
 		case GET_EXPRESSION: return resolve_get_expression(resolver, (LitGetExpression*) expression);
 		case SET_EXPRESSION: return resolve_set_expression(resolver, (LitSetExpression*) expression);
 		case LAMBDA_EXPRESSION: return resolve_lambda_expression(resolver, (LitLambdaExpression*) expression);
+		case THIS_EXPRESSION: {
+			if (resolver->class == NULL) {
+				error(resolver, "Can't use this outside of a class");
+				return "error";
+			}
+
+			return resolver->class->name->chars;
+		}
+		case SUPER_EXPRESSION: {
+			if (resolver->class == NULL) {
+				error(resolver, "Can't use super outside of a class");
+				return "error";
+			}
+
+			if (resolver->class->super == NULL) {
+				error(resolver, "Class %s has no super", resolver->class->name->chars);
+				return "error";
+			}
+
+			return resolver->class->super->name->chars;
+		}
 	}
+
+	return "error";
 }
 
 static void resolve_expressions(LitResolver* resolver, LitExpressions* expressions) {
@@ -706,12 +736,13 @@ void lit_init_resolver(LitResolver* resolver) {
 	resolver->had_error = false;
 	resolver->depth = 0;
 	resolver->function = NULL;
+	resolver->class = NULL;
 
 	push_scope(resolver); // Global scope
 
 	define_type(resolver, "int");
 	define_type(resolver, "bool");
-	define_type(resolver, "object");
+	define_type(resolver, "error");
 	define_type(resolver, "void");
 	define_type(resolver, "any");
 	define_type(resolver, "double");

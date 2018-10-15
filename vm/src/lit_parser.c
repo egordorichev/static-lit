@@ -114,6 +114,14 @@ static LitExpression* parse_primary(LitLexer* lexer) {
 		return parse_lambda(lexer);
 	}
 
+	if (match(lexer, TOKEN_THIS)) {
+		return (LitExpression*) lit_make_this_expression(lexer->vm);
+	}
+
+	if (match(lexer, TOKEN_SUPER)) {
+		return (LitExpression*) lit_make_super_expression(lexer->vm);
+	}
+
 	if (match(lexer, TOKEN_IDENTIFIER)) {
 		return (LitExpression*) lit_make_var_expression(lexer->vm, copy_string(lexer, &lexer->previous));
 	}
