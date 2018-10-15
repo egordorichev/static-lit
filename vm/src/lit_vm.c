@@ -338,7 +338,7 @@ static bool invoke(LitVm* vm, int arg_count) {
 	return value;
 }
 
-static void *functions[OP_CALL + 1];
+static void *functions[OP_SUPER + 1];
 static bool inited_functions;
 
 LitInterpretResult lit_interpret(LitVm* vm) {
@@ -385,6 +385,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		functions[OP_INVOKE] = &&op_invoke;
 		functions[OP_DEFINE_PROPERTY] = &&op_define_property;
 		functions[OP_DEFINE_METHOD] = &&op_define_method;
+		functions[OP_SUPER] = &&op_super;
 	}
 
 	if (DEBUG_TRACE_EXECUTION) {
@@ -727,6 +728,22 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 			LitClass* class = AS_CLASS(PEEK(0));
 
 			lit_table_set(vm, &class->methods, name, method);
+			continue;
+		};
+
+		op_super: {
+			LitString* name = READ_STRING();
+			LitInstance* instance = AS_INSTANCE(PEEK(0));
+			LitValue *method = lit_table_get(&instance->type->super->methods, name);
+
+			if (method == NULL) {
+				runtime_error(vm, "Undefined method %s", name->chars);
+				return false;
+			}
+
+			LitMethod* bound = lit_new_bound_method(vm, MAKE_OBJECT_VALUE(instance), AS_CLOSURE(*method));
+			PUSH(MAKE_OBJECT_VALUE(bound));
+
 			continue;
 		};
 	}

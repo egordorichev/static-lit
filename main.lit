@@ -1,22 +1,15 @@
 class Great {
-	var d = 10
-
-	getA() > bool {
-		return true
+	doStuff(int a) {
+		print(a)
 	}
 }
 
 class Awesome < Great {
-	getD() > double {
-		return this.d
+	doStuff() {
+		super.doStuff(10)
+		print("GG")
 	}
 }
 
-fun a(double value) {
-	var i = Awesome()
-	print(i.getA())
-	i.d = value
-	print(i.getD())
-}
-
-a(32)
+var a = Awesome()
+a.doStuff()

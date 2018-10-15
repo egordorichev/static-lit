@@ -119,7 +119,10 @@ static LitExpression* parse_primary(LitLexer* lexer) {
 	}
 
 	if (match(lexer, TOKEN_SUPER)) {
-		return (LitExpression*) lit_make_super_expression(lexer->vm);
+		consume(lexer, TOKEN_DOT, "Expected '.' after super");
+		LitToken token = consume(lexer, TOKEN_IDENTIFIER, "Expected method name after dot");
+
+		return (LitExpression*) lit_make_super_expression(lexer->vm, copy_string(lexer, &token));
 	}
 
 	if (match(lexer, TOKEN_IDENTIFIER)) {

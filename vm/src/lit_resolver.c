@@ -382,7 +382,6 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 	LitClass* class = lit_new_class(resolver->vm, name, super);
 
 	if (super != NULL) {
-		printf("Copy over fields\n");
 		lit_table_add_all(resolver->vm, &class->methods, &super->methods);
 		lit_fields_add_all(resolver->vm, &class->fields, &super->fields);
 	}
@@ -556,6 +555,7 @@ static const char* extract_callee_name(LitExpression* expression) {
 		case GET_EXPRESSION: return ((LitGetExpression*) expression)->property;
 		case SET_EXPRESSION: return ((LitSetExpression*) expression)->property;
 		case GROUPING_EXPRESSION: return extract_callee_name(((LitGroupingExpression*) expression)->expr);
+		case SUPER_EXPRESSION: return ((LitSuperExpression*) expression)->method;
 	}
 
 	return NULL;
@@ -565,7 +565,7 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 	char* return_type = "void";
 
 	if (expression->callee->type != VAR_EXPRESSION && expression->callee->type != GET_EXPRESSION && expression->callee->type != GROUPING_EXPRESSION
-		&& expression->callee->type != SET_EXPRESSION) {
+		&& expression->callee->type != SET_EXPRESSION && expression->callee->type != SUPER_EXPRESSION) {
 
 		error(resolver, "Can't call non-variable of type %i", expression->callee->type);
 	} else {
@@ -724,6 +724,14 @@ static const char* resolve_expression(LitResolver* resolver, LitExpression* expr
 
 			if (resolver->class->super == NULL) {
 				error(resolver, "Class %s has no super", resolver->class->name->chars);
+				return "error";
+			}
+
+			LitSuperExpression* expr = (LitSuperExpression*) expression;
+			LitValue* method = lit_table_get(&resolver->class->super->methods, lit_copy_string(resolver->vm, expr->method, strlen(expr->method)));
+
+			if (method == NULL) {
+				error(resolver, "Class %s has no method %s", resolver->class->super->name->chars, expr->method);
 				return "error";
 			}
 

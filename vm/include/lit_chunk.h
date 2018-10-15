@@ -50,7 +50,7 @@ typedef enum {
 	OP_CALL = 37,
 	OP_DEFINE_PROPERTY = 38,
 	OP_DEFINE_METHOD = 39,
-	OP_
+	OP_SUPER = 40
 } LitOpCode;
 
 typedef struct {

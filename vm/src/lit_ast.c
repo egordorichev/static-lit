@@ -124,8 +124,12 @@ LitThisExpression* lit_make_this_expression(LitVm* vm) {
 	return ALLOCATE_EXPRESSION(vm, LitThisExpression, THIS_EXPRESSION);
 }
 
-LitSuperExpression* lit_make_super_expression(LitVm* vm) {
-	return ALLOCATE_EXPRESSION(vm, LitSuperExpression, SUPER_EXPRESSION);
+LitSuperExpression* lit_make_super_expression(LitVm* vm, const char* method) {
+	LitSuperExpression* expression = ALLOCATE_EXPRESSION(vm, LitSuperExpression, SUPER_EXPRESSION);
+
+	expression->method = method;
+
+	return expression;
 }
 
 LitLambdaExpression* lit_make_lambda_expression(LitVm* vm, LitParameters* parameters, LitStatement* body, LitParameter return_type) {

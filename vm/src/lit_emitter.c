@@ -287,6 +287,9 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 			break;
 		}
 		case SUPER_EXPRESSION: {
+			LitSuperExpression* expr = (LitSuperExpression*) expression;
+			emit_bytes(emitter, OP_SUPER, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, expr->method, strlen(expr->method)))));
+
 			break;
 		}
 	}
@@ -443,8 +446,6 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 			} else {
 				emit_bytes(emitter, OP_CLASS, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, stmt->name, strlen(stmt->name)))));
 			}
-
-
 
 			if (stmt->fields != NULL) {
 				for (int i = 0; i < stmt->fields->count; i++) {

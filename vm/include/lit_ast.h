@@ -128,9 +128,10 @@ LitThisExpression* lit_make_this_expression(LitVm* vm);
 
 typedef struct {
 	LitExpression* expression;
+	const char* method;
 } LitSuperExpression;
 
-LitSuperExpression* lit_make_super_expression(LitVm* vm);
+LitSuperExpression* lit_make_super_expression(LitVm* vm, const char* method);
 
 typedef enum {
 	VAR_STATEMENT,
