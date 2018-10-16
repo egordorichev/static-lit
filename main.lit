@@ -1,7 +1,21 @@
 var t = time()
 
-for (var i = 0; i < 1000; i = i + 1) {
-	print(i)
+if (true) {
+
+} else {
+
 }
+
+while (false) {
+
+}
+
+class Awesome {
+	test() > double {
+		return 10 + 32
+	}
+}
+
+10 + 32
 
 print(time() - t)

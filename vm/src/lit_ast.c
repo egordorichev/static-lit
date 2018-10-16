@@ -217,3 +217,184 @@ LitClassStatement* lit_make_class_statement(LitVm* vm, const char* name, LitVarE
 
 	return statement;
 }
+
+void lit_free_statement(LitVm* vm, LitStatement* statement) {
+	switch (statement->type) {
+		case VAR_STATEMENT: {
+			LitVarStatement* stmt = (LitVarStatement*) statement;
+			reallocate(vm, (void*) stmt->name, strlen(stmt->name), 0);
+
+			if (stmt->init != NULL) {
+				lit_free_expression(vm, stmt->init);
+			}
+
+			reallocate(vm, (void*) statement, sizeof(LitVarStatement), 0);
+			break;
+		}
+		case EXPRESSION_STATEMENT: {
+			lit_free_expression(vm, ((LitExpressionStatement*) statement)->expr);
+			reallocate(vm, (void*) statement, sizeof(LitExpressionStatement), 0);
+
+			break;
+		}
+		case IF_STATEMENT: {
+			LitIfStatement* stmt = (LitIfStatement*) statement;
+
+			lit_free_expression(vm, stmt->condition);
+			lit_free_statement(vm, stmt->if_branch);
+
+			if (stmt->else_if_branches != NULL) {
+				for (int i = 0; i < stmt->else_if_branches->count; i++) {
+					lit_free_expression(vm, stmt->else_if_conditions->values[i]);
+					lit_free_statement(vm, stmt->else_if_branches->values[i]);
+				}
+
+				lit_free_expressions(vm, stmt->else_if_conditions);
+				lit_free_statements(vm, stmt->else_if_branches);
+			}
+
+			if (stmt->else_branch != NULL) {
+				lit_free_statement(vm, stmt->else_branch);
+			}
+
+			reallocate(vm, (void*) statement, sizeof(LitIfStatement), 0);
+			break;
+		}
+		case BLOCK_STATEMENT: {
+			LitBlockStatement* stmt = (LitBlockStatement*) statement;
+
+			for (int i = 0; i < stmt->statements->count; i++) {
+				lit_free_statement(vm, stmt->statements->values[i]);
+			}
+
+			lit_free_statements(vm, stmt->statements);
+			reallocate(vm, (void*) statement, sizeof(LitBlockStatement), 0);
+
+			break;
+		}
+		case WHILE_STATEMENT: {
+			LitWhileStatement* stmt = (LitWhileStatement*) statement;
+
+			lit_free_expression(vm, stmt->condition);
+			lit_free_statement(vm, stmt->body);
+			reallocate(vm, (void*) statement, sizeof(LitWhileStatement), 0);
+
+			break;
+		}
+		case FUNCTION_STATEMENT: {
+			LitFunctionStatement* stmt = (LitFunctionStatement*) statement;
+
+			reallocate(vm, (void*) stmt->name, strlen(stmt->name), 0);
+			reallocate(vm, (void*) stmt->return_type.type, strlen(stmt->return_type.type), 0);
+			lit_free_statement(vm, stmt->body);
+
+			if (stmt->parameters != NULL) {
+				for (int i = 0; i  < stmt->parameters->count; i++) {
+					LitParameter parameter = stmt->parameters->values[i];
+
+					reallocate(vm, (void*) parameter.name, strlen(parameter.name), 0);
+					reallocate(vm, (void*) parameter.type, strlen(parameter.type), 0);
+				}
+
+				lit_free_parameters(vm, stmt->parameters);
+			}
+
+			reallocate(vm, (void*) statement, sizeof(LitFunctionStatement), 0);
+			break;
+		}
+		case RETURN_STATEMENT: {
+			LitReturnStatement* stmt = (LitReturnStatement*) statement;
+
+			if (stmt->value != NULL) {
+				lit_free_expression(vm, stmt->value);
+			}
+
+			reallocate(vm, (void*) statement, sizeof(LitReturnStatement), 0);
+			break;
+		}
+		case CLASS_STATEMENT: {
+			LitClassStatement* stmt = (LitClassStatement*) statement;
+			reallocate(vm, (void*) stmt->name, strlen(stmt->name), 0);
+
+			if (stmt->fields != NULL) {
+				for (int i = 0; i < stmt->fields->count; i++) {
+					lit_free_statement(vm, stmt->fields->values[i]);
+				}
+
+				lit_free_statements(vm, stmt->fields);
+			}
+
+			if (stmt->methods != NULL) {
+				for (int i = 0; i < stmt->methods->count; i++) {
+					lit_free_statement(vm, (LitStatement*) stmt->methods->values[i]);
+				}
+
+				lit_free_functions(vm, stmt->methods);
+			}
+
+			if (stmt->super != NULL) {
+				lit_free_expression(vm, (LitExpression*) stmt->super);
+			}
+
+			reallocate(vm, (void*) statement, sizeof(LitClassStatement), 0);
+			break;
+		}
+	}
+}
+
+void lit_free_expression(LitVm* vm, LitExpression* expression) {
+	switch (expression->type) {
+		case BINARY_EXPRESSION: {
+			LitBinaryExpression* expr = (LitBinaryExpression*) expr;
+			break;
+		}
+		case LITERAL_EXPRESSION: {
+			LitLiteralExpression* expr = (LitLiteralExpression*) expr;
+			break;
+		}
+		case UNARY_EXPRESSION: {
+			LitUnaryExpression* expr = (LitUnaryExpression*) expr;
+			break;
+		}
+		case GROUPING_EXPRESSION: {
+			LitGroupingExpression* expr = (LitGroupingExpression*) expr;
+			break;
+		}
+		case VAR_EXPRESSION: {
+			LitVarExpression* expr = (LitVarExpression*) expr;
+			break;
+		}
+		case ASSIGN_EXPRESSION: {
+			LitAssignExpression* expr = (LitAssignExpression*) expr;
+			break;
+		}
+		case LOGICAL_EXPRESSION: {
+			LitLogicalExpression* expr = (LitLogicalExpression*) expr;
+			break;
+		}
+		case CALL_EXPRESSION: {
+			LitCallExpression* expr = (LitCallExpression*) expr;
+			break;
+		}
+		case LAMBDA_EXPRESSION: {
+			LitLambdaExpression* expr = (LitLambdaExpression*) expr;
+			break;
+		}
+		case GET_EXPRESSION: {
+			LitGetExpression* expr = (LitGetExpression*) expr;
+			break;
+		}
+		case SET_EXPRESSION: {
+			LitSetExpression* expr = (LitSetExpression*) expr;
+			break;
+		}
+		case THIS_EXPRESSION: {
+			LitThisExpression* expr = (LitThisExpression*) expr;
+			break;
+		}
+		case SUPER_EXPRESSION: {
+			LitSuperExpression* expr = (LitSuperExpression*) expr;
+			break;
+		}
+	}
+}

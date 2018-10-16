@@ -241,4 +241,7 @@ typedef struct {
 
 LitClassStatement* lit_make_class_statement(LitVm* vm, const char* name, LitVarExpression* super, LitFunctions* methods, LitStatements* fields);
 
+void lit_free_statement(LitVm* vm, LitStatement* statement);
+void lit_free_expression(LitVm* vm, LitExpression* expression);
+
 #endif

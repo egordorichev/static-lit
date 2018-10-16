@@ -240,6 +240,14 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 
 	LitFunction* function = lit_emit(vm, &statements);
 
+	for (int i = 0; i < statements.count; i++) {
+		lit_free_statement(vm, statements.values[i]);
+	}
+
+	printf("was: %i\n", (int) vm->bytes_allocated);
+	lit_free_statements(vm, &statements);
+	printf("left: %i\n", (int) vm->bytes_allocated);
+
 	if (function == NULL) {
 		return INTERPRET_COMPILE_ERROR;
 	}
@@ -247,8 +255,6 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 	if (DEBUG_PRINT_CODE) {
 		lit_trace_chunk(vm, &function->chunk, "top-level");
 	}
-
-	lit_free_statements(vm, &statements);
 
 	if (!DEBUG_NO_EXECUTE) {
 		lit_push(vm, MAKE_OBJECT_VALUE(function));
