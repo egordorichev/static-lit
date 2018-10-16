@@ -53,18 +53,6 @@ static inline LitValue lit_char_to_value(unsigned char ch) {
 	data.bits64 |= QNAN;
 	data.bits64 |= TAG_CHAR;
 
-	uint64_t c = data.bits64;
-	uint64_t max_pow = ((uint64_t) 1) << 63;
-
-	printf("Char %c\n", (unsigned char) c);
-
-	for (int i = 0; i < 64; ++i) {
-		printf("%u ", c & max_pow ? 1 : 0);
-		c = c << 1;
-	}
-
-	printf("\n");
-
 	return data.bits64;
 }
 

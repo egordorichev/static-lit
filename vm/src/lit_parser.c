@@ -39,9 +39,18 @@ static const char* copy_string_native(LitLexer* lexer, const char* name, int len
 	return str;
 }
 
+static void error(LitLexer* lexer, LitToken *token, const char* message);
+
 static LitToken advance(LitLexer* lexer) {
 	lexer->previous = lexer->current;
-	lexer->current = lit_lexer_next_token(lexer);
+
+	do {
+		lexer->current = lit_lexer_next_token(lexer);
+
+		if (lexer->current.type == TOKEN_ERROR) {
+			error(lexer, &lexer->current, lexer->current.start);
+		}
+	} while (lexer->current.type == TOKEN_ERROR);
 
 	return lexer->current;
 }
@@ -160,6 +169,7 @@ static LitExpression* parse_primary(LitLexer* lexer) {
 	}
 
 	error(lexer, &lexer->current, "Unexpected token");
+	advance(lexer);
 }
 
 static LitExpression* finish_call(LitLexer* lexer, LitExpression* callee) {
