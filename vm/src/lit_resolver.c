@@ -456,6 +456,8 @@ static const char* resolve_literal_expression(LitResolver* resolver, LitLiteralE
 		return "double";
 	} else if (IS_BOOL(expression->value)) {
 		return "bool";
+	} else if (IS_CHAR(expression->value)) {
+		return "char";
 	} else if (IS_STRING(expression->value)) {
 		return "String";
 	}
@@ -465,7 +467,15 @@ static const char* resolve_literal_expression(LitResolver* resolver, LitLiteralE
 }
 
 static const char* resolve_unary_expression(LitResolver* resolver, LitUnaryExpression* expression) {
-	return resolve_expression(resolver, expression->right);
+	const char* type = resolve_expression(resolver, expression->right);
+
+	if (expression->operator == TOKEN_MINUS && (strcmp(type, "int") != 0 && strcmp(type, "double") != 0)) {
+		// TODO: easter egg about muffin?
+		error(resolver, "Can't negate non-number values");
+		return "error";
+	}
+
+	return type;
 }
 
 static const char* resolve_grouping_expression(LitResolver* resolver, LitGroupingExpression* expression) {
@@ -771,6 +781,7 @@ void lit_init_resolver(LitResolver* resolver) {
 	define_type(resolver, "void");
 	define_type(resolver, "any");
 	define_type(resolver, "double");
+	define_type(resolver, "char");
 	define_type(resolver, "function");
 	define_type(resolver, "Class");
 	define_type(resolver, "String");

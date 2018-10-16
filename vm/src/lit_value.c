@@ -18,6 +18,14 @@ char *lit_to_string(LitVm* vm, LitValue value) {
 		return output;
 	} else if (IS_NIL(value)) {
 		return "nil";
+	} else if (IS_CHAR(value)) {
+		DoubleUnion data;
+		data.bits64 = value;
+
+		snprintf(output, 2, "%c", data.bits16[0]);
+		output[2] = '\0';
+
+		return output;
 	} else if (IS_OBJECT(value)) {
 		switch (AS_OBJECT(value)->type) {
 			case OBJECT_STRING: return AS_CSTRING(value);

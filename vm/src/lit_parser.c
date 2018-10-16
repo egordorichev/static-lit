@@ -149,6 +149,10 @@ static LitExpression* parse_primary(LitLexer* lexer) {
 		return (LitExpression*) lit_make_literal_expression(lexer->vm, MAKE_OBJECT_VALUE(lit_copy_string(lexer->vm, lexer->previous.start + 1, lexer->previous.length - 2)));
 	}
 
+	if (match(lexer, TOKEN_CHAR)) {
+		return (LitExpression*) lit_make_literal_expression(lexer->vm, MAKE_CHAR_VALUE(lexer->previous.start[1]));
+	}
+
 	if (match(lexer, TOKEN_LEFT_PAREN)) {
 		LitExpression* expression = parse_expression(lexer);
 		consume(lexer, TOKEN_RIGHT_PAREN, "Expected ')' after expression");

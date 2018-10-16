@@ -262,6 +262,19 @@ LitToken lit_lexer_next_token(LitLexer* lexer) {
 			advance(lexer);
 			return make_token(lexer, TOKEN_STRING);
 		}
+		case '\'': {
+			if (peek(lexer) == '\'') {
+				return make_error_token(lexer, "Empty char literal");
+			}
+
+			advance(lexer); // Consume the char
+
+			if (!match(lexer, '\'')) {
+				return make_error_token(lexer, "Expected '\'' after char literal");
+			}
+
+			return make_token(lexer, TOKEN_CHAR);
+		}
 	}
 
 	return make_error_token(lexer, "Unexpected character");

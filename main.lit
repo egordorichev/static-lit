@@ -1,9 +1,2 @@
-if (false) {
-	print("if")
-} else if (true) {
-	print("elseif")
-} else if (true) {
-	print("elseif2")
-} else {
-	print("else")
-}
+var c = 't'
+print(c)
