@@ -12,28 +12,17 @@ static LitStatement* parse_statement(LitLexer* lexer);
 static LitStatement* parse_declaration(LitLexer* lexer);
 static LitStatement* parse_var_declaration(LitLexer* lexer);
 
-static LitToken* copy_token(LitLexer* lexer, LitToken* old) {
-	LitToken* token = (LitToken*) reallocate(lexer->vm, NULL, 0, sizeof(LitToken));
-
-	token->start = old->start;
-	token->length = old->length;
-	token->line = old->line;
-	token->type = old->type;
-
-	return token;
-}
-
 static const char* copy_string(LitLexer* lexer, LitToken* name) {
-	char* str = (char*) reallocate(lexer->vm, NULL, 0, name->length + 1);
-	strncpy(str, name->start, name->length);
+	char* str = (char*) reallocate(lexer->vm, NULL, 0, (size_t) name->length + (size_t) 1);
+	strncpy(str, name->start, (size_t) name->length);
 	str[name->length] = '\0';
 
 	return str;
 }
 
 static const char* copy_string_native(LitLexer* lexer, const char* name, int length) {
-	char* str = (char*) reallocate(lexer->vm, NULL, 0, length + 1);
-	strncpy(str, name, length);
+	char* str = (char*) reallocate(lexer->vm, NULL, 0, (size_t) length + (size_t) 1);
+	strncpy(str, name, (size_t) length);
 	str[length] = '\0';
 
 	return str;
@@ -429,10 +418,14 @@ static LitStatement* parse_for(LitLexer* lexer) {
 }
 
 static LitStatement* parse_block_statement(LitLexer* lexer) {
-	LitStatements* statements = (LitStatements*) reallocate(lexer->vm, NULL, 0, sizeof(LitStatements));
-	lit_init_statements(statements);
+	LitStatements* statements = NULL;
 
 	while (!match(lexer, TOKEN_RIGHT_BRACE)) {
+		if (statements == NULL) {
+			statements = (LitStatements*) reallocate(lexer->vm, NULL, 0, sizeof(LitStatements));
+			lit_init_statements(statements);
+		}
+
 		if (lexer->current.type == TOKEN_EOF) {
 			error(lexer, &lexer->current, "Expected '}' to close the block");
 			break;

@@ -1,4 +1,5 @@
 #include <malloc.h>
+#include <string.h>
 
 #include "lit_memory.h"
 #include "lit.h"
@@ -67,6 +68,7 @@ static void blacken_object(LitVm* vm, LitObject* object) {
 			LitFunction* function = (LitFunction*) object;
 			lit_gray_object(vm, (LitObject*) function->name);
 			gray_array(vm, &function->chunk.constants);
+
 			break;
 		}
 		case OBJECT_CLOSURE: {
@@ -86,18 +88,22 @@ static void blacken_object(LitVm* vm, LitObject* object) {
 			lit_gray_object(vm, (LitObject*) class->name);
 			lit_gray_object(vm, (LitObject*) class->super);
 			lit_table_gray(vm, &class->methods);
+
 			break;
 		}
 		case OBJECT_INSTANCE: {
 			LitInstance* instance = (LitInstance*) object;
 			lit_gray_object(vm, (LitObject*) instance->type);
-			lit_table_gray(vm, &instance->fields);
+			// FIXME
+			// lit_table_gray(vm, &instance->fields);
+
 			break;
 		}
 		case OBJECT_BOUND_METHOD: {
 			LitMethod* bound = (LitMethod*) object;
 			lit_gray_value(vm, bound->receiver);
 			lit_gray_object(vm, (LitObject*) bound->method);
+
 			break;
 		}
 		default: UNREACHABLE();
@@ -112,33 +118,45 @@ static void free_object(LitVm* vm, LitObject* object) {
 	switch (object->type) {
 		case OBJECT_STRING: {
 			LitString* string = (LitString*) object;
+
 			FREE_ARRAY(vm, char, string->chars, string->length + 1);
-			FREE(vm, LitObject, object);
+			FREE(vm, LitString, object);
+
 			break;
 		}
 		case OBJECT_CLOSURE: {
 			LitClosure* closure = (LitClosure*) object;
 			FREE_ARRAY(vm, LitValue, closure->upvalues, closure->upvalue_count);
 			FREE(vm, LitClosure, object);
+
 			break;
 		}
 		case OBJECT_FUNCTION: {
 			LitFunction* function = (LitFunction*) object;
 			lit_free_chunk(vm, &function->chunk);
 			FREE(vm, LitFunction, object);
+
 			break;
 		}
 		case OBJECT_NATIVE: FREE(vm, LitNative, object); break;
 		case OBJECT_UPVALUE: FREE(vm, LitUpvalue, object); break;
-		case OBJECT_BOUND_METHOD: FREE(vm, LitMethod, object); break;
+		case OBJECT_BOUND_METHOD: {
+			const char* signature = ((LitMethod*) object)->signature;
+			reallocate(vm, (void*) signature, strlen(signature), 0);
+			FREE(vm, LitMethod, object);
+
+			break;
+		}
 		case OBJECT_CLASS: {
 			lit_free_table(vm, &((LitClass*) object)->methods);
 			FREE(vm, LitClass, object);
+
 			break;
 		}
 		case OBJECT_INSTANCE: {
 			lit_free_table(vm, &((LitInstance*) object)->fields);
 			FREE(vm, LitInstance, object);
+
 			break;
 		}
 		default: UNREACHABLE();
@@ -190,8 +208,7 @@ void lit_collect_garbage(LitVm* vm) {
 	vm->next_gc = vm->bytes_allocated * GC_HEAP_GROW_FACTOR;
 
 	if (DEBUG_TRACE_GC) {
-		printf("-- gc collected %ld bytes (from %ld to %ld) next at %ld\n",
-		       before - vm->bytes_allocated, before, vm->bytes_allocated, vm->next_gc);
+		printf("-- gc collected %ld bytes (from %ld to %ld) next at %ld\n", before - vm->bytes_allocated, before, vm->bytes_allocated, vm->next_gc);
 	}
 }
 

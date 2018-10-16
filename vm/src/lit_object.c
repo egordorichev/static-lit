@@ -133,8 +133,8 @@ LitString* lit_make_string(LitVm* vm, char* chars, int length) {
 }
 
 LitString* lit_copy_string(LitVm* vm, const char* chars, size_t length) {
-	uint32_t hash = hash_string(chars, length);
-	LitString* interned = lit_table_find(&vm->strings, chars, length, hash);
+	uint32_t hash = hash_string(chars, (int) length);
+	LitString* interned = lit_table_find(&vm->strings, chars, (int) length, hash);
 
 	if (interned != NULL) {
 		return interned;

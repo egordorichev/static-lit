@@ -66,13 +66,11 @@ static LitLetals* peek_scope(LitResolver* resolver) {
 }
 
 static void pop_scope(LitResolver* resolver) {
-	if (resolver->depth == 1) {
-		error(resolver, "Can't pop global scope!");
-		return;
-	}
-
 	resolver->scopes.count --;
-	lit_free_letals(resolver->vm, resolver->scopes.values[resolver->scopes.count]);
+	LitLetals* table = resolver->scopes.values[resolver->scopes.count];
+
+	lit_free_letals(resolver->vm, table);
+	reallocate(resolver->vm, table, sizeof(table), 0);
 
 	resolver->depth --;
 }
@@ -144,10 +142,10 @@ static void declare_and_define(LitResolver* resolver, const char* name,  const c
 
 	if (value != NULL) {
 		error(resolver, "Variable %s is already defined in current scope", name);
+	} else {
+		value = (LitLetal*) reallocate(resolver->vm, NULL, 0, sizeof(LitLetal));
+		lit_init_letal(value);
 	}
-
-	value = (LitLetal*) reallocate(resolver->vm, NULL, 0, sizeof(LitLetal));
-	lit_init_letal(value);
 
 	value->defined = true;
 	value->type = type;
@@ -707,6 +705,8 @@ static const char* resolve_lambda_expression(LitResolver* resolver, LitLambdaExp
 	resolve_function(resolver, expression->parameters, &expression->return_type, expression->body, "Missing return statement in lambda", NULL);
 	resolver->function = last;
 
+	reallocate(resolver->vm, (void*) type, strlen(type), 0);
+
 	return type;
 }
 
@@ -791,8 +791,11 @@ void lit_init_resolver(LitResolver* resolver) {
 }
 
 void lit_free_resolver(LitResolver* resolver) {
-	lit_free_scopes(resolver->vm, &resolver->scopes);
+	pop_scope(resolver);
+
+	// TODO: should free types properly?
 	lit_free_types(resolver->vm, &resolver->types);
+	lit_free_scopes(resolver->vm, &resolver->scopes);
 	lit_free_classes(resolver->vm, &resolver->classes);
 }
 

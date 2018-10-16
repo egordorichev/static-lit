@@ -35,7 +35,7 @@ void lit_define_native(LitVm* vm, const char* name, const char* type, LitNativeF
 	lit_letals_set(vm, &vm->resolver.externals, str, *letal);
 }
 
-static int time_function(LitVm* vm) {
+static int time_function(LitVm* vm, int count) {
 	lit_push(vm, MAKE_NUMBER_VALUE((double) clock() / CLOCKS_PER_SEC));
 	return 1;
 }
@@ -66,17 +66,31 @@ void lit_init_vm(LitVm* vm) {
 	vm->resolver.vm = vm;
 	lit_init_letals(&vm->resolver.externals);
 
-	lit_define_native(vm, "print", "function<any, void>", print_function);
-	lit_define_native(vm, "time", "function<double>", time_function);
+	// lit_define_native(vm, "print", "function<any, void>", print_function);
+	// lit_define_native(vm, "time", "function<double>", time_function);
 }
 
 void lit_free_vm(LitVm* vm) {
+	printf("before free: %i\n", (int) vm->bytes_allocated);
+
+	for (int i = 0; i < vm->resolver.externals.count; i++) {
+		const char* str = vm->resolver.externals.entries[i].value.type;
+
+		printf("%i %s\n", i, str);
+
+		if (str != NULL) {
+			reallocate(vm, (void*) str, strlen(str), 0);
+		}
+	}
+
+	lit_free_letals(vm, &vm->resolver.externals);
 	lit_free_table(vm, &vm->strings);
 	lit_free_table(vm, &vm->globals);
 	lit_free_objects(vm);
-	lit_free_letals(vm, &vm->resolver.externals);
 
 	vm->init_string = NULL;
+
+	printf("left: %i\n", (int) vm->bytes_allocated);
 }
 
 void lit_push(LitVm* vm, LitValue value) {
@@ -211,6 +225,8 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 	vm->abort = false;
 	vm->code = code;
 
+	printf("Was %i\n", (int) vm->bytes_allocated);
+
 	LitStatements statements;
 
 	lit_init_statements(&statements);
@@ -230,6 +246,14 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 		printf("\n]\n");
 	}
 
+	for (int i = 0; i < statements.count; i++) {
+		lit_free_statement(vm, statements.values[i]);
+	}
+
+	lit_free_statements(vm, &statements);
+	printf("Now %i\n", (int) vm->bytes_allocated);
+
+	/*
 	if (had_error) {
 		return INTERPRET_COMPILE_ERROR;
 	}
@@ -244,11 +268,9 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 		lit_free_statement(vm, statements.values[i]);
 	}
 
-	printf("was: %i\n", (int) vm->bytes_allocated);
 	lit_free_statements(vm, &statements);
-	printf("left: %i\n", (int) vm->bytes_allocated);
 
-	if (function == NULL) {
+	/*if (function == NULL) {
 		return INTERPRET_COMPILE_ERROR;
 	}
 
@@ -263,7 +285,7 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 		call_value(vm, MAKE_OBJECT_VALUE(closure), 0);
 
 		return lit_interpret(vm);
-	}
+	}*/
 
 	return INTERPRET_OK;
 }

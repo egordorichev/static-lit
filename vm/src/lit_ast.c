@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <memory.h>
+#include <lit.h>
 
 #include "lit_ast.h"
 #include "lit_memory.h"
@@ -222,7 +223,7 @@ void lit_free_statement(LitVm* vm, LitStatement* statement) {
 	switch (statement->type) {
 		case VAR_STATEMENT: {
 			LitVarStatement* stmt = (LitVarStatement*) statement;
-			reallocate(vm, (void*) stmt->name, strlen(stmt->name), 0);
+			reallocate(vm, (void*) stmt->name, strlen(stmt->name) + 1, 0);
 
 			if (stmt->init != NULL) {
 				lit_free_expression(vm, stmt->init);
@@ -251,6 +252,9 @@ void lit_free_statement(LitVm* vm, LitStatement* statement) {
 
 				lit_free_expressions(vm, stmt->else_if_conditions);
 				lit_free_statements(vm, stmt->else_if_branches);
+
+				reallocate(vm, (void*) stmt->else_if_conditions, sizeof(LitExpressions), 0);
+				reallocate(vm, (void*) stmt->else_if_branches, sizeof(LitStatements), 0);
 			}
 
 			if (stmt->else_branch != NULL) {
@@ -263,11 +267,15 @@ void lit_free_statement(LitVm* vm, LitStatement* statement) {
 		case BLOCK_STATEMENT: {
 			LitBlockStatement* stmt = (LitBlockStatement*) statement;
 
-			for (int i = 0; i < stmt->statements->count; i++) {
-				lit_free_statement(vm, stmt->statements->values[i]);
+			if (stmt->statements != NULL) {
+				for (int i = 0; i < stmt->statements->count; i++) {
+					lit_free_statement(vm, stmt->statements->values[i]);
+				}
+
+				lit_free_statements(vm, stmt->statements);
+				reallocate(vm, (void*) stmt->statements, sizeof(LitStatements), 0);
 			}
 
-			lit_free_statements(vm, stmt->statements);
 			reallocate(vm, (void*) statement, sizeof(LitBlockStatement), 0);
 
 			break;
@@ -284,16 +292,20 @@ void lit_free_statement(LitVm* vm, LitStatement* statement) {
 		case FUNCTION_STATEMENT: {
 			LitFunctionStatement* stmt = (LitFunctionStatement*) statement;
 
-			reallocate(vm, (void*) stmt->name, strlen(stmt->name), 0);
-			reallocate(vm, (void*) stmt->return_type.type, strlen(stmt->return_type.type), 0);
+			reallocate(vm, (void*) stmt->name, strlen(stmt->name) + 1, 0);
+
+			if (strcmp(stmt->return_type.type, "void") != 0) {
+				reallocate(vm, (void*) stmt->return_type.type, strlen(stmt->return_type.type) + 1, 0);
+			}
+
 			lit_free_statement(vm, stmt->body);
 
 			if (stmt->parameters != NULL) {
 				for (int i = 0; i  < stmt->parameters->count; i++) {
 					LitParameter parameter = stmt->parameters->values[i];
 
-					reallocate(vm, (void*) parameter.name, strlen(parameter.name), 0);
-					reallocate(vm, (void*) parameter.type, strlen(parameter.type), 0);
+					reallocate(vm, (void*) parameter.name, strlen(parameter.name) + 1, 0);
+					reallocate(vm, (void*) parameter.type, strlen(parameter.type) + 1, 0);
 				}
 
 				lit_free_parameters(vm, stmt->parameters);
@@ -314,7 +326,7 @@ void lit_free_statement(LitVm* vm, LitStatement* statement) {
 		}
 		case CLASS_STATEMENT: {
 			LitClassStatement* stmt = (LitClassStatement*) statement;
-			reallocate(vm, (void*) stmt->name, strlen(stmt->name), 0);
+			reallocate(vm, (void*) stmt->name, strlen(stmt->name) + 1, 0);
 
 			if (stmt->fields != NULL) {
 				for (int i = 0; i < stmt->fields->count; i++) {
@@ -322,6 +334,7 @@ void lit_free_statement(LitVm* vm, LitStatement* statement) {
 				}
 
 				lit_free_statements(vm, stmt->fields);
+				reallocate(vm, (void*) stmt->fields, sizeof(LitStatements), 0);
 			}
 
 			if (stmt->methods != NULL) {
@@ -330,6 +343,7 @@ void lit_free_statement(LitVm* vm, LitStatement* statement) {
 				}
 
 				lit_free_functions(vm, stmt->methods);
+				reallocate(vm, (void*) stmt->methods, sizeof(LitFunctions), 0);
 			}
 
 			if (stmt->super != NULL) {
@@ -345,55 +359,130 @@ void lit_free_statement(LitVm* vm, LitStatement* statement) {
 void lit_free_expression(LitVm* vm, LitExpression* expression) {
 	switch (expression->type) {
 		case BINARY_EXPRESSION: {
-			LitBinaryExpression* expr = (LitBinaryExpression*) expr;
+			LitBinaryExpression* expr = (LitBinaryExpression*) expression;
+
+			lit_free_expression(vm, expr->left);
+			lit_free_expression(vm, expr->right);
+			reallocate(vm, (void*) expression, sizeof(LitBinaryExpression), 0);
+
 			break;
 		}
 		case LITERAL_EXPRESSION: {
-			LitLiteralExpression* expr = (LitLiteralExpression*) expr;
+			reallocate(vm, (void*) expression, sizeof(LitLiteralExpression), 0);
 			break;
 		}
 		case UNARY_EXPRESSION: {
-			LitUnaryExpression* expr = (LitUnaryExpression*) expr;
+			LitUnaryExpression* expr = (LitUnaryExpression*) expression;
+
+			lit_free_expression(vm, expr->right);
+			reallocate(vm, (void*) expression, sizeof(LitUnaryExpression), 0);
+
 			break;
 		}
 		case GROUPING_EXPRESSION: {
-			LitGroupingExpression* expr = (LitGroupingExpression*) expr;
+			LitGroupingExpression* expr = (LitGroupingExpression*) expression;
+
+			lit_free_expression(vm, expr->expr);
+			reallocate(vm, (void*) expression, sizeof(LitGroupingExpression), 0);
+
 			break;
 		}
 		case VAR_EXPRESSION: {
-			LitVarExpression* expr = (LitVarExpression*) expr;
+			LitVarExpression* expr = (LitVarExpression*) expression;
+
+			reallocate(vm, (void*) expr->name, strlen(expr->name) + 1, 0);
+			reallocate(vm, (void*) expression, sizeof(LitVarExpression), 0);
+
 			break;
 		}
 		case ASSIGN_EXPRESSION: {
-			LitAssignExpression* expr = (LitAssignExpression*) expr;
+			// FIXME: leak from 173 to 189
+			LitAssignExpression* expr = (LitAssignExpression*) expression;
+
+			lit_free_expression(vm, expr->value);
+			reallocate(vm, (void*) expression, sizeof(LitAssignExpression), 0);
+			reallocate(vm, (void*) expr->name, strlen(expr->name) + 1, 0);
+
 			break;
 		}
 		case LOGICAL_EXPRESSION: {
-			LitLogicalExpression* expr = (LitLogicalExpression*) expr;
+			LitLogicalExpression* expr = (LitLogicalExpression*) expression;
+
+			lit_free_expression(vm, expr->left);
+			lit_free_expression(vm, expr->right);
+			reallocate(vm, (void*) expression, sizeof(LitLogicalExpression), 0);
+
 			break;
 		}
 		case CALL_EXPRESSION: {
-			LitCallExpression* expr = (LitCallExpression*) expr;
+			LitCallExpression* expr = (LitCallExpression*) expression;
+			lit_free_expression(vm, expr->callee);
+
+			for (int i = 0; i < expr->args->count; i++) {
+				lit_free_expression(vm, expr->args->values[i]);
+			}
+
+			lit_free_expressions(vm, expr->args);
+			reallocate(vm, (void*) expr->args, sizeof(LitExpressions), 0);
+
+			reallocate(vm, (void*) expression, sizeof(LitCallExpression), 0);
+
 			break;
 		}
 		case LAMBDA_EXPRESSION: {
-			LitLambdaExpression* expr = (LitLambdaExpression*) expr;
+			LitLambdaExpression* expr = (LitLambdaExpression*) expression;
+
+			if (strcmp(expr->return_type.type, "void") != 0) {
+				reallocate(vm, (void*) expr->return_type.type, strlen(expr->return_type.type) + 1, 0);
+			}
+
+			lit_free_statement(vm, expr->body);
+
+			if (expr->parameters != NULL) {
+				for (int i = 0; i  < expr->parameters->count; i++) {
+					LitParameter parameter = expr->parameters->values[i];
+
+					reallocate(vm, (void*) parameter.name, strlen(parameter.name) + 1, 0);
+					reallocate(vm, (void*) parameter.type, strlen(parameter.type) + 1, 0);
+				}
+
+				lit_free_parameters(vm, expr->parameters);
+			}
+
+			reallocate(vm, (void*) expression, sizeof(LitLambdaExpression), 0);
 			break;
 		}
 		case GET_EXPRESSION: {
-			LitGetExpression* expr = (LitGetExpression*) expr;
+			LitGetExpression* expr = (LitGetExpression*) expression;
+
+			lit_free_expression(vm, expr->object);
+			reallocate(vm, (void*) expr->property, strlen(expr->property) + 1, 0);
+			reallocate(vm, (void*) expression, sizeof(LitGetExpression), 0);
+
 			break;
 		}
 		case SET_EXPRESSION: {
-			LitSetExpression* expr = (LitSetExpression*) expr;
+			LitSetExpression* expr = (LitSetExpression*) expression;
+
+			lit_free_expression(vm, expr->object);
+			lit_free_expression(vm, expr->value);
+			reallocate(vm, (void*) expr->property, strlen(expr->property) + 1, 0);
+			reallocate(vm, (void*) expression, sizeof(LitSetExpression), 0);
+
 			break;
 		}
 		case THIS_EXPRESSION: {
-			LitThisExpression* expr = (LitThisExpression*) expr;
+			reallocate(vm, (void*) expression, sizeof(LitThisExpression), 0);
+
 			break;
 		}
 		case SUPER_EXPRESSION: {
-			LitSuperExpression* expr = (LitSuperExpression*) expr;
+			// FIXME: leak from 173 to 189
+			LitSuperExpression* expr = (LitSuperExpression*) expression;
+
+			reallocate(vm, (void*) expr->method, strlen(expr->method) + 1, 0);
+			reallocate(vm, (void*) expression, sizeof(LitSuperExpression), 0);
+
 			break;
 		}
 	}
