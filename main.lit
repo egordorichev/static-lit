@@ -1,19 +1,9 @@
-class Great {
-	doStuff(String a) {
-		print(a)
-	}
+if (false) {
+	print("if")
+} else if (true) {
+	print("elseif")
+} else if (true) {
+	print("elseif2")
+} else {
+	print("else")
 }
-
-class Awesome < Great {
-	printGG() {
-		print("GG")
-	}
-
-	doStuff() {
-		this.printGG()
-		super.doStuff("EZ")
-	}
-}
-
-var a = Awesome()
-a.doStuff()

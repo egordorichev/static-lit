@@ -376,7 +376,42 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 			emit_expression(emitter, ((LitExpressionStatement*) statement)->expr);
 			emit_byte(emitter, OP_POP);
 			break;
-		case IF_STATEMENT: break;
+		case IF_STATEMENT: {
+			LitIfStatement* stmt = (LitIfStatement*) statement;
+			emit_expression(emitter, stmt->condition);
+
+			int else_jump = emit_jump(emitter, OP_JUMP_IF_FALSE);
+			emit_statement(emitter, stmt->if_branch);
+
+			int end_jump = emit_jump(emitter, OP_JUMP);
+			int end_jumps[stmt->else_if_branches == NULL ? 0 : stmt->else_if_branches->count];
+
+			if (stmt->else_if_branches != NULL) {
+				for (int i = 0; i < stmt->else_if_branches->count; i++) {
+					patch_jump(emitter, else_jump);
+					emit_expression(emitter, stmt->else_if_conditions->values[i]);
+					else_jump = emit_jump(emitter, OP_JUMP_IF_FALSE);
+					emit_statement(emitter, stmt->else_if_branches->values[i]);
+
+					end_jumps[i] = emit_jump(emitter, OP_JUMP);
+				}
+			}
+
+			patch_jump(emitter, else_jump);
+
+			if (stmt->else_branch != NULL) {
+				emit_statement(emitter, stmt->else_branch);
+			}
+
+			if (stmt->else_if_branches != NULL) {
+				for (int i = 0; i < stmt->else_if_branches->count; i++) {
+					patch_jump(emitter, end_jumps[i]);
+				}
+			}
+
+			patch_jump(emitter, end_jump);
+			break;
+		}
 		case BLOCK_STATEMENT: {
 			emit_statements(emitter, ((LitBlockStatement*) statement)->statements);
 			emit_byte(emitter, OP_POP);
