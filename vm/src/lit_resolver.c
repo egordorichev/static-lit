@@ -652,7 +652,7 @@ static const char* resolve_get_expression(LitResolver* resolver, LitGetExpressio
 	LitClass** class = lit_classes_get(&resolver->classes, lit_copy_string(resolver->vm, type, strlen(type)));
 
 	if (class == NULL) {
-		error(resolver, "Undefined type %s", type);
+		error(resolver, "Can't find class %s", type);
 		return "error";
 	}
 
@@ -710,6 +710,36 @@ static const char* resolve_lambda_expression(LitResolver* resolver, LitLambdaExp
 	return type;
 }
 
+static const char* resolve_this_expression(LitResolver* resolver, LitThisExpression* expression) {
+	if (resolver->class == NULL) {
+		error(resolver, "Can't use this outside of a class");
+		return "error";
+	}
+
+	return resolver->class->name->chars;
+}
+
+static const char* resolve_super_expression(LitResolver* resolver, LitSuperExpression* expression) {
+	if (resolver->class == NULL) {
+		error(resolver, "Can't use super outside of a class");
+		return "error";
+	}
+
+	if (resolver->class->super == NULL) {
+		error(resolver, "Class %s has no super", resolver->class->name->chars);
+		return "error";
+	}
+
+	LitValue* method = lit_table_get(&resolver->class->super->methods, lit_copy_string(resolver->vm, expression->method, strlen(expression->method)));
+
+	if (method == NULL) {
+		error(resolver, "Class %s has no method %s", resolver->class->super->name->chars, expression->method);
+		return "error";
+	}
+
+	return AS_METHOD(*method)->signature;
+}
+
 static const char* resolve_expression(LitResolver* resolver, LitExpression* expression) {
 	switch (expression->type) {
 		case BINARY_EXPRESSION: return resolve_binary_expression(resolver, (LitBinaryExpression*) expression);
@@ -723,35 +753,8 @@ static const char* resolve_expression(LitResolver* resolver, LitExpression* expr
 		case GET_EXPRESSION: return resolve_get_expression(resolver, (LitGetExpression*) expression);
 		case SET_EXPRESSION: return resolve_set_expression(resolver, (LitSetExpression*) expression);
 		case LAMBDA_EXPRESSION: return resolve_lambda_expression(resolver, (LitLambdaExpression*) expression);
-		case THIS_EXPRESSION: {
-			if (resolver->class == NULL) {
-				error(resolver, "Can't use this outside of a class");
-				return "error";
-			}
-
-			return resolver->class->name->chars;
-		}
-		case SUPER_EXPRESSION: {
-			if (resolver->class == NULL) {
-				error(resolver, "Can't use super outside of a class");
-				return "error";
-			}
-
-			if (resolver->class->super == NULL) {
-				error(resolver, "Class %s has no super", resolver->class->name->chars);
-				return "error";
-			}
-
-			LitSuperExpression* expr = (LitSuperExpression*) expression;
-			LitValue* method = lit_table_get(&resolver->class->super->methods, lit_copy_string(resolver->vm, expr->method, strlen(expr->method)));
-
-			if (method == NULL) {
-				error(resolver, "Class %s has no method %s", resolver->class->super->name->chars, expr->method);
-				return "error";
-			}
-
-			return AS_METHOD(*method)->signature;
-		}
+		case THIS_EXPRESSION: return resolve_this_expression(resolver, (LitThisExpression*) expression);
+		case SUPER_EXPRESSION: return resolve_super_expression(resolver, (LitSuperExpression*) expression);
 	}
 
 	return "error";

@@ -60,6 +60,17 @@ static void patch_jump(LitEmitter* emitter, int offset) {
 	chunk->code[offset + 1] = (uint8_t) (jump & 0xff);
 }
 
+static void emit_loop(LitEmitter* emitter, int loop_start) {
+	emit_byte(emitter, OP_LOOP);
+	int offset = emitter->function->function->chunk.count - loop_start + 2;
+
+	if (offset > UINT16_MAX) {
+		error(emitter, "Loop body too large");
+	}
+
+	emit_bytes(emitter, (uint8_t) ((offset >> 8) & 0xff), (uint8_t) (offset & 0xff));
+}
+
 static int resolve_local(LitEmitterFunction* function, const char* name) {
 	for (int i = function->local_count - 1; i >= 0; i--) {
 		LitLocal* local = &function->locals[i];
@@ -75,6 +86,7 @@ static int resolve_local(LitEmitterFunction* function, const char* name) {
 static int add_upvalue(LitEmitter* emitter, LitEmitterFunction* function, uint8_t index, bool is_local);
 static int add_local(LitEmitter* emitter, const char* name);
 static void emit_statement(LitEmitter* emitter, LitStatement* statement);
+static bool no_pop;
 
 static int resolve_upvalue(LitEmitter* emitter, LitEmitterFunction* function, char* name) {
 	if (function->enclosing == NULL) {
@@ -374,7 +386,13 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 		}
 		case EXPRESSION_STATEMENT:
 			emit_expression(emitter, ((LitExpressionStatement*) statement)->expr);
-			emit_byte(emitter, OP_POP);
+
+			if (!no_pop) {
+				emit_byte(emitter, OP_POP);
+			} else {
+				no_pop = false;
+			}
+
 			break;
 		case IF_STATEMENT: {
 			LitIfStatement* stmt = (LitIfStatement*) statement;
@@ -417,7 +435,21 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 			emit_byte(emitter, OP_POP);
 			break;
 		}
-		case WHILE_STATEMENT: break;
+		case WHILE_STATEMENT: {
+			LitWhileStatement* stmt = (LitWhileStatement*) statement;
+
+			int loop_start = emitter->function->function->chunk.count;
+			no_pop = true;
+			emit_expression(emitter, stmt->condition);
+
+			int exit_jump = emit_jump(emitter, OP_JUMP_IF_FALSE);
+
+			emit_statement(emitter, stmt->body);
+			emit_loop(emitter, loop_start);
+			patch_jump(emitter, exit_jump);
+
+			break;
+		}
 		case FUNCTION_STATEMENT: {
 			LitFunctionStatement* stmt = (LitFunctionStatement*) statement;
 			LitEmitterFunction function;
