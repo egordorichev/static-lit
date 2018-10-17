@@ -92,8 +92,10 @@ int main(int argc, char** argv) {
 		  } else {
 			  LitVm vm;
 			  lit_init_vm(&vm);
-			  LitInterpretResult result = lit_execute(&vm, read_file(arg));
+			  const char* script = read_file(arg);
+			  LitInterpretResult result = lit_execute(&vm, script);
 			  lit_free_vm(&vm);
+				free((void*) script);
 
 			  return result == INTERPRET_OK ? 0 : -2;
 		  }

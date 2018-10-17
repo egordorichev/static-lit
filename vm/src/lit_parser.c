@@ -295,7 +295,7 @@ static LitExpression* parse_assigment(LitLexer* lexer) {
 		LitExpression* value = parse_assigment(lexer);
 
 		if (expression->type == VAR_EXPRESSION) {
-			return (LitExpression*) lit_make_assign_expression(lexer->vm, ((LitVarExpression*) expression)->name, value);
+			return (LitExpression*) lit_make_assign_expression(lexer->vm, expression, value);
 		}
 
 		error(lexer, &equal, "Invalid assigment target");

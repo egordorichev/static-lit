@@ -501,10 +501,15 @@ static const char* resolve_var_expression(LitResolver* resolver, LitVarExpressio
 }
 
 static const char* resolve_assign_expression(LitResolver* resolver, LitAssignExpression* expression) {
-	resolve_expression(resolver, expression->value);
-	LitLetal* letal = resolve_local(resolver, expression->name);
+	const char* given = resolve_expression(resolver, expression->value);
+	const char* type = resolve_expression(resolver, expression->to);
 
-	resolve_local(resolver, expression->name);
+	if (!compare_arg((char*) type, (char*) given)) {
+		error(resolver, "Can't assign %s value to a %s var", given, type);
+	}
+
+	LitVarExpression* expr = (LitVarExpression*) expression->to;
+	LitLetal* letal = resolve_local(resolver, expr->name);
 
 	if (letal == NULL) {
 		return "error";

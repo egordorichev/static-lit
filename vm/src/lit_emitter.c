@@ -166,19 +166,20 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 		}
 		case ASSIGN_EXPRESSION: {
 			LitAssignExpression* expr = (LitAssignExpression*) expression;
+			LitVarExpression* e = (LitVarExpression*) expr->to;
 
 			emit_expression(emitter, expr->value);
-			int local = resolve_local(emitter->function, expr->name);
+			int local = resolve_local(emitter->function, e->name);
 
 			if (local != -1) {
 				emit_bytes(emitter, OP_SET_LOCAL, (uint8_t) local);
 			} else {
-				int upvalue = resolve_upvalue(emitter, emitter->function, (char*) expr->name);
+				int upvalue = resolve_upvalue(emitter, emitter->function, (char*) e->name);
 
 				if (upvalue != -1) {
 					emit_bytes(emitter, OP_SET_UPVALUE, (uint8_t) upvalue);
 				} else {
-					emit_bytes(emitter, OP_SET_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, expr->name, strlen(expr->name)))));
+					emit_bytes(emitter, OP_SET_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, e->name, strlen(e->name)))));
 				}
 			}
 

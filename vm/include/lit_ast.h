@@ -77,11 +77,11 @@ LitVarExpression* lit_make_var_expression(LitVm* vm, const char* name);
 
 typedef struct {
 	LitExpression* expression;
-	const char* name;
+	LitExpression* to;
 	LitExpression* value;
 } LitAssignExpression;
 
-LitAssignExpression* lit_make_assign_expression(LitVm* vm, const char* name, LitExpression* value);
+LitAssignExpression* lit_make_assign_expression(LitVm* vm, LitExpression* to, LitExpression* value);
 
 typedef struct {
 	LitExpression* expression;

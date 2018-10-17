@@ -17,6 +17,7 @@ void* reallocate(LitVm* vm, void* previous, size_t old_size, size_t new_size) {
 
 	if (new_size == 0) {
 		free(previous);
+
 		return NULL;
 	}
 
@@ -126,6 +127,7 @@ static void free_object(LitVm* vm, LitObject* object) {
 		}
 		case OBJECT_CLOSURE: {
 			LitClosure* closure = (LitClosure*) object;
+
 			FREE_ARRAY(vm, LitValue, closure->upvalues, closure->upvalue_count);
 			FREE(vm, LitClosure, object);
 
@@ -133,6 +135,7 @@ static void free_object(LitVm* vm, LitObject* object) {
 		}
 		case OBJECT_FUNCTION: {
 			LitFunction* function = (LitFunction*) object;
+
 			lit_free_chunk(vm, &function->chunk);
 			FREE(vm, LitFunction, object);
 
@@ -142,6 +145,7 @@ static void free_object(LitVm* vm, LitObject* object) {
 		case OBJECT_UPVALUE: FREE(vm, LitUpvalue, object); break;
 		case OBJECT_BOUND_METHOD: {
 			const char* signature = ((LitMethod*) object)->signature;
+
 			reallocate(vm, (void*) signature, strlen(signature), 0);
 			FREE(vm, LitMethod, object);
 
@@ -154,7 +158,9 @@ static void free_object(LitVm* vm, LitObject* object) {
 			break;
 		}
 		case OBJECT_INSTANCE: {
-			lit_free_table(vm, &((LitInstance*) object)->fields);
+			LitInstance* instance = ((LitInstance*) object);
+
+			lit_free_fields(vm, &instance->fields);
 			FREE(vm, LitInstance, object);
 
 			break;

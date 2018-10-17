@@ -322,7 +322,9 @@ void lit_trace_expression(LitVm* vm, LitExpression* expression, int depth) {
 				LitAssignExpression* var = (LitAssignExpression*) expression;
 
 				printf("\"type\" : \"assign\",\n");
-				printf("\"to\" : \"%s\",\n", var->name);
+				printf("\"to\" : ");
+				lit_trace_expression(vm, var->to, depth + 1);
+				printf("\n");
 				printf("\"value\" : ");
 				lit_trace_expression(vm, var->value, depth + 1);
 				printf("\n");

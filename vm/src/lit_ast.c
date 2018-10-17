@@ -74,10 +74,10 @@ LitVarExpression* lit_make_var_expression(LitVm* vm, const char* name) {
 	return expression;
 }
 
-LitAssignExpression* lit_make_assign_expression(LitVm* vm, const char* name, LitExpression* value) {
+LitAssignExpression* lit_make_assign_expression(LitVm* vm, LitExpression* to, LitExpression* value) {
 	LitAssignExpression* expression = ALLOCATE_EXPRESSION(vm, LitAssignExpression, ASSIGN_EXPRESSION);
 
-	expression->name = name;
+	expression->to = to;
 	expression->value = value;
 
 	return expression;
@@ -291,7 +291,7 @@ void lit_free_statement(LitVm* vm, LitStatement* statement) {
 		}
 		case FUNCTION_STATEMENT: {
 			LitFunctionStatement* stmt = (LitFunctionStatement*) statement;
-
+			printf("Function statement %s %i\n", stmt->name, strlen(stmt->name));
 			reallocate(vm, (void*) stmt->name, strlen(stmt->name) + 1, 0);
 
 			if (strcmp(stmt->return_type.type, "void") != 0) {
@@ -309,6 +309,7 @@ void lit_free_statement(LitVm* vm, LitStatement* statement) {
 				}
 
 				lit_free_parameters(vm, stmt->parameters);
+				reallocate(vm, (void*) stmt->parameters, sizeof(LitParameters), 0);
 			}
 
 			reallocate(vm, (void*) statement, sizeof(LitFunctionStatement), 0);
@@ -396,12 +397,11 @@ void lit_free_expression(LitVm* vm, LitExpression* expression) {
 			break;
 		}
 		case ASSIGN_EXPRESSION: {
-			// FIXME: leak from 173 to 189
 			LitAssignExpression* expr = (LitAssignExpression*) expression;
 
 			lit_free_expression(vm, expr->value);
+			lit_free_expression(vm, expr->to);
 			reallocate(vm, (void*) expression, sizeof(LitAssignExpression), 0);
-			reallocate(vm, (void*) expr->name, strlen(expr->name) + 1, 0);
 
 			break;
 		}
@@ -424,7 +424,6 @@ void lit_free_expression(LitVm* vm, LitExpression* expression) {
 
 			lit_free_expressions(vm, expr->args);
 			reallocate(vm, (void*) expr->args, sizeof(LitExpressions), 0);
-
 			reallocate(vm, (void*) expression, sizeof(LitCallExpression), 0);
 
 			break;
@@ -447,6 +446,7 @@ void lit_free_expression(LitVm* vm, LitExpression* expression) {
 				}
 
 				lit_free_parameters(vm, expr->parameters);
+				reallocate(vm, (void*) expr->parameters, sizeof(LitParameters), 0);
 			}
 
 			reallocate(vm, (void*) expression, sizeof(LitLambdaExpression), 0);
