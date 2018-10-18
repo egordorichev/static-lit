@@ -5,7 +5,7 @@ lit is a tiny and fast language, designed to be embeddable and used as a scripti
 Here is how it looks:
 
 ```js
-fun do_thing(string a) > int {
+fun do_thing(String a) > int {
     print(a)
     return 3
 }
