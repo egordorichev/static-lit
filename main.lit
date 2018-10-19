@@ -1,17 +1,2 @@
-class Test {
-	var test = 10
-
-	doStuff() {
-	}
-}
-/*
-var a = Test()
-print(a.doThing())
-
-fun test(int a) {
-
-}
-
-var lamda = fun(String test) > String {
-	return test
-}*/
+var test = "test"
+var test2 = "test"

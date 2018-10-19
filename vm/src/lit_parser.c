@@ -618,8 +618,12 @@ bool lit_parse(LitVm* vm, LitStatements* statements) {
 
 	advance(&lexer);
 
-	while (!is_at_end(&lexer)) {
-		lit_statements_write(vm, statements, parse_declaration(&lexer));
+	if (is_at_end(&lexer)) {
+		error(&lexer, &lexer.current, "Expected statement but got end of file");
+	} else {
+		while (!is_at_end(&lexer)) {
+			lit_statements_write(vm, statements, parse_declaration(&lexer));
+		}
 	}
 
 	bool had_error = lexer.had_error;

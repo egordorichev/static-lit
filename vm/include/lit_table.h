@@ -95,7 +95,7 @@ DECLARE_TABLE(LitTable, LitValue, table)
 			table->count++; \
 		} \
 	\
-		FREE_ARRAY(vm, val, table->entries, table->capacity_mask + 1); \
+		FREE_ARRAY(vm, name##Entry, table->entries, table->capacity_mask + 1); \
 	\
 		table->entries = entries; \
 		table->capacity_mask = capacity_mask; \

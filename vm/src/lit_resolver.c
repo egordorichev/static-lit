@@ -13,14 +13,7 @@
 
 DEFINE_ARRAY(LitScopes, LitLetals*, scopes)
 
-static inline LitLetal nil_letal() {
-	LitLetal letal;
-  lit_init_letal(&letal);
-  letal.nil = true;
-  return letal;
-}
-
-DEFINE_TABLE(LitLetals, LitLetal, letals, nil_letal());
+DEFINE_TABLE(LitLetals, LitLetal*, letals, NULL);
 DEFINE_TABLE(LitTypes, char *, types, NULL)
 DEFINE_TABLE(LitClasses, LitClass*, classes, NULL)
 
@@ -69,8 +62,16 @@ static void pop_scope(LitResolver* resolver) {
 	resolver->scopes.count --;
 	LitLetals* table = resolver->scopes.values[resolver->scopes.count];
 
+	for (int i = 0; i <= table->capacity_mask; i++) {
+		LitLetal* value = table->entries[i].value;
+
+		if (value != NULL) {
+			reallocate(resolver->vm, (void*) value, sizeof(LitLetal), 0);
+		}
+	}
+
 	lit_free_letals(resolver->vm, table);
-	reallocate(resolver->vm, table, sizeof(table), 0);
+	reallocate(resolver->vm, table, sizeof(LitLetals), 0);
 
 	resolver->depth --;
 }
@@ -89,7 +90,17 @@ static void resolve_type(LitResolver* resolver, const char* type) {
 }
 
 static void define_type(LitResolver* resolver, const char* type) {
-	lit_types_set(resolver->vm, &resolver->types, lit_copy_string(resolver->vm, type, (int) strlen(type)), (char*) type);
+	LitString* str = lit_copy_string(resolver->vm, type, (int) strlen(type));
+	lit_types_set(resolver->vm, &resolver->types, str, (char*) type);
+}
+
+static void define_type_allocating(LitResolver* resolver, const char* type) {
+	size_t len = strlen(type) + 1;
+	char* str = reallocate(resolver->vm, NULL, 0, len);
+	strncpy(str, type, len);
+	str[len - 1] = '\0';
+
+	define_type(resolver, str);
 }
 
 void lit_init_letal(LitLetal* letal) {
@@ -103,17 +114,17 @@ static LitLetal* resolve_local(LitResolver* resolver, const char* name) {
 	LitString *str = lit_copy_string(resolver->vm, name, (int) strlen(name));
 
 	for (int i = resolver->scopes.count - 1; i >= 0; i --) {
-		LitLetal* value = lit_letals_get(resolver->scopes.values[i], str);
+		LitLetal** value = lit_letals_get(resolver->scopes.values[i], str);
 
-		if (!(value == NULL || value->nil)) {
-			return value;
+		if (!(value == NULL || (*value)->nil)) {
+			return *value;
 		}
 	}
 
-	LitLetal* value = lit_letals_get(&resolver->externals, str);
+	LitLetal** value = lit_letals_get(&resolver->externals, str);
 
-	if (!(value == NULL || value->nil)) {
-		return value;
+	if (!(value == NULL || (*value)->nil)) {
+		return *value;
 	}
 
 	error(resolver, "Variable %s is not defined", name);
@@ -123,62 +134,64 @@ static LitLetal* resolve_local(LitResolver* resolver, const char* name) {
 static void declare(LitResolver* resolver, const char* name) {
 	LitLetals* scope = peek_scope(resolver);
 	LitString* str = lit_copy_string(resolver->vm, name, (int) strlen(name));
-	LitLetal* value = lit_letals_get(scope, str);
+	LitLetal** value = lit_letals_get(scope, str);
 
 	if (value != NULL) {
 		error(resolver, "Variable %s is already defined in current scope", name);
 	}
 
-	value = (LitLetal*) reallocate(resolver->vm, NULL, 0, sizeof(LitLetal));
+	LitLetal* letal = (LitLetal*) reallocate(resolver->vm, NULL, 0, sizeof(LitLetal));
 
-	lit_init_letal(value);
-	lit_letals_set(resolver->vm, scope, str, *value);
+	lit_init_letal(letal);
+	lit_letals_set(resolver->vm, scope, str, letal);
 }
 
-static void declare_and_define(LitResolver* resolver, const char* name,  const char* type) {
+static void declare_and_define(LitResolver* resolver, const char* name, const char* type) {
 	LitLetals* scope = peek_scope(resolver);
 	LitString* str = lit_copy_string(resolver->vm, name, (int) strlen(name));
-	LitLetal* value = lit_letals_get(scope, str);
+	LitLetal** value = lit_letals_get(scope, str);
 
 	if (value != NULL) {
 		error(resolver, "Variable %s is already defined in current scope", name);
 	} else {
-		value = (LitLetal*) reallocate(resolver->vm, NULL, 0, sizeof(LitLetal));
-		lit_init_letal(value);
+		LitLetal* letal = (LitLetal*) reallocate(resolver->vm, NULL, 0, sizeof(LitLetal));
+		lit_init_letal(letal);
+
+		letal->defined = true;
+		letal->type = type;
+
+		lit_letals_set(resolver->vm, scope, str, letal);
 	}
-
-	value->defined = true;
-	value->type = type;
-
-	lit_letals_set(resolver->vm, scope, str, *value);
 }
 
 static void define(LitResolver* resolver, const char* name, const char* type, bool field) {
 	LitLetals* scope = peek_scope(resolver);
 	LitString* str = lit_copy_string(resolver->vm, name, (int) strlen(name));
 
-	LitLetal* value = lit_letals_get(scope, str);
+	LitLetal** value = lit_letals_get(scope, str);
 
 	if (value == NULL) {
-		LitLetal* value = (LitLetal*) reallocate(resolver->vm, NULL, 0, sizeof(LitLetal));
+		LitLetal* letal = (LitLetal*) reallocate(resolver->vm, NULL, 0, sizeof(LitLetal));
 
-		lit_init_letal(value);
+		lit_init_letal(letal);
 
-		value->defined = true;
-		value->type = type;
-		value->field = field;
+		letal->defined = true;
+		letal->type = type;
+		letal->field = field;
 
-		lit_letals_set(resolver->vm, scope, str, *value);
+		lit_letals_set(resolver->vm, scope, str, value);
 	} else {
-		value->defined = true;
-		value->type = type;
-		value->field = field;
+		LitLetal* letal = *value;
+
+		letal->defined = true;
+		letal->type = type;
+		letal->field = field;
 	}
 }
 
 static const char* resolve_var_statement(LitResolver* resolver, LitVarStatement* statement) {
 	declare(resolver, statement->name);
-	char *type = "any";
+	char *type = "void";
 
 	if (statement->init != NULL) {
 		type = (char*) resolve_expression(resolver, statement->init);
@@ -212,9 +225,11 @@ static void resolve_if_statement(LitResolver* resolver, LitIfStatement* statemen
 }
 
 static void resolve_block_statement(LitResolver* resolver, LitBlockStatement* statement) {
-	push_scope(resolver);
-	resolve_statements(resolver, statement->statements);
-	pop_scope(resolver);
+	if (statement->statements != NULL) {
+		push_scope(resolver);
+		resolve_statements(resolver, statement->statements);
+		pop_scope(resolver);
+	}
 }
 
 static void resolve_while_statement(LitResolver* resolver, LitWhileStatement* statement) {
@@ -244,7 +259,14 @@ static void resolve_function(LitResolver* resolver, LitParameters* parameters, L
 		if (strcmp(return_type->type, "void") != 0) {
 			error(resolver, message, name);
 		} else {
-			lit_statements_write(resolver->vm, ((LitBlockStatement*) body)->statements, (LitStatement*) lit_make_return_statement(resolver->vm, NULL));
+			LitBlockStatement* block = (LitBlockStatement*) body;
+
+			if (block->statements == NULL) {
+				block->statements = (LitStatements*) reallocate(resolver->vm, NULL, 0, sizeof(LitStatements));
+				lit_init_statements(block->statements);
+			}
+
+			lit_statements_write(resolver->vm, block->statements, (LitStatement*) lit_make_return_statement(resolver->vm, NULL));
 		}
 	}
 
@@ -318,7 +340,6 @@ static const char* resolve_var_expression(LitResolver* resolver, LitVarExpressio
 
 static void resolve_method_statement(LitResolver* resolver, LitFunctionStatement* statement) {
 	push_scope(resolver);
-
 	resolver->had_return = false;
 
 	if (statement->parameters != NULL) {
@@ -341,7 +362,14 @@ static void resolve_method_statement(LitResolver* resolver, LitFunctionStatement
 		if (strcmp(statement->return_type.type, "void") != 0) {
 			error(resolver, "Missing return statement in method %s", statement->name);
 		} else {
-			lit_statements_write(resolver->vm, ((LitBlockStatement*) statement->body)->statements, (LitStatement*) lit_make_return_statement(resolver->vm, NULL));
+			LitBlockStatement* block = (LitBlockStatement*) statement->body;
+
+			if (block->statements == NULL) {
+				block->statements = (LitStatements*) reallocate(resolver->vm, NULL, 0, sizeof(LitStatements));
+				lit_init_statements(block->statements);
+			}
+
+			lit_statements_write(resolver->vm, block->statements, (LitStatement*) lit_make_return_statement(resolver->vm, NULL));
 		}
 	}
 
@@ -481,9 +509,9 @@ static const char* resolve_grouping_expression(LitResolver* resolver, LitGroupin
 }
 
 static const char* resolve_var_expression(LitResolver* resolver, LitVarExpression* expression) {
-	LitLetal* value = lit_letals_get(peek_scope(resolver), lit_copy_string(resolver->vm, expression->name, (int) strlen(expression->name)));
+	LitLetal** value = lit_letals_get(peek_scope(resolver), lit_copy_string(resolver->vm, expression->name, (int) strlen(expression->name)));
 
-	if (value != NULL && !value->defined) {
+	if (value != NULL && !(*value)->defined) {
 		error(resolver, "Can't use local variable %s in it's own initializer", expression->name);
 		return "error";
 	}
@@ -783,22 +811,29 @@ void lit_init_resolver(LitResolver* resolver) {
 
 	push_scope(resolver); // Global scope
 
-	define_type(resolver, "int");
-	define_type(resolver, "bool");
-	define_type(resolver, "error");
-	define_type(resolver, "void");
-	define_type(resolver, "any");
-	define_type(resolver, "double");
-	define_type(resolver, "char");
-	define_type(resolver, "function");
-	define_type(resolver, "Class");
-	define_type(resolver, "String");
+	define_type_allocating(resolver, "int");
+	define_type_allocating(resolver, "bool");
+	define_type_allocating(resolver, "error");
+	define_type_allocating(resolver, "void");
+	define_type_allocating(resolver, "any");
+	define_type_allocating(resolver, "double");
+	define_type_allocating(resolver, "char");
+	define_type_allocating(resolver, "function");
+	define_type_allocating(resolver, "Class");
+	define_type_allocating(resolver, "String");
 }
 
 void lit_free_resolver(LitResolver* resolver) {
 	pop_scope(resolver);
 
-	// TODO: should free types properly?
+	for (int i = 0; i <= resolver->types.capacity_mask; i++) {
+		char* type = resolver->types.entries[i].value;
+
+		if (type != NULL) {
+			reallocate(resolver->vm, type, strlen(type) + 1, 0);
+		}
+	}
+
 	lit_free_types(resolver->vm, &resolver->types);
 	lit_free_scopes(resolver->vm, &resolver->scopes);
 	lit_free_classes(resolver->vm, &resolver->classes);

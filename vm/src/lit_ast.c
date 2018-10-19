@@ -291,7 +291,6 @@ void lit_free_statement(LitVm* vm, LitStatement* statement) {
 		}
 		case FUNCTION_STATEMENT: {
 			LitFunctionStatement* stmt = (LitFunctionStatement*) statement;
-			printf("Function statement %s %i\n", stmt->name, strlen(stmt->name));
 			reallocate(vm, (void*) stmt->name, strlen(stmt->name) + 1, 0);
 
 			if (strcmp(stmt->return_type.type, "void") != 0) {
