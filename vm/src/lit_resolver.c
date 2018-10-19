@@ -12,6 +12,7 @@
 #include "lit_object.h"
 
 DEFINE_ARRAY(LitScopes, LitLetals*, scopes)
+DEFINE_ARRAY(LitStrings, char*, strings)
 
 DEFINE_TABLE(LitLetals, LitLetal*, letals, NULL);
 DEFINE_TABLE(LitTypes, char *, types, NULL)
@@ -94,6 +95,9 @@ static void define_type(LitResolver* resolver, const char* type) {
 	lit_types_set(resolver->vm, &resolver->types, str, (char*) type);
 }
 
+// FIXME: no need to allocate this str, cause
+// in define_type we use lit_copy_string that allocates a new string
+// the resolver->types should be a table of string and bool
 static void define_type_allocating(LitResolver* resolver, const char* type) {
 	size_t len = strlen(type) + 1;
 	char* str = reallocate(resolver->vm, NULL, 0, len);
@@ -323,6 +327,8 @@ static void resolve_function_statement(LitResolver* resolver, LitFunctionStateme
 	resolve_function(resolver, statement->parameters, &statement->return_type, statement->body, "Missing return statement in function %s", statement->name);
 
 	resolver->function = last;
+
+	reallocate(resolver->vm, (void*) type, strlen(type) + 1, 0);
 }
 
 static void resolve_return_statement(LitResolver* resolver, LitReturnStatement* statement) {
@@ -385,8 +391,10 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 	type[6 + len] = '>';
 	type[7 + len] = '\0';
 
+	printf("%s\n", statement->name);
+	// FIXME: crash here if you dont call printf(), weird
+	//define_type(resolver, statement->name);
 	declare_and_define(resolver, statement->name, type);
-	define_type(resolver, statement->name);
 
 	if (statement->super != NULL) {
 		resolve_var_expression(resolver, statement->super);
@@ -438,6 +446,7 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 	}
 
 	pop_scope(resolver);
+	reallocate(resolver->vm, (void*) type, 7 + len, 0);
 }
 
 static void resolve_statement(LitResolver* resolver, LitStatement* statement) {
@@ -622,6 +631,8 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 			size_t len = strlen(type);
 			return_type = (char*) reallocate(resolver->vm, NULL, 0, len - 7);
 			strncpy(return_type, &type[6], len - 7);
+		} else if (strcmp_ignoring(type, "function<") != 0) {
+			error(resolver, "Can't call non-function variable %s", name);
 		} else {
 			if (strcmp(type, "error") == 0) {
 				error(resolver, "Can't call non-defined function %s", name);
@@ -655,6 +666,8 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 					return_type = (char*) reallocate(resolver->vm, NULL, 0, len + 1);
 					strncpy(return_type, arg, len);
 					return_type[len] = '\0';
+
+					lit_strings_write(resolver->vm, &resolver->allocated_strings, return_type);
 
 					break;
 				}
@@ -738,8 +751,7 @@ static const char* resolve_lambda_expression(LitResolver* resolver, LitLambdaExp
 	resolve_function(resolver, expression->parameters, &expression->return_type, expression->body, "Missing return statement in lambda", NULL);
 	resolver->function = last;
 
-	reallocate(resolver->vm, (void*) type, strlen(type), 0);
-
+	reallocate(resolver->vm, (void*) type, strlen(type) + 1, 0);
 	return type;
 }
 
@@ -803,6 +815,7 @@ void lit_init_resolver(LitResolver* resolver) {
 	lit_init_scopes(&resolver->scopes);
 	lit_init_types(&resolver->types);
 	lit_init_classes(&resolver->classes);
+	lit_init_strings(&resolver->allocated_strings);
 
 	resolver->had_error = false;
 	resolver->depth = 0;
@@ -825,6 +838,13 @@ void lit_init_resolver(LitResolver* resolver) {
 
 void lit_free_resolver(LitResolver* resolver) {
 	pop_scope(resolver);
+
+	for (int i = 0; i < resolver->allocated_strings.count; i++) {
+		char* str = resolver->allocated_strings.values[i];
+		reallocate(resolver->vm, (void*) str, strlen(str) + 1, 0);
+	}
+
+	lit_free_strings(resolver->vm, &resolver->allocated_strings);
 
 	for (int i = 0; i <= resolver->types.capacity_mask; i++) {
 		char* type = resolver->types.entries[i].value;

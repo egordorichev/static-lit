@@ -66,20 +66,17 @@ void lit_init_vm(LitVm* vm) {
 	vm->resolver.vm = vm;
 	lit_init_letals(&vm->resolver.externals);
 
-	// lit_define_native(vm, "print", "function<any, void>", print_function);
-	// lit_define_native(vm, "time", "function<double>", time_function);
+	lit_define_native(vm, "print", "function<any, void>", print_function);
+	lit_define_native(vm, "time", "function<double>", time_function);
 }
 
 void lit_free_vm(LitVm* vm) {
-	printf("before free: %i\n", (int) vm->bytes_allocated);
+	for (int i = 0; i <= vm->resolver.externals.capacity_mask; i++) {
+		LitLetal* letal = vm->resolver.externals.entries[i].value;
 
-	for (int i = 0; i < vm->resolver.externals.count; i++) {
-		const char* str = vm->resolver.externals.entries[i].value->type;
-
-		printf("%i %s\n", i, str);
-
-		if (str != NULL) {
-			reallocate(vm, (void*) str, strlen(str), 0);
+		if (letal != NULL) {
+			reallocate(vm, (void*) letal->type, strlen(letal->type), 0);
+			reallocate(vm, (void*) letal, sizeof(LitLetal), 0);
 		}
 	}
 
@@ -245,6 +242,11 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 	}
 
 	if (had_error) {
+		for (int i = 0; i < statements.count; i++) {
+			lit_free_statement(vm, statements.values[i]);
+		}
+
+		lit_free_statements(vm, &statements);
 		return INTERPRET_COMPILE_ERROR;
 	}
 

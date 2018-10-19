@@ -1,2 +1,3 @@
-var test = "test"
-var test2 = "test"
+class Awesome {
+	var test = 10
+}
