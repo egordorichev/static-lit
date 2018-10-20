@@ -152,7 +152,10 @@ static void free_object(LitVm* vm, LitObject* object) {
 			break;
 		}
 		case OBJECT_CLASS: {
-			lit_free_table(vm, &((LitClass*) object)->methods);
+			LitClass* class = ((LitClass*) object);
+
+			lit_free_table(vm, &class->methods);
+			lit_free_fields(vm, &class->fields);
 			FREE(vm, LitClass, object);
 
 			break;

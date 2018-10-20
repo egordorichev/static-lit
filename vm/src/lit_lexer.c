@@ -216,11 +216,7 @@ LitToken lit_lexer_next_token(LitLexer* lexer) {
 	}
 
 	if (is_alpha(c)) {
-		while (is_alpha(peek(lexer)) || is_digit(peek(lexer)) || peek(lexer) == '\n') {
-			if (peek(lexer) == '\n') {
-				lexer->line++;
-			}
-
+		while (is_alpha(peek(lexer)) || is_digit(peek(lexer))) {
 			advance(lexer);
 		}
 

@@ -171,7 +171,7 @@ static void define(LitResolver* resolver, const char* name, const char* type, bo
 		letal->type = type;
 		letal->field = field;
 
-		lit_letals_set(resolver->vm, scope, str, *value);
+		lit_letals_set(resolver->vm, scope, str, letal);
 	} else {
 		LitLetal* letal = *value;
 
@@ -316,7 +316,7 @@ static void resolve_function_statement(LitResolver* resolver, LitFunctionStateme
 
 	resolver->function = last;
 
-	reallocate(resolver->vm, (void*) type, strlen(type) + 1, 0);
+	lit_strings_write(resolver->vm, &resolver->allocated_strings, type);
 }
 
 static void resolve_return_statement(LitResolver* resolver, LitReturnStatement* statement) {
@@ -433,7 +433,7 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 	}
 
 	pop_scope(resolver);
-	reallocate(resolver->vm, (void*) type, len + 8, 0);
+	lit_strings_write(resolver->vm, &resolver->allocated_strings, type);
 }
 
 static void resolve_statement(LitResolver* resolver, LitStatement* statement) {
@@ -606,20 +606,25 @@ static const char* extract_callee_name(LitExpression* expression) {
 static const char* resolve_call_expression(LitResolver* resolver, LitCallExpression* expression) {
 	char* return_type = "void";
 
-	if (expression->callee->type != VAR_EXPRESSION && expression->callee->type != GET_EXPRESSION && expression->callee->type != GROUPING_EXPRESSION
-		&& expression->callee->type != SET_EXPRESSION && expression->callee->type != SUPER_EXPRESSION) {
+	int type = expression->callee->type;
 
-		error(resolver, "Can't call non-variable of type %i", expression->callee->type);
+	if (type != VAR_EXPRESSION && type != GET_EXPRESSION && type != GROUPING_EXPRESSION
+		&& type != SET_EXPRESSION && type != SUPER_EXPRESSION && type != LAMBDA_EXPRESSION) {
+
+		error(resolver, "Can't call non-variable of type %i", type);
 	} else {
 		const char* type = resolve_expression(resolver, expression->callee);
 		const char* name = extract_callee_name(expression->callee);
 
 		if (strcmp_ignoring(type, "class<") == 0) {
 			size_t len = strlen(type);
-			return_type = (char*) reallocate(resolver->vm, NULL, 0, len - 7);
+			return_type = (char*) reallocate(resolver->vm, NULL, 0, len - 6);
 			strncpy(return_type, &type[6], len - 7);
+			return_type[len - 7] = '\0';
+
+			lit_strings_write(resolver->vm, &resolver->allocated_strings, return_type);
 		} else if (strcmp_ignoring(type, "function<") != 0) {
-			error(resolver, "Can't call non-function variable %s", name);
+			error(resolver, "Can't call non-function variable %s with type %s", name, type);
 		} else {
 			if (strcmp(type, "error") == 0) {
 				error(resolver, "Can't call non-defined function %s", name);
@@ -738,7 +743,8 @@ static const char* resolve_lambda_expression(LitResolver* resolver, LitLambdaExp
 	resolve_function(resolver, expression->parameters, &expression->return_type, expression->body, "Missing return statement in lambda", NULL);
 	resolver->function = last;
 
-	reallocate(resolver->vm, (void*) type, strlen(type) + 1, 0);
+	lit_strings_write(resolver->vm, &resolver->allocated_strings, type);
+
 	return type;
 }
 

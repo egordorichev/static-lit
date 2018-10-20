@@ -1,7 +1,35 @@
-class Test {
-	var test = 32
+if (true) {
 
-	test() > double {
-		return 9
+} else {
+
+}
+
+for (var i = 0; i < 10; i = i + 1) {
+
+}
+
+var callback = fun(double a, double b) > double {
+	return a + b
+}
+
+fun test() > double {
+	return callback(10, 32)
+}
+
+print(test())
+
+class Test {
+	var t = 32
+	// Fixme: prevent same names in fields and methods
+
+	init() {
+		print("Hey")
+	}
+
+	ts() > int {
+		return this.t
 	}
 }
+
+var tt = Test()
+// todo: constructor args
