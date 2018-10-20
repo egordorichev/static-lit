@@ -1,22 +1,4 @@
-if (true) {
-
-} else {
-
-}
-
-for (var i = 0; i < 10; i = i + 1) {
-
-}
-
-var callback = fun(double a, double b) > double {
-	return a + b
-}
-
-fun test() > double {
-	return callback(10, 32)
-}
-
-print(test())
+//* that means comment to the end of file
 
 class Test {
 	var t = 32
@@ -32,4 +14,5 @@ class Test {
 }
 
 var tt = Test()
+print(tt.ts())
 // todo: constructor args

@@ -139,7 +139,12 @@ static bool call(LitVm* vm, LitClosure* closure, int arg_count) {
 
 	frame->closure = closure;
 	frame->ip = closure->function->chunk.code;
-	frame->slots = vm->stack_top - arg_count - 1;
+	frame->slots = vm->stack_top - arg_count;
+
+	// fixme: why should be local vars on stack already?
+	// they are often duplicated because of that:
+	// [<native fun>][<fun test>][<fun lambda>][10][32][10][32]
+	// last two are GET_LOCAL 0 and 1
 
 	return true;
 }
@@ -259,7 +264,7 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 		return INTERPRET_COMPILE_ERROR;
 	}
 
-	// LitFunction* function = lit_emit(vm, &statements);
+	LitFunction* function = lit_emit(vm, &statements);
 
 	for (int i = 0; i < statements.count; i++) {
 		lit_free_statement(vm, statements.values[i]);
@@ -267,7 +272,7 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 
 	lit_free_statements(vm, &statements);
 
-	/*if (function == NULL) {
+	if (function == NULL) {
 		return INTERPRET_COMPILE_ERROR;
 	}
 
@@ -282,7 +287,7 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 		call_value(vm, MAKE_OBJECT_VALUE(closure), 0);
 
 		return lit_interpret(vm);
-	}*/
+	}
 
 	return INTERPRET_OK;
 }

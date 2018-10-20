@@ -12,16 +12,16 @@ void lit_init_chunk(LitChunk* chunk) {
 
 void lit_free_chunk(LitVm* vm, LitChunk* chunk) {
 	FREE_ARRAY(vm, uint8_t, chunk->code, chunk->capacity);
+	lit_free_array(vm, &chunk->constants);
 
 	lit_init_chunk(chunk);
-	lit_free_array(vm, &chunk->constants);
 }
 
 void lit_chunk_write(LitVm* vm, LitChunk* chunk, uint8_t byte) {
 	if (chunk->capacity < chunk->count + 1) {
-		int oldCapacity = chunk->capacity;
-		chunk->capacity = GROW_CAPACITY(oldCapacity);
-		chunk->code = GROW_ARRAY(vm, chunk->code, uint8_t, oldCapacity, chunk->capacity);
+		int old_capacity = chunk->capacity;
+		chunk->capacity = GROW_CAPACITY(old_capacity);
+		chunk->code = GROW_ARRAY(vm, chunk->code, uint8_t, old_capacity, chunk->capacity);
 	}
 
 	chunk->code[chunk->count] = byte;

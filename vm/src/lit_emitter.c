@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <memory.h>
 #include <zconf.h>
+#include <lit.h>
 
 #include "lit_emitter.h"
 #include "lit_debug.h"
@@ -273,6 +274,8 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 
 			emitter->function = &function;
 
+			// add_local(emitter, "this");
+
 			if (expr->parameters != NULL) {
 				for (int i = 0; i < expr->parameters->count; i++) {
 					add_local(emitter, expr->parameters->values[i].name);
@@ -432,8 +435,13 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 			break;
 		}
 		case BLOCK_STATEMENT: {
-			emit_statements(emitter, ((LitBlockStatement*) statement)->statements);
-			emit_byte(emitter, OP_POP);
+			LitBlockStatement* stmt = ((LitBlockStatement*) statement);
+
+			if (stmt->statements != NULL) {
+				emit_statements(emitter, stmt->statements);
+				emit_byte(emitter, OP_POP);
+			}
+
 			break;
 		}
 		case WHILE_STATEMENT: {
@@ -442,8 +450,8 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 			int loop_start = emitter->function->function->chunk.count;
 			no_pop = true;
 			emit_expression(emitter, stmt->condition);
-
 			int exit_jump = emit_jump(emitter, OP_JUMP_IF_FALSE);
+			emit_byte(emitter, OP_POP);
 
 			emit_statement(emitter, stmt->body);
 			emit_loop(emitter, loop_start);
@@ -497,7 +505,10 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 			LitReturnStatement* stmt = (LitReturnStatement*) statement;
 
 			if (stmt->value == NULL) {
-				emit_byte(emitter, OP_NIL);
+				// FIXME: should not emit nil in init() method
+				if (emitter->class == NULL) {
+					emit_byte(emitter, OP_NIL);
+				}
 			} else {
 				emit_expression(emitter, stmt->value);
 			}
@@ -539,7 +550,6 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 					function.local_count = 1;
 					function.enclosing = emitter->function;
 					function.function = lit_new_function(emitter->vm);
-
 
 					size_t name_len = strlen(method->name);
 					size_t type_len = strlen(stmt->name);

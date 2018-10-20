@@ -48,6 +48,7 @@ typedef struct {
 
 	bool had_error;
 	bool panic_mode;
+	bool ended;
 } LitLexer;
 
 void lit_init_lexer(LitLexer* lexer, const char* code);

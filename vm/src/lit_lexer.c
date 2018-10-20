@@ -4,19 +4,6 @@
 #include "lit_lexer.h"
 #include "lit_common.h"
 
-void lit_init_lexer(LitLexer* lexer, const char* code) {
-	lexer->start = code;
-	lexer->current_code = code;
-	lexer->line = 1;
-	lexer->had_error = false;
-	lexer->panic_mode = false;
-	lexer->vm = NULL;
-}
-
-void lit_free_lexer(LitLexer* lexer) {
-
-}
-
 static bool is_digit(char c) {
 	return c >= '0' && c <= '9';
 }
@@ -26,7 +13,7 @@ static bool is_alpha(char c) {
 }
 
 static inline bool is_at_end(LitLexer* lexer) {
-	return *lexer->current_code == '\0';
+	return *lexer->current_code == '\0' || lexer->ended;
 }
 
 static LitToken make_token(LitLexer* lexer, LitTokenType type) {
@@ -97,6 +84,13 @@ static void skip_whitespace(LitLexer* lexer) {
 				break;
 			case '/':
 				if (peek_next(lexer) == '/') {
+					advance(lexer);
+
+					if (peek_next(lexer) == '*') {
+						lexer->ended = true;
+						return;
+					}
+
 					while (peek(lexer) != '\n' && !is_at_end(lexer)) {
 						advance(lexer);
 					}
@@ -274,4 +268,18 @@ LitToken lit_lexer_next_token(LitLexer* lexer) {
 	}
 
 	return make_error_token(lexer, "Unexpected character");
+}
+
+void lit_init_lexer(LitLexer* lexer, const char* code) {
+	lexer->start = code;
+	lexer->current_code = code;
+	lexer->line = 1;
+	lexer->had_error = false;
+	lexer->panic_mode = false;
+	lexer->vm = NULL;
+	lexer->ended = false;
+}
+
+void lit_free_lexer(LitLexer* lexer) {
+
 }
