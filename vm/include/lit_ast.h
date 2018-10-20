@@ -228,7 +228,19 @@ typedef struct LitField {
 	const char* type;
 } LitField;
 
-DECLARE_TABLE(LitFields, LitField, fields);
+DECLARE_TABLE(LitFields, LitField, fields, LitField*);
+
+typedef struct {
+	LitStatement* expression;
+
+	LitParameters* parameters;
+	LitStatement* body;
+	LitParameter return_type;
+	const char* name;
+} LitMethodStatement;
+
+LitMethodStatement* lit_make_method_statement(LitVm* vm, const char* name, LitParameters* parameters, LitStatement* body, LitParameter return_type);
+DECLARE_ARRAY(LitMethods, LitMethodStatement*, methods)
 
 typedef struct {
 	LitStatement* expression;

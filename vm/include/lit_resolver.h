@@ -16,9 +16,9 @@ typedef struct LitLetal {
 
 void lit_init_letal(LitLetal* letal);
 
-DECLARE_TABLE(LitLetals, LitLetal*, letals)
-DECLARE_TABLE(LitTypes, bool, types)
-DECLARE_TABLE(LitClasses, LitClass*, classes)
+DECLARE_TABLE(LitLetals, LitLetal*, letals, LitLetal*)
+DECLARE_TABLE(LitTypes, bool, types, bool)
+DECLARE_TABLE(LitClasses, LitClass*, classes, LitClass*)
 DECLARE_ARRAY(LitScopes, LitLetals*, scopes)
 DECLARE_ARRAY(LitStrings, char*, strings)
 

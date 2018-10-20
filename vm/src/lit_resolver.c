@@ -14,9 +14,9 @@
 DEFINE_ARRAY(LitScopes, LitLetals*, scopes)
 DEFINE_ARRAY(LitStrings, char*, strings)
 
-DEFINE_TABLE(LitLetals, LitLetal*, letals, NULL);
-DEFINE_TABLE(LitTypes, bool, types, false)
-DEFINE_TABLE(LitClasses, LitClass*, classes, NULL)
+DEFINE_TABLE(LitLetals, LitLetal*, letals, LitLetal*, NULL, entry->value);
+DEFINE_TABLE(LitTypes, bool, types, bool, false, entry->value)
+DEFINE_TABLE(LitClasses, LitClass*, classes, LitClass*, NULL, entry->value)
 
 static void resolve_statement(LitResolver* resolver, LitStatement* statement);
 static void resolve_statements(LitResolver* resolver, LitStatements* statements);
@@ -106,17 +106,17 @@ static LitLetal* resolve_local(LitResolver* resolver, const char* name) {
 	LitString *str = lit_copy_string(resolver->vm, name, (int) strlen(name));
 
 	for (int i = resolver->scopes.count - 1; i >= 0; i --) {
-		LitLetal** value = lit_letals_get(resolver->scopes.values[i], str);
+		LitLetal* value = lit_letals_get(resolver->scopes.values[i], str);
 
-		if (!(value == NULL || (*value)->nil)) {
-			return *value;
+		if (value != NULL && !value->nil) {
+			return value;
 		}
 	}
 
-	LitLetal** value = lit_letals_get(&resolver->externals, str);
+	LitLetal* value = lit_letals_get(&resolver->externals, str);
 
-	if (!(value == NULL || (*value)->nil)) {
-		return *value;
+	if (value != NULL && !value->nil) {
+		return value;
 	}
 
 	error(resolver, "Variable %s is not defined", name);
@@ -126,7 +126,7 @@ static LitLetal* resolve_local(LitResolver* resolver, const char* name) {
 static void declare(LitResolver* resolver, const char* name) {
 	LitLetals* scope = peek_scope(resolver);
 	LitString* str = lit_copy_string(resolver->vm, name, (int) strlen(name));
-	LitLetal** value = lit_letals_get(scope, str);
+	LitLetal* value = lit_letals_get(scope, str);
 
 	if (value != NULL) {
 		error(resolver, "Variable %s is already defined in current scope", name);
@@ -141,7 +141,7 @@ static void declare(LitResolver* resolver, const char* name) {
 static void declare_and_define(LitResolver* resolver, const char* name, const char* type) {
 	LitLetals* scope = peek_scope(resolver);
 	LitString* str = lit_copy_string(resolver->vm, name, (int) strlen(name));
-	LitLetal** value = lit_letals_get(scope, str);
+	LitLetal* value = lit_letals_get(scope, str);
 
 	if (value != NULL) {
 		error(resolver, "Variable %s is already defined in current scope", name);
@@ -160,7 +160,7 @@ static void define(LitResolver* resolver, const char* name, const char* type, bo
 	LitLetals* scope = peek_scope(resolver);
 	LitString* str = lit_copy_string(resolver->vm, name, (int) strlen(name));
 
-	LitLetal** value = lit_letals_get(scope, str);
+	LitLetal* value = lit_letals_get(scope, str);
 
 	if (value == NULL) {
 		LitLetal* letal = (LitLetal*) reallocate(resolver->vm, NULL, 0, sizeof(LitLetal));
@@ -173,11 +173,9 @@ static void define(LitResolver* resolver, const char* name, const char* type, bo
 
 		lit_letals_set(resolver->vm, scope, str, letal);
 	} else {
-		LitLetal* letal = *value;
-
-		letal->defined = true;
-		letal->type = type;
-		letal->field = field;
+		value->defined = true;
+		value->type = type;
+		value->field = field;
 	}
 }
 
@@ -391,12 +389,12 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 	LitClass* super = NULL;
 
 	if (statement->super != NULL) {
-		LitClass** super_class = lit_classes_get(&resolver->classes, lit_copy_string(resolver->vm, statement->super->name, strlen(statement->super->name)));
+		LitClass* super_class = lit_classes_get(&resolver->classes, lit_copy_string(resolver->vm, statement->super->name, strlen(statement->super->name)));
 
 		if (super_class == NULL) {
 			error(resolver, "Can't inherit undefined class %s", statement->super->name);
 		} else {
-			super = *super_class;
+			super = super_class;
 		}
 	}
 
@@ -505,9 +503,9 @@ static const char* resolve_grouping_expression(LitResolver* resolver, LitGroupin
 }
 
 static const char* resolve_var_expression(LitResolver* resolver, LitVarExpression* expression) {
-	LitLetal** value = lit_letals_get(peek_scope(resolver), lit_copy_string(resolver->vm, expression->name, (int) strlen(expression->name)));
+	LitLetal* value = lit_letals_get(peek_scope(resolver), lit_copy_string(resolver->vm, expression->name, (int) strlen(expression->name)));
 
-	if (value != NULL && !(*value)->defined) {
+	if (value != NULL && !value->defined) {
 		error(resolver, "Can't use local variable %s in it's own initializer", expression->name);
 		return "error";
 	}
@@ -685,7 +683,7 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 
 static const char* resolve_get_expression(LitResolver* resolver, LitGetExpression* expression) {
 	const char* type = resolve_expression(resolver, expression->object);
-	LitClass** class = lit_classes_get(&resolver->classes, lit_copy_string(resolver->vm, type, strlen(type)));
+	LitClass* class = lit_classes_get(&resolver->classes, lit_copy_string(resolver->vm, type, strlen(type)));
 
 	if (class == NULL) {
 		error(resolver, "Can't find class %s", type);
@@ -693,10 +691,10 @@ static const char* resolve_get_expression(LitResolver* resolver, LitGetExpressio
 	}
 
 	LitString* str = lit_copy_string(resolver->vm, expression->property, strlen(expression->property));
-	LitField* field = lit_fields_get(&(*class)->fields, str);
+	LitField* field = lit_fields_get(&class->fields, str);
 
 	if (field == NULL) {
-		LitValue* value = lit_table_get(&(*class)->methods, str);
+		LitValue* value = lit_table_get(&class->methods, str);
 
 		if (value == NULL) {
 			error(resolver, "Class %s has no field or method %s", type, expression->property);
@@ -711,7 +709,7 @@ static const char* resolve_get_expression(LitResolver* resolver, LitGetExpressio
 
 static const char* resolve_set_expression(LitResolver* resolver, LitSetExpression* expression) {
 	const char* type = resolve_expression(resolver, expression->object);
-	LitClass* class = *lit_classes_get(&resolver->classes, lit_copy_string(resolver->vm, type, strlen(type)));
+	LitClass* class = lit_classes_get(&resolver->classes, lit_copy_string(resolver->vm, type, strlen(type)));
 
 	if (class == NULL) {
 		error(resolver, "Undefined type %s", type);

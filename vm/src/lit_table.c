@@ -4,7 +4,7 @@
 #include "lit_memory.h"
 #include "lit_object.h"
 
-DEFINE_TABLE(LitTable, LitValue, table, NIL_VALUE)
+DEFINE_TABLE(LitTable, LitValue, table, LitValue*, NIL_VALUE, &entry->value);
 
 void lit_table_gray(LitVm* vm, LitTable* table) {
 	for (int i = 0; i <= table->capacity_mask; i++) {

@@ -506,9 +506,7 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 
 			if (stmt->value == NULL) {
 				// FIXME: should not emit nil in init() method
-				if (emitter->class == NULL) {
-					emit_byte(emitter, OP_NIL);
-				}
+				// emit_byte(emitter, OP_NIL);
 			} else {
 				emit_expression(emitter, stmt->value);
 			}

@@ -7,7 +7,7 @@
 
 #define TABLE_MAX_LOAD 0.75
 
-#define DECLARE_TABLE(name, val, shr) \
+#define DECLARE_TABLE(name, val, shr, valp) \
 	typedef struct { \
 		LitString* key; \
 		val value; \
@@ -21,16 +21,16 @@
 	\
 	void lit_init_##shr(name* table); \
 	void lit_free_##shr(LitVm* vm, name* table); \
-	val* lit_##shr##_get(name* table, LitString* key); \
+	valp lit_##shr##_get(name* table, LitString* key); \
 	bool lit_##shr##_set(LitVm* vm, name* table, LitString* key, val value); \
 	bool lit_##shr##_delete(LitVm* vm, name* table, LitString* key); \
 	LitString* lit_##shr##_find(name* table, const char* chars, int length, uint32_t hash); \
 	void lit_##shr##_add_all(LitVm* vm, name* to, name* from); \
 	void lit_##shr##_remove_white(LitVm* vm, name* table); \
 
-DECLARE_TABLE(LitTable, LitValue, table)
+DECLARE_TABLE(LitTable, LitValue, table, LitValue*)
 
-#define DEFINE_TABLE(name, val, shr, nil) \
+#define DEFINE_TABLE(name, val, shr, valp, nil, op) \
 	void lit_init_##shr(name* table) { \
 		table->count = 0; \
 		table->capacity_mask = -1; \
@@ -56,7 +56,7 @@ DECLARE_TABLE(LitTable, LitValue, table)
 		} \
 	} \
 	\
-	val* lit_##shr##_get(name* table, LitString* key) { \
+	valp lit_##shr##_get(name* table, LitString* key) { \
 		if (table->entries == NULL) { \
 			return NULL; \
 		} \
@@ -68,7 +68,7 @@ DECLARE_TABLE(LitTable, LitValue, table)
 			return NULL; \
 		} \
 	\
-		return &entry->value; \
+		return op; \
 	} \
 	\
 	static void resize_##shr(LitVm* vm, name* table, int capacity_mask) { \

@@ -1,5 +1,3 @@
-//* that means comment to the end of file
-
 class Test {
 	var t = 32
 	// Fixme: prevent same names in fields and methods

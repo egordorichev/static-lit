@@ -11,7 +11,7 @@ DEFINE_ARRAY(LitParameters, LitParameter, parameters)
 DEFINE_ARRAY(LitExpressions, LitExpression*, expressions)
 DEFINE_ARRAY(LitStatements, LitStatement*, statements)
 DEFINE_ARRAY(LitFunctions, LitFunctionStatement*, functions)
-DEFINE_TABLE(LitFields, LitField, fields, (LitField) {});
+DEFINE_TABLE(LitFields, LitField, fields, LitField*, (LitField) {}, &entry->value);
 
 #define ALLOCATE_EXPRESSION(vm, type, object_type) \
     (type*) allocate_expression(vm, sizeof(type), object_type)
