@@ -383,6 +383,8 @@ static void resolve_method_statement(LitResolver* resolver, LitFunctionStatement
 }
 
 static void resolve_class_statement(LitResolver* resolver, LitClassStatement* statement) {
+	printf("%s\n", statement->name);
+
 	size_t len = strlen(statement->name);
 	char* type = (char*) reallocate(resolver->vm, NULL, 0, 7 + len);
 
@@ -391,16 +393,15 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 	type[6 + len] = '>';
 	type[7 + len] = '\0';
 
-	printf("%s\n", statement->name);
-	// FIXME: crash here if you dont call printf(), weird
-	//define_type(resolver, statement->name);
-	declare_and_define(resolver, statement->name, type);
+	LitString* name = lit_copy_string(resolver->vm, statement->name, len);
+
+	define_type(resolver, name->chars);
+	declare_and_define(resolver, name->chars, type);
 
 	if (statement->super != NULL) {
 		resolve_var_expression(resolver, statement->super);
 	}
 
-	LitString* name = lit_copy_string(resolver->vm, statement->name, strlen(statement->name));
 	LitClass* super = NULL;
 
 	if (statement->super != NULL) {

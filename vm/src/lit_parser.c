@@ -585,7 +585,7 @@ static LitStatement* parse_class_declaration(LitLexer* lexer) {
 				lit_statements_write(lexer->vm, fields, parse_var_declaration(lexer));
 			} else {
 				if (functions == NULL) {
-					functions = (LitFunctions*) reallocate(lexer->vm, NULL, 0, sizeof(functions));
+					functions = (LitFunctions*) reallocate(lexer->vm, NULL, 0, sizeof(LitFunctions));
 					lit_init_functions(functions);
 				}
 
