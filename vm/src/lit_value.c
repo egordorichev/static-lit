@@ -89,6 +89,7 @@ char *lit_to_string(LitVm* vm, LitValue value) {
 	}
 
 	UNREACHABLE()
+	return NULL; // To make gcc shut up, never actually reached
 }
 
 bool lit_is_false(LitValue value) {

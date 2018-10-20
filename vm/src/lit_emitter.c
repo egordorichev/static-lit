@@ -596,21 +596,21 @@ static void emit_statements(LitEmitter* emitter, LitStatements* statements) {
 
 LitFunction* lit_emit(LitVm* vm, LitStatements* statements) {
 	LitEmitter emitter;
-	LitEmitterFunction main;
+	LitEmitterFunction function;
 
-	main.function = lit_new_function(vm);
-	main.depth = 0;
-	main.local_count = 0;
-	main.enclosing = NULL;
+	function.function = lit_new_function(vm);
+	function.depth = 0;
+	function.local_count = 0;
+	function.enclosing = NULL;
 
 	emitter.had_error = false;
 	emitter.vm = vm;
-	emitter.function = &main;
+	emitter.function = &function;
 	emitter.class = NULL;
 
 	emit_statements(&emitter, statements);
 	emit_byte(&emitter, OP_NIL);
 	emit_byte(&emitter, OP_RETURN);
 
-	return emitter.had_error ? NULL : main.function;
+	return emitter.had_error ? NULL : function.function;
 }

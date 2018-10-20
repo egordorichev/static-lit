@@ -250,14 +250,14 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 		return INTERPRET_COMPILE_ERROR;
 	}
 
-	/*if (!lit_resolve(vm, &statements)) {
+	if (!lit_resolve(vm, &statements)) {
 		for (int i = 0; i < statements.count; i++) {
 			lit_free_statement(vm, statements.values[i]);
 		}
 
 		lit_free_statements(vm, &statements);
 		return INTERPRET_COMPILE_ERROR;
-	}*/
+	}
 
 	// LitFunction* function = lit_emit(vm, &statements);
 

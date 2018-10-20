@@ -146,7 +146,7 @@ static void free_object(LitVm* vm, LitObject* object) {
 		case OBJECT_BOUND_METHOD: {
 			const char* signature = ((LitMethod*) object)->signature;
 
-			reallocate(vm, (void*) signature, strlen(signature), 0);
+			reallocate(vm, (void*) signature, strlen(signature) + 1, 0);
 			FREE(vm, LitMethod, object);
 
 			break;

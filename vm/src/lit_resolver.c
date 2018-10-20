@@ -15,7 +15,7 @@ DEFINE_ARRAY(LitScopes, LitLetals*, scopes)
 DEFINE_ARRAY(LitStrings, char*, strings)
 
 DEFINE_TABLE(LitLetals, LitLetal*, letals, NULL);
-DEFINE_TABLE(LitTypes, char *, types, NULL)
+DEFINE_TABLE(LitTypes, bool, types, false)
 DEFINE_TABLE(LitClasses, LitClass*, classes, NULL)
 
 static void resolve_statement(LitResolver* resolver, LitStatement* statement);
@@ -92,19 +92,7 @@ static void resolve_type(LitResolver* resolver, const char* type) {
 
 static void define_type(LitResolver* resolver, const char* type) {
 	LitString* str = lit_copy_string(resolver->vm, type, (int) strlen(type));
-	lit_types_set(resolver->vm, &resolver->types, str, (char*) type);
-}
-
-// FIXME: no need to allocate this str, cause
-// in define_type we use lit_copy_string that allocates a new string
-// the resolver->types should be a table of string and bool
-static void define_type_allocating(LitResolver* resolver, const char* type) {
-	size_t len = strlen(type) + 1;
-	char* str = reallocate(resolver->vm, NULL, 0, len);
-	strncpy(str, type, len);
-	str[len - 1] = '\0';
-
-	define_type(resolver, str);
+	lit_types_set(resolver->vm, &resolver->types, str, true);
 }
 
 void lit_init_letal(LitLetal* letal) {
@@ -183,7 +171,7 @@ static void define(LitResolver* resolver, const char* name, const char* type, bo
 		letal->type = type;
 		letal->field = field;
 
-		lit_letals_set(resolver->vm, scope, str, value);
+		lit_letals_set(resolver->vm, scope, str, *value);
 	} else {
 		LitLetal* letal = *value;
 
@@ -383,10 +371,8 @@ static void resolve_method_statement(LitResolver* resolver, LitFunctionStatement
 }
 
 static void resolve_class_statement(LitResolver* resolver, LitClassStatement* statement) {
-	printf("%s\n", statement->name);
-
 	size_t len = strlen(statement->name);
-	char* type = (char*) reallocate(resolver->vm, NULL, 0, 7 + len);
+	char* type = (char*) reallocate(resolver->vm, NULL, 0, len + 8);
 
 	strncpy(type, "class<", 6);
 	strncpy(type + 6, statement->name, len);
@@ -427,10 +413,10 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 
 	if (statement->fields != NULL) {
 		for (int i = 0; i < statement->fields->count; i++) {
-			const char* name = ((LitVarStatement*) statement->fields->values[i])->name;
-			const char* type = resolve_var_statement(resolver, (LitVarStatement*) statement->fields->values[i]);
+			const char* n = ((LitVarStatement*) statement->fields->values[i])->name;
+			const char* tp = resolve_var_statement(resolver, (LitVarStatement*) statement->fields->values[i]);
 
-			lit_fields_set(resolver->vm, &class->fields, lit_copy_string(resolver->vm, name, strlen(name)), (LitField) { 0, type });
+			lit_fields_set(resolver->vm, &class->fields, lit_copy_string(resolver->vm, n, strlen(n)), (LitField) { 0, tp });
 		}
 	}
 
@@ -447,7 +433,7 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 	}
 
 	pop_scope(resolver);
-	reallocate(resolver->vm, (void*) type, 7 + len, 0);
+	reallocate(resolver->vm, (void*) type, len + 8, 0);
 }
 
 static void resolve_statement(LitResolver* resolver, LitStatement* statement) {
@@ -663,10 +649,10 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 						error(resolver, "Argument #%i type mismatch: required %s, but got %s, for function %s", i + 1, arg, given_type, name);
 					}
 				} else {
-					size_t len = strlen(arg);
-					return_type = (char*) reallocate(resolver->vm, NULL, 0, len + 1);
-					strncpy(return_type, arg, len);
-					return_type[len] = '\0';
+					size_t l = strlen(arg);
+					return_type = (char*) reallocate(resolver->vm, NULL, 0, l + 1);
+					strncpy(return_type, arg, l);
+					return_type[l] = '\0';
 
 					lit_strings_write(resolver->vm, &resolver->allocated_strings, return_type);
 
@@ -825,16 +811,16 @@ void lit_init_resolver(LitResolver* resolver) {
 
 	push_scope(resolver); // Global scope
 
-	define_type_allocating(resolver, "int");
-	define_type_allocating(resolver, "bool");
-	define_type_allocating(resolver, "error");
-	define_type_allocating(resolver, "void");
-	define_type_allocating(resolver, "any");
-	define_type_allocating(resolver, "double");
-	define_type_allocating(resolver, "char");
-	define_type_allocating(resolver, "function");
-	define_type_allocating(resolver, "Class");
-	define_type_allocating(resolver, "String");
+	define_type(resolver, "int");
+	define_type(resolver, "bool");
+	define_type(resolver, "error");
+	define_type(resolver, "void");
+	define_type(resolver, "any");
+	define_type(resolver, "double");
+	define_type(resolver, "char");
+	define_type(resolver, "function");
+	define_type(resolver, "Class");
+	define_type(resolver, "String");
 }
 
 void lit_free_resolver(LitResolver* resolver) {
@@ -846,15 +832,6 @@ void lit_free_resolver(LitResolver* resolver) {
 	}
 
 	lit_free_strings(resolver->vm, &resolver->allocated_strings);
-
-	for (int i = 0; i <= resolver->types.capacity_mask; i++) {
-		char* type = resolver->types.entries[i].value;
-
-		if (type != NULL) {
-			reallocate(resolver->vm, type, strlen(type) + 1, 0);
-		}
-	}
-
 	lit_free_types(resolver->vm, &resolver->types);
 	lit_free_scopes(resolver->vm, &resolver->scopes);
 	lit_free_classes(resolver->vm, &resolver->classes);

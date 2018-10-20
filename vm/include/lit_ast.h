@@ -233,10 +233,10 @@ DECLARE_TABLE(LitFields, LitField, fields);
 typedef struct {
 	LitStatement* expression;
 
-	const char* name;
 	LitVarExpression* super;
 	LitFunctions* methods;
 	LitStatements* fields;
+	const char* name;
 } LitClassStatement;
 
 LitClassStatement* lit_make_class_statement(LitVm* vm, const char* name, LitVarExpression* super, LitFunctions* methods, LitStatements* fields);

@@ -159,6 +159,8 @@ static LitExpression* parse_primary(LitLexer* lexer) {
 
 	error(lexer, &lexer->current, "Unexpected token");
 	advance(lexer);
+
+	return parse_primary(lexer);
 }
 
 static LitExpression* finish_call(LitLexer* lexer, LitExpression* callee) {
