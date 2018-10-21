@@ -79,6 +79,7 @@ LitClass* lit_new_class(LitVm* vm, LitString* name, LitClass* super) {
 	class->super = super;
 
 	lit_init_table(&class->methods);
+	lit_init_table(&class->static_methods);
 	lit_init_fields(&class->fields);
 
 	return class;

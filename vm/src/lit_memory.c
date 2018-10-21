@@ -143,19 +143,13 @@ static void free_object(LitVm* vm, LitObject* object) {
 		}
 		case OBJECT_NATIVE: FREE(vm, LitNative, object); break;
 		case OBJECT_UPVALUE: FREE(vm, LitUpvalue, object); break;
-		case OBJECT_BOUND_METHOD: {
-			const char* signature = ((LitMethod*) object)->signature;
-
-			reallocate(vm, (void*) signature, strlen(signature) + 1, 0);
-			FREE(vm, LitMethod, object);
-
-			break;
-		}
+		case OBJECT_BOUND_METHOD: FREE(vm, LitMethod, object); break;
 		case OBJECT_CLASS: {
 			LitClass* class = ((LitClass*) object);
 
 			lit_free_table(vm, &class->methods);
-			lit_free_fields(vm, &class->fields);
+			lit_free_table(vm, &class->static_methods);
+			lit_free_table(vm, &class->fields);
 			FREE(vm, LitClass, object);
 
 			break;
@@ -163,7 +157,7 @@ static void free_object(LitVm* vm, LitObject* object) {
 		case OBJECT_INSTANCE: {
 			LitInstance* instance = ((LitInstance*) object);
 
-			lit_free_fields(vm, &instance->fields);
+			lit_free_table(vm, &instance->fields);
 			FREE(vm, LitInstance, object);
 
 			break;

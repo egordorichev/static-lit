@@ -264,7 +264,9 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 		return INTERPRET_COMPILE_ERROR;
 	}
 
+	/*
 	LitFunction* function = lit_emit(vm, &statements);
+	*/
 
 	for (int i = 0; i < statements.count; i++) {
 		lit_free_statement(vm, statements.values[i]);
@@ -272,7 +274,7 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 
 	lit_free_statements(vm, &statements);
 
-	if (function == NULL) {
+	/*if (function == NULL) {
 		return INTERPRET_COMPILE_ERROR;
 	}
 
@@ -287,7 +289,7 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 		call_value(vm, MAKE_OBJECT_VALUE(closure), 0);
 
 		return lit_interpret(vm);
-	}
+	}*/
 
 	return INTERPRET_OK;
 }
@@ -338,7 +340,7 @@ static void create_class(LitVm* vm, LitString* name, LitClass* super) {
 
 	if (super != NULL) {
 		lit_table_add_all(vm, &class->methods, &super->methods);
-		lit_fields_add_all(vm, &class->fields, &super->fields);
+		lit_table_add_all(vm, &class->fields, &super->fields);
 	}
 }
 
@@ -693,7 +695,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 
 			LitInstance* instance = AS_INSTANCE(PEEK(0));
 			LitString* name = READ_STRING();
-			LitField* field = lit_fields_get(&instance->fields, name);
+			LitField* field = lit_table_get(&instance->fields, name);
 
 			if (field != NULL) {
 				POP();
@@ -721,7 +723,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 			LitInstance* instance = AS_INSTANCE(PEEK(1));
 			LitValue value = POP();
 
-			lit_fields_get(&instance->fields, READ_STRING())->value = value;
+			lit_table_set(vm, &instance->fields, READ_STRING(), value);
 
 			POP();
 			PUSH(value);
@@ -730,7 +732,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		};
 
 		op_invoke: {
-			int arg_count = AS_NUMBER(POP());
+			int arg_count = (int) AS_NUMBER(POP());
 
 			if (!invoke(vm, arg_count)) {
 				return INTERPRET_RUNTIME_ERROR;
@@ -747,7 +749,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 			}
 
 			LitClass* class = AS_CLASS(PEEK(1));
-			lit_fields_set(vm, &class->fields, READ_STRING(), (LitField) { POP(), 0 });
+			lit_table_set(vm, &class->fields, READ_STRING(), POP());
 
 			continue;
 		};

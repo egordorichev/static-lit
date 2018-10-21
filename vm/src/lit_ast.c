@@ -11,6 +11,7 @@ DEFINE_ARRAY(LitParameters, LitParameter, parameters)
 DEFINE_ARRAY(LitExpressions, LitExpression*, expressions)
 DEFINE_ARRAY(LitStatements, LitStatement*, statements)
 DEFINE_ARRAY(LitFunctions, LitFunctionStatement*, functions)
+DEFINE_ARRAY(LitMethods, LitMethodStatement*, methods)
 DEFINE_TABLE(LitFields, LitField, fields, LitField*, (LitField) {}, &entry->value);
 
 #define ALLOCATE_EXPRESSION(vm, type, object_type) \
@@ -208,13 +209,34 @@ LitReturnStatement* lit_make_return_statement(LitVm* vm, LitExpression* value) {
 	return statement;
 }
 
-LitClassStatement* lit_make_class_statement(LitVm* vm, const char* name, LitVarExpression* super, LitFunctions* methods, LitStatements* fields) {
+LitMethodStatement* lit_make_method_statement(LitVm* vm, const char* name, LitParameters* parameters, LitStatement* body,
+	LitParameter return_type, bool overriden, bool is_static, bool abstract, LitAccessType access) {
+
+	LitMethodStatement* statement = ALLOCATE_STATEMENT(vm, LitMethodStatement, METHOD_STATEMENT);
+
+	statement->name = name;
+	statement->parameters = parameters;
+	statement->body = body;
+	statement->return_type = return_type;
+	statement->overriden = overriden;
+	statement->is_static = is_static;
+	statement->abstract = abstract;
+	statement->access = access;
+
+	return statement;
+}
+
+LitClassStatement* lit_make_class_statement(LitVm* vm, const char* name, LitVarExpression* super, LitMethods* methods,
+		LitStatements* fields, bool abstract, bool is_static) {
+
 	LitClassStatement* statement = ALLOCATE_STATEMENT(vm, LitClassStatement, CLASS_STATEMENT);
 
 	statement->name = name;
 	statement->super = super;
 	statement->methods = methods;
 	statement->fields = fields;
+	statement->abstract = abstract;
+	statement->is_static = is_static;
 
 	return statement;
 }
@@ -312,6 +334,31 @@ void lit_free_statement(LitVm* vm, LitStatement* statement) {
 			}
 
 			reallocate(vm, (void*) statement, sizeof(LitFunctionStatement), 0);
+			break;
+		}
+		case METHOD_STATEMENT: {
+			LitMethodStatement* stmt = (LitMethodStatement*) statement;
+			reallocate(vm, (void*) stmt->name, strlen(stmt->name) + 1, 0);
+
+			if (strcmp(stmt->return_type.type, "void") != 0) {
+				reallocate(vm, (void*) stmt->return_type.type, strlen(stmt->return_type.type) + 1, 0);
+			}
+
+			lit_free_statement(vm, stmt->body);
+
+			if (stmt->parameters != NULL) {
+				for (int i = 0; i  < stmt->parameters->count; i++) {
+					LitParameter parameter = stmt->parameters->values[i];
+
+					reallocate(vm, (void*) parameter.name, strlen(parameter.name) + 1, 0);
+					reallocate(vm, (void*) parameter.type, strlen(parameter.type) + 1, 0);
+				}
+
+				lit_free_parameters(vm, stmt->parameters);
+				reallocate(vm, (void*) stmt->parameters, sizeof(LitParameters), 0);
+			}
+
+			reallocate(vm, (void*) statement, sizeof(LitMethodStatement), 0);
 			break;
 		}
 		case RETURN_STATEMENT: {

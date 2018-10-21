@@ -521,6 +521,118 @@ static LitStatement* parse_function_statement(LitLexer* lexer) {
 	return (LitStatement*) lit_make_function_statement(lexer->vm, copy_string(lexer, &function_name), parameters, parse_block_statement(lexer), (LitParameter) {NULL, return_type.type});
 }
 
+static LitStatement* parse_method_statement(LitLexer* lexer, bool class_abstract, bool class_static) {
+	bool abstract = false;
+	bool is_static = class_static;
+	bool override = false;
+	LitAccessType access = UNDEFINED_ACCESS;
+
+	while (match(lexer, TOKEN_OVERRIDE) || match(lexer, TOKEN_STATIC) || match(lexer, TOKEN_PRIVATE) || match(lexer, TOKEN_PUBLIC) || match(lexer, TOKEN_PROTECTED)) {
+		switch (lexer->previous.type) {
+			case TOKEN_OVERRIDE: {
+				if (abstract) {
+					error(lexer, &lexer->previous, "Can't override abstact method in its declaration");
+				} else if (!override) {
+					override = true;
+				} else {
+					error(lexer, &lexer->previous, "Override keyword used twice or more per one method");
+				}
+
+				break;
+			}
+			case TOKEN_STATIC: {
+				if (is_static) {
+					error(lexer, &lexer->previous, class_static ? "No need to use static method modifier in a static class" : "Static keyword used twice or more per one method");
+				}
+
+				is_static = true;
+				break;
+			}
+			case TOKEN_PRIVATE: {
+				if (access != UNDEFINED_ACCESS) {
+					error(lexer, &lexer->previous, "Access modifier used twice or more per one method");
+				}
+
+				access = PRIVATE_ACCESS;
+				break;
+			}
+			case TOKEN_PROTECTED: {
+				if (access != UNDEFINED_ACCESS) {
+					error(lexer, &lexer->previous, "Access modifier used twice or more per one method");
+				}
+
+				access = PROTECTED_ACCESS;
+				break;
+			}
+			case TOKEN_PUBLIC: {
+				if (access != UNDEFINED_ACCESS) {
+					error(lexer, &lexer->previous, "Access modifier used twice or more per one method");
+				}
+
+				access = PUBLIC_ACCESS;
+				break;
+			}
+		}
+	}
+
+	if (access == UNDEFINED_ACCESS) {
+		access = PUBLIC_ACCESS;
+	}
+
+	LitToken method_name = consume(lexer, TOKEN_IDENTIFIER, "Expected method name");
+	consume(lexer, TOKEN_LEFT_PAREN, "Expected '(' after method name");
+
+	LitParameters* parameters = NULL;
+
+	if (lexer->current.type != TOKEN_RIGHT_PAREN) {
+		parameters = (LitParameters*) reallocate(lexer->vm, NULL, 0, sizeof(LitParameters));
+		lit_init_parameters(parameters);
+
+		do {
+			char* type = parse_argument_type(lexer);
+			LitToken name = consume(lexer, TOKEN_IDENTIFIER, "Expected argument name");
+
+			lit_parameters_write(lexer->vm, parameters, (LitParameter) {copy_string_native(lexer, name.start, name.length), type});
+		} while (match(lexer, TOKEN_COMMA));
+	}
+
+	consume(lexer, TOKEN_RIGHT_PAREN, "Expected ')' after parameters");
+
+	LitParameter return_type = (LitParameter) {NULL, "void"};
+
+	if (match(lexer, TOKEN_GREATER)) {
+		LitToken type = consume(lexer, TOKEN_IDENTIFIER, "Expected return type");
+
+		return_type.type = copy_string(lexer, &type);
+	}
+
+	LitBlockStatement* body = NULL;
+
+	if (match(lexer, TOKEN_LEFT_BRACE)) {
+		if (abstract) {
+			error(lexer, &lexer->previous, "Abstract method can't have body");
+		} else {
+			body = parse_block_statement(lexer);
+		}
+	} else if (match(lexer, TOKEN_EQUAL)) {
+		consume(lexer, TOKEN_GREATER, "Expected '>' after '='");
+
+		if (abstract) {
+			error(lexer, &lexer->previous, "Abstract method can't have body");
+		} else {
+			LitStatements* statements = (LitStatements*) reallocate(lexer->vm, NULL, 0, sizeof(LitStatements));
+
+			lit_init_statements(statements);
+			lit_statements_write(lexer->vm, statements, lit_make_return_statement(lexer->vm, parse_expression(lexer)));
+
+			body = lit_make_block_statement(lexer->vm, statements);
+		}
+	}
+
+	return (LitStatement*) lit_make_method_statement(lexer->vm, copy_string(lexer, &method_name), parameters, body, (LitParameter) {NULL, return_type.type},
+		override, is_static, abstract, access);
+}
+
 static LitStatement* parse_return_statement(LitLexer* lexer) {
 	return (LitStatement*) lit_make_return_statement(lexer->vm, (lexer->current.type != TOKEN_RIGHT_BRACE && lexer->current.type != TOKEN_EOF) ? parse_expression(lexer) : NULL);
 }
@@ -564,16 +676,24 @@ static LitStatement* parse_var_declaration(LitLexer* lexer) {
 	return (LitStatement*) lit_make_var_statement(lexer->vm, copy_string(lexer, &name), init);
 }
 
-static LitStatement* parse_class_declaration(LitLexer* lexer) {
-	LitToken name = consume(lexer, TOKEN_IDENTIFIER, "Expect class name.");
+static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, bool is_static, bool had_class_token) {
+	if (!had_class_token) {
+		consume(lexer, TOKEN_CLASS, "Expected 'class'");
+	}
+
+	LitToken name = consume(lexer, TOKEN_IDENTIFIER, "Expect class name");
 	LitVarExpression* super = NULL;
 
 	if (match(lexer, TOKEN_LESS)) {
+		if (is_static) {
+			error(lexer, &lexer->previous, "Static classes can't inherit other classes");
+		}
+
 		consume(lexer, TOKEN_IDENTIFIER, "Expected superclass name");
 		super = lit_make_var_expression(lexer->vm, copy_string(lexer, &lexer->previous));
 	}
 
-	LitFunctions* functions = NULL;
+	LitMethods* methods = NULL;
 	LitStatements* fields = NULL;
 
 	if (match(lexer, TOKEN_LEFT_BRACE)) {
@@ -586,19 +706,19 @@ static LitStatement* parse_class_declaration(LitLexer* lexer) {
 
 				lit_statements_write(lexer->vm, fields, parse_var_declaration(lexer));
 			} else {
-				if (functions == NULL) {
-					functions = (LitFunctions*) reallocate(lexer->vm, NULL, 0, sizeof(LitFunctions));
-					lit_init_functions(functions);
+				if (methods == NULL) {
+					methods = (LitMethods*) reallocate(lexer->vm, NULL, 0, sizeof(LitMethods));
+					lit_init_methods(methods);
 				}
 
-				lit_functions_write(lexer->vm, functions, (LitFunctionStatement*) parse_function_statement(lexer));
+				lit_methods_write(lexer->vm, methods, (LitMethodStatement*) parse_method_statement(lexer, abstract, is_static));
 			}
 		}
 
 		consume(lexer, TOKEN_RIGHT_BRACE, "Expect '}' after class body");
 	}
 
-	return (LitStatement*) lit_make_class_statement(lexer->vm, copy_string(lexer, &name), super, functions, fields);
+	return (LitStatement*) lit_make_class_statement(lexer->vm, copy_string(lexer, &name), super, methods, fields, abstract, is_static);
 }
 
 static LitStatement* parse_declaration(LitLexer* lexer) {
@@ -606,8 +726,25 @@ static LitStatement* parse_declaration(LitLexer* lexer) {
 		return parse_var_declaration(lexer);
 	}
 
+	// A bit of a mess, maybe there is a way to parse it easier?
 	if (match(lexer, TOKEN_CLASS)) {
-		return parse_class_declaration(lexer);
+		return parse_class_declaration(lexer, false, false, true);
+	}
+
+	if (match(lexer, TOKEN_ABSTRACT)) {
+		if (lexer->current.type == TOKEN_STATIC) {
+			error(lexer, &lexer->current, "Abstract class can not be declared static.");
+		} else {
+			return parse_class_declaration(lexer, true, false, false);
+		}
+	}
+
+	if (match(lexer, TOKEN_STATIC)) {
+		if (lexer->current.type == TOKEN_ABSTRACT) {
+			error(lexer, &lexer->current, "Static class can not be declared abstract.");
+		} else {
+			return parse_class_declaration(lexer, false, true, false);
+		}
 	}
 
 	return parse_statement(lexer);

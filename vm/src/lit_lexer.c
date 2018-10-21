@@ -131,6 +131,7 @@ static LitTokenType check_keyword(LitLexer* lexer, int start, int length, const 
 
 static LitTokenType find_identifier_type(LitLexer* lexer) {
 	switch (lexer->start[0]) {
+		case 'a': return check_keyword(lexer, 1, 6, "stract", TOKEN_ABSTRACT);
 		case 'b': return check_keyword(lexer, 1, 4, "reak", TOKEN_BREAK);
 		case 'c': {
 			if (lexer->current_code - lexer->start > 1) {
@@ -151,6 +152,7 @@ static LitTokenType find_identifier_type(LitLexer* lexer) {
 				switch (lexer->start[1]) {
 					case 'u': return check_keyword(lexer, 2, 3, "per", TOKEN_SUPER);
 					case 'w': return check_keyword(lexer, 2, 4, "itch", TOKEN_SWITCH);
+					case 't': return check_keyword(lexer, 2, 4, "atic", TOKEN_STATIC);
 				}
 			}
 
@@ -166,6 +168,7 @@ static LitTokenType find_identifier_type(LitLexer* lexer) {
 					case 'u': return check_keyword(lexer, 2, 1, "n", TOKEN_FUN);
 				}
 			}
+
 			break;
 		}
 		case 't': {
@@ -175,6 +178,27 @@ static LitTokenType find_identifier_type(LitLexer* lexer) {
 					case 'r': return check_keyword(lexer, 2, 2, "ue", TOKEN_TRUE);
 				}
 			}
+
+			break;
+		}
+		case 'o': return check_keyword(lexer, 1, 7, "verride", TOKEN_OVERRIDE);
+		case 'p': {
+			if (lexer->current_code - lexer->start > 1) {
+				switch (lexer->start[1]) {
+					case 'u': return check_keyword(lexer, 2, 4, "blic", TOKEN_PUBLIC);
+					case 'r': {
+						if (lexer->current_code - lexer->start > 2) {
+							switch (lexer->start[2]) {
+								case 'i': return check_keyword(lexer, 3, 4, "vate", TOKEN_PRIVATE);
+								case 'o': return check_keyword(lexer, 3, 6, "tected", TOKEN_PROTECTED);
+							}
+						}
+
+						break;
+					}
+				}
+			}
+
 			break;
 		}
 	}

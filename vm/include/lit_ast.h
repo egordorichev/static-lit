@@ -141,6 +141,7 @@ typedef enum {
 	WHILE_STATEMENT,
 	FUNCTION_STATEMENT,
 	RETURN_STATEMENT,
+	METHOD_STATEMENT,
 	CLASS_STATEMENT
 } LitStatementType;
 
@@ -226,9 +227,17 @@ LitReturnStatement* lit_make_return_statement(LitVm* vm, LitExpression* value);
 typedef struct LitField {
 	LitValue value;
 	const char* type;
+	bool is_static;
 } LitField;
 
 DECLARE_TABLE(LitFields, LitField, fields, LitField*);
+
+typedef enum LitAccessType {
+	PUBLIC_ACCESS,
+	PROTECTED_ACCESS,
+	PRIVATE_ACCESS,
+	UNDEFINED_ACCESS
+} LitAccessType;
 
 typedef struct {
 	LitStatement* expression;
@@ -236,22 +245,30 @@ typedef struct {
 	LitParameters* parameters;
 	LitStatement* body;
 	LitParameter return_type;
+	bool overriden;
+	bool is_static;
+	bool abstract;
+	LitAccessType access;
 	const char* name;
 } LitMethodStatement;
 
-LitMethodStatement* lit_make_method_statement(LitVm* vm, const char* name, LitParameters* parameters, LitStatement* body, LitParameter return_type);
+LitMethodStatement* lit_make_method_statement(LitVm* vm, const char* name, LitParameters* parameters, LitStatement* body, LitParameter return_type,
+	bool overriden, bool is_static, bool abstract, LitAccessType access);
+
 DECLARE_ARRAY(LitMethods, LitMethodStatement*, methods)
 
 typedef struct {
 	LitStatement* expression;
 
 	LitVarExpression* super;
-	LitFunctions* methods;
+	LitMethods* methods;
 	LitStatements* fields;
+	bool abstract;
+	bool is_static;
 	const char* name;
 } LitClassStatement;
 
-LitClassStatement* lit_make_class_statement(LitVm* vm, const char* name, LitVarExpression* super, LitFunctions* methods, LitStatements* fields);
+LitClassStatement* lit_make_class_statement(LitVm* vm, const char* name, LitVarExpression* super, LitMethods* methods, LitStatements* fields, bool abstract, bool is_static);
 
 void lit_free_statement(LitVm* vm, LitStatement* statement);
 void lit_free_expression(LitVm* vm, LitExpression* expression);

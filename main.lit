@@ -1,16 +1,4 @@
-class Test {
-	var t = 32
-	// Fixme: prevent same names in fields and methods
-
-	init() {
-		print("Hey")
-	}
-
-	ts() > int {
-		return this.t
-	}
+class Math {
+	private static floor(double a) > double => a
+	sin(double a) > double => 10
 }
-
-var tt = Test()
-print(tt.ts())
-// todo: constructor args

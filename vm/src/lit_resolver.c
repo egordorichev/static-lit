@@ -16,7 +16,9 @@ DEFINE_ARRAY(LitStrings, char*, strings)
 
 DEFINE_TABLE(LitLetals, LitLetal*, letals, LitLetal*, NULL, entry->value);
 DEFINE_TABLE(LitTypes, bool, types, bool, false, entry->value)
-DEFINE_TABLE(LitClasses, LitClass*, classes, LitClass*, NULL, entry->value)
+DEFINE_TABLE(LitClasses, LitType*, classes, LitType*, NULL, entry->value)
+DEFINE_TABLE(LitResources, LitResource*, resources, LitResource*, NULL, entry->value)
+DEFINE_TABLE(LitRems, LitRem*, rems, LitRem*, NULL, entry->value)
 
 static void resolve_statement(LitResolver* resolver, LitStatement* statement);
 static void resolve_statements(LitResolver* resolver, LitStatements* statements);
@@ -85,7 +87,7 @@ static size_t strlen_ignoring(const char *str) {
 }
 
 static void resolve_type(LitResolver* resolver, const char* type) {
-	if (lit_types_get(&resolver->types, lit_copy_string(resolver->vm, type, (int) strlen_ignoring(type))) == NULL) {
+	if (!lit_types_get(&resolver->types, lit_copy_string(resolver->vm, type, (int) strlen_ignoring(type)))) {
 		error(resolver, "Type %s is not defined", type);
 	}
 }
@@ -314,7 +316,7 @@ static void resolve_function_statement(LitResolver* resolver, LitFunctionStateme
 
 	resolver->function = last;
 
-	lit_strings_write(resolver->vm, &resolver->allocated_strings, type);
+	lit_strings_write(resolver->vm, &resolver->allocated_strings, (char*) type);
 }
 
 static void resolve_return_statement(LitResolver* resolver, LitReturnStatement* statement) {
@@ -330,7 +332,7 @@ static void resolve_return_statement(LitResolver* resolver, LitReturnStatement* 
 
 static const char* resolve_var_expression(LitResolver* resolver, LitVarExpression* expression);
 
-static void resolve_method_statement(LitResolver* resolver, LitFunctionStatement* statement) {
+static void resolve_method_statement(LitResolver* resolver, LitMethodStatement* statement) {
 	push_scope(resolver);
 	resolver->had_return = false;
 
@@ -346,7 +348,7 @@ static void resolve_method_statement(LitResolver* resolver, LitFunctionStatement
 
 	LitFunctionStatement* enclosing = resolver->function;
 
-	resolver->function = statement;
+	resolver->function = (LitFunctionStatement*) statement;
 	resolve_statement(resolver, statement->body);
 	resolver->function = enclosing;
 
@@ -372,7 +374,7 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 	size_t len = strlen(statement->name);
 	char* type = (char*) reallocate(resolver->vm, NULL, 0, len + 8);
 
-	strncpy(type, "class<", 6);
+	strncpy(type, "Class<", 6);
 	strncpy(type + 6, statement->name, len);
 	type[6 + len] = '>';
 	type[7 + len] = '\0';
@@ -383,13 +385,17 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 	declare_and_define(resolver, name->chars, type);
 
 	if (statement->super != NULL) {
-		resolve_var_expression(resolver, statement->super);
+		const char* tp = resolve_var_expression(resolver, statement->super);
+
+		if (tp != NULL && strcmp(type, tp) == 0) {
+			error(resolver, "Class %s can't inherit self!", type);
+		}
 	}
 
-	LitClass* super = NULL;
+	LitType* super = NULL;
 
 	if (statement->super != NULL) {
-		LitClass* super_class = lit_classes_get(&resolver->classes, lit_copy_string(resolver->vm, statement->super->name, strlen(statement->super->name)));
+		LitType* super_class = lit_classes_get(&resolver->classes, lit_copy_string(resolver->vm, statement->super->name, strlen(statement->super->name)));
 
 		if (super_class == NULL) {
 			error(resolver, "Can't inherit undefined class %s", statement->super->name);
@@ -398,11 +404,15 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 		}
 	}
 
-	LitClass* class = lit_new_class(resolver->vm, name, super);
+	LitType* class = (LitType*) reallocate(resolver->vm, NULL, 0, sizeof(LitType));
+
+	lit_init_rems(&class->methods);
+	lit_init_rems(&class->static_methods);
+	lit_init_resources(&class->fields);
 
 	if (super != NULL) {
-		lit_table_add_all(resolver->vm, &class->methods, &super->methods);
-		lit_fields_add_all(resolver->vm, &class->fields, &super->fields);
+		lit_rems_add_all(resolver->vm, &class->methods, &super->methods);
+		lit_resources_add_all(resolver->vm, &class->fields, &super->fields);
 	}
 
 	resolver->class = class;
@@ -411,26 +421,39 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 
 	if (statement->fields != NULL) {
 		for (int i = 0; i < statement->fields->count; i++) {
-			const char* n = ((LitVarStatement*) statement->fields->values[i])->name;
-			const char* tp = resolve_var_statement(resolver, (LitVarStatement*) statement->fields->values[i]);
+			LitVarStatement* var = ((LitVarStatement*) statement->fields->values[i]);
+			const char* n = var->name;
 
-			lit_fields_set(resolver->vm, &class->fields, lit_copy_string(resolver->vm, n, strlen(n)), (LitField) { 0, tp });
+			LitResource* resource = (LitResource*) reallocate(resolver->vm, NULL, 0, sizeof(LitResource));
+
+			// FIXME: replace var statement with field statement, get access / static / final from it
+			resource->access = PUBLIC_ACCESS;
+			resource->is_static = false;
+			resource->is_final = false;
+			resource->type = resolve_var_statement(resolver, var);
+
+			lit_resources_set(resolver->vm, &class->fields, lit_copy_string(resolver->vm, n, strlen(n)), resource);
 		}
 	}
 
 	if (statement->methods != NULL) {
 		for (int i = 0; i < statement->methods->count; i++) {
-			LitFunctionStatement* method = statement->methods->values[i];
+			LitMethodStatement* method = statement->methods->values[i];
 			resolve_method_statement(resolver, method);
 
-			LitMethod *m = lit_new_bound_method(resolver->vm, 0, NULL);
-			m->signature = (char*) get_function_signature(resolver, method->parameters, &method->return_type);
+			LitRem* rem = (LitRem*) reallocate(resolver->vm, NULL, 0, sizeof(LitRem));
 
-			lit_table_set(resolver->vm, &class->methods, lit_copy_string(resolver->vm, method->name, strlen(method->name)), MAKE_OBJECT_VALUE(m));
+			rem->signature = (char*) get_function_signature(resolver, method->parameters, &method->return_type);
+			rem->is_static = method->is_static;
+			rem->access = method->access;
+			rem->is_overriden = method->overriden;
+
+			lit_rems_set(resolver->vm, &class->methods, lit_copy_string(resolver->vm, method->name, strlen(method->name)), rem);
 		}
 	}
 
 	pop_scope(resolver);
+	resolver->class = NULL;
 	lit_strings_write(resolver->vm, &resolver->allocated_strings, type);
 }
 
@@ -464,7 +487,7 @@ static const char* resolve_binary_expression(LitResolver* resolver, LitBinaryExp
 	return a;
 }
 
-static const char* resolve_literal_expression(LitResolver* resolver, LitLiteralExpression* expression) {
+static const char* resolve_literal_expression(LitLiteralExpression* expression) {
 	if (IS_NUMBER(expression->value)) {
 		double number = AS_NUMBER(expression->value);
 		double temp;
@@ -603,18 +626,17 @@ static const char* extract_callee_name(LitExpression* expression) {
 
 static const char* resolve_call_expression(LitResolver* resolver, LitCallExpression* expression) {
 	char* return_type = "void";
+	int t = expression->callee->type;
 
-	int type = expression->callee->type;
+	if (t != VAR_EXPRESSION && t != GET_EXPRESSION && t != GROUPING_EXPRESSION
+		&& t != SET_EXPRESSION && t != SUPER_EXPRESSION && t != LAMBDA_EXPRESSION) {
 
-	if (type != VAR_EXPRESSION && type != GET_EXPRESSION && type != GROUPING_EXPRESSION
-		&& type != SET_EXPRESSION && type != SUPER_EXPRESSION && type != LAMBDA_EXPRESSION) {
-
-		error(resolver, "Can't call non-variable of type %i", type);
+		error(resolver, "Can't call non-variable of type %i", t);
 	} else {
 		const char* type = resolve_expression(resolver, expression->callee);
 		const char* name = extract_callee_name(expression->callee);
 
-		if (strcmp_ignoring(type, "class<") == 0) {
+		if (strcmp_ignoring(type, "Class<") == 0) {
 			size_t len = strlen(type);
 			return_type = (char*) reallocate(resolver->vm, NULL, 0, len - 6);
 			strncpy(return_type, &type[6], len - 7);
@@ -682,8 +704,21 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 }
 
 static const char* resolve_get_expression(LitResolver* resolver, LitGetExpression* expression) {
-	const char* type = resolve_expression(resolver, expression->object);
-	LitClass* class = lit_classes_get(&resolver->classes, lit_copy_string(resolver->vm, type, strlen(type)));
+	char* type = (char*) resolve_expression(resolver, expression->object);
+	LitType* class = NULL;
+	bool should_be_static = false;
+
+	if (strcmp_ignoring(type, "Class<") == 0) {
+		int len = (int) strlen(type);
+
+		// Hack that allows us not to reallocate another string
+		type[len - 1] = '\0';
+		class = lit_classes_get(&resolver->classes, lit_copy_string(resolver->vm, &type[6], (size_t) (len - 7)));
+		type[len - 1] = '>';
+		should_be_static = true;
+	} else {
+		class = lit_classes_get(&resolver->classes, lit_copy_string(resolver->vm, type, strlen(type)));
+	}
 
 	if (class == NULL) {
 		error(resolver, "Can't find class %s", type);
@@ -691,17 +726,23 @@ static const char* resolve_get_expression(LitResolver* resolver, LitGetExpressio
 	}
 
 	LitString* str = lit_copy_string(resolver->vm, expression->property, strlen(expression->property));
-	LitField* field = lit_fields_get(&class->fields, str);
+	LitResource* field = lit_resources_get(&class->fields, str);
 
 	if (field == NULL) {
-		LitValue* value = lit_table_get(&class->methods, str);
+		LitRem* method = lit_rems_get(&class->methods, str);
 
-		if (value == NULL) {
+		if (method == NULL) {
 			error(resolver, "Class %s has no field or method %s", type, expression->property);
 			return "error";
 		}
 
-		return AS_METHOD(*value)->signature;
+		if (should_be_static && !method->is_static) {
+			error(resolver, "Can't access non-static methods from class call");
+		}
+
+		return method->signature;
+	} else if (should_be_static && !field->is_static) {
+		error(resolver, "Can't access non-static fields from class call");
 	}
 
 	return field->type;
@@ -709,14 +750,14 @@ static const char* resolve_get_expression(LitResolver* resolver, LitGetExpressio
 
 static const char* resolve_set_expression(LitResolver* resolver, LitSetExpression* expression) {
 	const char* type = resolve_expression(resolver, expression->object);
-	LitClass* class = lit_classes_get(&resolver->classes, lit_copy_string(resolver->vm, type, strlen(type)));
+	LitType* class = lit_classes_get(&resolver->classes, lit_copy_string(resolver->vm, type, strlen(type)));
 
 	if (class == NULL) {
 		error(resolver, "Undefined type %s", type);
 		return "error";
 	}
 
-	LitField* field = lit_fields_get(&class->fields, lit_copy_string(resolver->vm, expression->property, strlen(expression->property)));
+	LitResource* field = lit_resources_get(&class->fields, lit_copy_string(resolver->vm, expression->property, strlen(expression->property)));
 
 	if (field == NULL) {
 		error(resolver, "Class %s has no field %s", type, expression->property);
@@ -741,7 +782,7 @@ static const char* resolve_lambda_expression(LitResolver* resolver, LitLambdaExp
 	resolve_function(resolver, expression->parameters, &expression->return_type, expression->body, "Missing return statement in lambda", NULL);
 	resolver->function = last;
 
-	lit_strings_write(resolver->vm, &resolver->allocated_strings, type);
+	lit_strings_write(resolver->vm, &resolver->allocated_strings, (char*) type);
 
 	return type;
 }
@@ -766,20 +807,20 @@ static const char* resolve_super_expression(LitResolver* resolver, LitSuperExpre
 		return "error";
 	}
 
-	LitValue* method = lit_table_get(&resolver->class->super->methods, lit_copy_string(resolver->vm, expression->method, strlen(expression->method)));
+	LitRem* method = lit_rems_get(&resolver->class->super->methods, lit_copy_string(resolver->vm, expression->method, strlen(expression->method)));
 
 	if (method == NULL) {
 		error(resolver, "Class %s has no method %s", resolver->class->super->name->chars, expression->method);
 		return "error";
 	}
 
-	return AS_METHOD(*method)->signature;
+	return method->signature;
 }
 
 static const char* resolve_expression(LitResolver* resolver, LitExpression* expression) {
 	switch (expression->type) {
 		case BINARY_EXPRESSION: return resolve_binary_expression(resolver, (LitBinaryExpression*) expression);
-		case LITERAL_EXPRESSION: return resolve_literal_expression(resolver, (LitLiteralExpression*) expression);
+		case LITERAL_EXPRESSION: return resolve_literal_expression((LitLiteralExpression*) expression);
 		case UNARY_EXPRESSION: return resolve_unary_expression(resolver, (LitUnaryExpression*) expression);
 		case GROUPING_EXPRESSION: return resolve_grouping_expression(resolver, (LitGroupingExpression*) expression);
 		case VAR_EXPRESSION: return resolve_var_expression(resolver, (LitVarExpression*) expression);
@@ -830,6 +871,45 @@ void lit_init_resolver(LitResolver* resolver) {
 void lit_free_resolver(LitResolver* resolver) {
 	pop_scope(resolver);
 
+	for (int i = 0; i <= resolver->classes.capacity_mask; i++) {
+		LitType* type = resolver->classes.entries[i].value;
+
+		if (type != NULL) {
+			// Nothing really to free here
+			/*for (int j = 0; j <= type->fields.capacity_mask; j++) {
+				LitResource* a = type->fields.entries[j].value;
+
+				if (a != NULL) {
+					lit_free_resource(resolver->vm, a);
+				}
+			}*/
+
+			for (int j = 0; j <= type->methods.capacity_mask; j++) {
+				LitRem* a = type->methods.entries[j].value;
+
+				if (a != NULL) {
+					lit_free_rem(resolver->vm, a);
+				}
+			}
+
+			for (int j = 0; j <= type->static_methods.capacity_mask; j++) {
+				LitRem* a = type->static_methods.entries[j].value;
+
+				if (a != NULL) {
+					lit_free_rem(resolver->vm, a);
+				}
+			}
+
+			lit_free_resources(resolver->vm, &type->fields);
+			lit_free_rems(resolver->vm, &type->methods);
+			lit_free_rems(resolver->vm, &type->static_methods);
+
+			reallocate(resolver->vm, (void*) type, sizeof(LitType), 0);
+		}
+	}
+
+	lit_free_classes(resolver->vm, &resolver->classes);
+
 	for (int i = 0; i < resolver->allocated_strings.count; i++) {
 		char* str = resolver->allocated_strings.values[i];
 		reallocate(resolver->vm, (void*) str, strlen(str) + 1, 0);
@@ -838,7 +918,6 @@ void lit_free_resolver(LitResolver* resolver) {
 	lit_free_strings(resolver->vm, &resolver->allocated_strings);
 	lit_free_types(resolver->vm, &resolver->types);
 	lit_free_scopes(resolver->vm, &resolver->scopes);
-	lit_free_classes(resolver->vm, &resolver->classes);
 }
 
 bool lit_resolve(LitVm* vm, LitStatements* statements) {
@@ -847,4 +926,13 @@ bool lit_resolve(LitVm* vm, LitStatements* statements) {
 	lit_free_resolver(&vm->resolver);
 
 	return !vm->resolver.had_error;
+}
+
+void lit_free_resource(LitVm* vm, LitResource* resource) {
+
+}
+
+void lit_free_rem(LitVm* vm, LitRem* rem) {
+	reallocate(vm, (void*) rem->signature, strlen(rem->signature) + 1, 0);
+	reallocate(vm, (void*) rem, sizeof(LitRem), 0);
 }

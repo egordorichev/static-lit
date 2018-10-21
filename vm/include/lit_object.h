@@ -89,14 +89,15 @@ typedef struct sLitClass {
 	LitString* name;
 	struct sLitClass* super;
 	LitTable methods;
-	LitFields fields;
+	LitTable static_methods;
+	LitTable fields;
 } LitClass;
 
 typedef struct {
 	LitObject object;
 
 	LitClass* type;
-	LitFields fields;
+	LitTable fields;
 } LitInstance;
 
 typedef struct {
@@ -104,7 +105,6 @@ typedef struct {
 
 	LitValue receiver;
 	LitClosure* method;
-	char* signature;
 } LitMethod;
 
 LitUpvalue* lit_new_upvalue(LitVm* vm, LitValue* slot);

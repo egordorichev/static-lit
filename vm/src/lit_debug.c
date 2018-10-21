@@ -153,6 +153,42 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 				printf("\n");
 				break;
 			}
+			case METHOD_STATEMENT: {
+				LitMethodStatement* function = (LitMethodStatement*) statement;
+
+				printf("\"type\" : \"method\",\n");
+				printf("\"name\" : \"%s\",\n", function->name);
+				printf("\"overriden\" : \"%s\",\n", function->overriden ? "true" : "false");
+				printf("\"static\" : \"%s\",\n", function->is_static ? "true" : "false");
+				printf("\"abstract\" : \"%s\",\n", function->abstract ? "true" : "false");
+				printf("\"access\" : \"%s\",\n", function->access == PUBLIC_ACCESS ? "public" : (function->access == PRIVATE_ACCESS ? "private" : "protected"));
+				printf("\"return_type\" : \"%s\",\n", function->return_type.type);
+				printf("\"args\" : [");
+
+				if (function->parameters != NULL) {
+					printf("\n");
+					int cn = function->parameters->count;
+
+					for (int i = 0; i < cn; i++) {
+						LitParameter parameter = function->parameters->values[i];
+
+						printf("{\n\"name\" : \"%s\",\n", parameter.name);
+						printf("\"type\" : \"%s\"\n}", parameter.type);
+
+						if (i < cn - 1) {
+							printf(",\n");
+						} else {
+							printf("\n");
+						}
+					}
+				}
+
+				printf("],\n\"body\" : ");
+				lit_trace_statement(vm, function->body, depth + 1);
+
+				printf("\n");
+				break;
+			}
 			case RETURN_STATEMENT: {
 				LitReturnStatement* return_statement = (LitReturnStatement*) statement;
 

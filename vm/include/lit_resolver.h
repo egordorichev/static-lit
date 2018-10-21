@@ -16,9 +16,44 @@ typedef struct LitLetal {
 
 void lit_init_letal(LitLetal* letal);
 
+typedef struct LitResource {
+	bool is_static;
+	bool is_final;
+	LitAccessType access;
+	const char* type;
+} LitResource;
+
+void lit_free_resource(LitVm* vm, LitResource* resource);
+
+DECLARE_TABLE(LitResources, LitResource*, resources, LitResource*)
+
+typedef struct LitRem {
+	bool is_static;
+	bool is_overriden;
+	LitAccessType access;
+	char* signature;
+} LitRem;
+
+void lit_free_rem(LitVm* vm, LitRem* rem);
+
+DECLARE_TABLE(LitRems, LitRem*, rems, LitRem*)
+
+typedef struct sLitType {
+	LitObject object;
+
+	LitString* name;
+	struct sLitType* super;
+	LitRems methods;
+	LitRems static_methods;
+	LitResources fields;
+} LitType;
+
+void lit_init_type(LitType* type);
+void lit_free_type(LitVm* vm, LitType* type);
+
 DECLARE_TABLE(LitLetals, LitLetal*, letals, LitLetal*)
 DECLARE_TABLE(LitTypes, bool, types, bool)
-DECLARE_TABLE(LitClasses, LitClass*, classes, LitClass*)
+DECLARE_TABLE(LitClasses, LitType*, classes, LitType*)
 DECLARE_ARRAY(LitScopes, LitLetals*, scopes)
 DECLARE_ARRAY(LitStrings, char*, strings)
 
@@ -30,7 +65,7 @@ typedef struct LitResolver {
 	LitClasses classes;
 	LitVm* vm;
 	int depth;
-	LitClass* class;
+	LitType* class;
 
 	bool had_return;
 	bool had_error;
