@@ -210,6 +210,21 @@ LitReturnStatement* lit_make_return_statement(LitVm* vm, LitExpression* value) {
 	return statement;
 }
 
+LitFieldStatement* lit_make_field_statement(LitVm* vm, const char* name, LitExpression* init, const char* type,
+	LitStatement* getter, LitStatement* setter, LitAccessType access) {
+
+	LitFieldStatement* statement = ALLOCATE_STATEMENT(vm, LitFieldStatement, FIELD_STATEMENT);
+
+	statement->name = name;
+	statement->init = init;
+	statement->type = type;
+	statement->getter = getter;
+	statement->setter = setter;
+	statement->access = access;
+
+	return statement;
+}
+
 LitMethodStatement* lit_make_method_statement(LitVm* vm, const char* name, LitParameters* parameters, LitStatement* body,
 	LitParameter return_type, bool overriden, bool is_static, bool abstract, LitAccessType access) {
 
@@ -528,7 +543,6 @@ void lit_free_expression(LitVm* vm, LitExpression* expression) {
 			break;
 		}
 		case SUPER_EXPRESSION: {
-			// FIXME: leak from 173 to 189
 			LitSuperExpression* expr = (LitSuperExpression*) expression;
 
 			reallocate(vm, (void*) expr->method, strlen(expr->method) + 1, 0);

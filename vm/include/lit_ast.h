@@ -142,7 +142,8 @@ typedef enum {
 	FUNCTION_STATEMENT,
 	RETURN_STATEMENT,
 	METHOD_STATEMENT,
-	CLASS_STATEMENT
+	CLASS_STATEMENT,
+	FIELD_STATEMENT
 } LitStatementType;
 
 typedef struct {
@@ -164,9 +165,9 @@ LitLambdaExpression* lit_make_lambda_expression(LitVm* vm, LitParameters* parame
 typedef struct {
 	LitStatement* expression;
 
+	LitExpression* init;
 	const char* name;
 	const char* type;
-	LitExpression* init;
 } LitVarStatement;
 
 LitVarStatement* lit_make_var_statement(LitVm* vm, const char* name, LitExpression* init, const char* type);
@@ -239,6 +240,20 @@ typedef enum LitAccessType {
 	PRIVATE_ACCESS,
 	UNDEFINED_ACCESS
 } LitAccessType;
+
+typedef struct {
+	LitStatement* expression;
+
+	LitExpression* init;
+	LitStatement* getter;
+	LitStatement* setter;
+	LitAccessType access;
+	const char* name;
+	const char* type;
+} LitFieldStatement;
+
+LitFieldStatement* lit_make_field_statement(LitVm* vm, const char* name, LitExpression* init, const char* type,
+	LitStatement* getter, LitStatement* setter, LitAccessType access);
 
 typedef struct {
 	LitStatement* expression;

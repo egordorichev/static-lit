@@ -333,9 +333,34 @@ static void resolve_return_statement(LitResolver* resolver, LitReturnStatement* 
 
 static const char* resolve_var_expression(LitResolver* resolver, LitVarExpression* expression);
 
+static const char* access_to_string(LitAccessType type) {
+	switch (type) {
+		case PUBLIC_ACCESS: return "public";
+		case PRIVATE_ACCESS: return "private";
+		case PROTECTED_ACCESS: return "protected";
+		case UNDEFINED_ACCESS: return "undefined";
+	}
+}
+
 static void resolve_method_statement(LitResolver* resolver, LitMethodStatement* statement) {
 	push_scope(resolver);
 	resolver->had_return = false;
+
+	if (statement->overriden) {
+		if (resolver->class->super == NULL) {
+			error(resolver, "Can't override a method in a class without a base");
+		} else {
+			LitRem* super_method = lit_rems_get(&resolver->class->super->methods, lit_copy_string(resolver->vm, statement->name, strlen(statement->name)));
+
+			if (super_method == NULL) {
+				error(resolver, "Can't override method %s, it does not exist in the base class", statement->name);
+			} else if (super_method->is_static) {
+				error(resolver, "Method %s is declared static and can not be overriden", statement->name);
+			} else if (super_method->access != statement->access) {
+				error(resolver, "Method %s type was declared as %s in super, but been changed to %s in child", statement->name, access_to_string(super_method->access), access_to_string(statement->access));
+			}
+		}
+	}
 
 	if (statement->parameters != NULL) {
 		for (int i = 0; i < statement->parameters->count; i++) {

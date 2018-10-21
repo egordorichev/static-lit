@@ -131,7 +131,7 @@ static LitTokenType check_keyword(LitLexer* lexer, int start, int length, const 
 
 static LitTokenType find_identifier_type(LitLexer* lexer) {
 	switch (lexer->start[0]) {
-		case 'a': return check_keyword(lexer, 1, 6, "stract", TOKEN_ABSTRACT);
+		case 'a': return check_keyword(lexer, 1, 7, "bstract", TOKEN_ABSTRACT);
 		case 'b': return check_keyword(lexer, 1, 4, "reak", TOKEN_BREAK);
 		case 'c': {
 			if (lexer->current_code - lexer->start > 1) {
@@ -166,6 +166,7 @@ static LitTokenType find_identifier_type(LitLexer* lexer) {
 					case 'a': return check_keyword(lexer, 2, 3, "lse", TOKEN_FALSE);
 					case 'o': return check_keyword(lexer, 2, 1, "r", TOKEN_FOR);
 					case 'u': return check_keyword(lexer, 2, 1, "n", TOKEN_FUN);
+					case 'i': return check_keyword(lexer, 2, 3, "nal", TOKEN_FINAL);
 				}
 			}
 

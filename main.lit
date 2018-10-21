@@ -1,6 +1,13 @@
-int d = 10
+class Test {
+	public getStuff() {
 
-//*
-class Math {
-	static final var PI = 3.415
+	}
+}
+
+class Math < Test {
+	public static final double PI = 3.141
+
+	public override getStuff() {
+
+	}
 }

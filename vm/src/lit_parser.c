@@ -521,65 +521,17 @@ static LitStatement* parse_function_statement(LitLexer* lexer) {
 	return (LitStatement*) lit_make_function_statement(lexer->vm, copy_string(lexer, &function_name), parameters, parse_block_statement(lexer), (LitParameter) {NULL, return_type.type});
 }
 
-static LitStatement* parse_method_statement(LitLexer* lexer, bool class_abstract, bool class_static) {
-	bool abstract = false;
-	bool is_static = class_static;
-	bool override = false;
-	LitAccessType access = UNDEFINED_ACCESS;
+static LitStatement* parse_method_statement(LitLexer* lexer, bool final, bool abstract, bool override, bool is_static, LitAccessType access, LitToken* method_name) {
+	const char* name = copy_string(lexer, method_name);
 
-	while (match(lexer, TOKEN_OVERRIDE) || match(lexer, TOKEN_STATIC) || match(lexer, TOKEN_PRIVATE) || match(lexer, TOKEN_PUBLIC) || match(lexer, TOKEN_PROTECTED)) {
-		switch (lexer->previous.type) {
-			case TOKEN_OVERRIDE: {
-				if (abstract) {
-					error(lexer, &lexer->previous, "Can't override abstact method in its declaration");
-				} else if (!override) {
-					override = true;
-				} else {
-					error(lexer, &lexer->previous, "Override keyword used twice or more per one method");
-				}
-
-				break;
-			}
-			case TOKEN_STATIC: {
-				if (is_static) {
-					error(lexer, &lexer->previous, class_static ? "No need to use static method modifier in a static class" : "Static keyword used twice or more per one method");
-				}
-
-				is_static = true;
-				break;
-			}
-			case TOKEN_PRIVATE: {
-				if (access != UNDEFINED_ACCESS) {
-					error(lexer, &lexer->previous, "Access modifier used twice or more per one method");
-				}
-
-				access = PRIVATE_ACCESS;
-				break;
-			}
-			case TOKEN_PROTECTED: {
-				if (access != UNDEFINED_ACCESS) {
-					error(lexer, &lexer->previous, "Access modifier used twice or more per one method");
-				}
-
-				access = PROTECTED_ACCESS;
-				break;
-			}
-			case TOKEN_PUBLIC: {
-				if (access != UNDEFINED_ACCESS) {
-					error(lexer, &lexer->previous, "Access modifier used twice or more per one method");
-				}
-
-				access = PUBLIC_ACCESS;
-				break;
-			}
-		}
+	if (final) {
+		error(lexer, &lexer->previous, "Can't declare a final method");
 	}
 
-	if (access == UNDEFINED_ACCESS) {
-		access = PUBLIC_ACCESS;
+	if (is_static && override) {
+		error(lexer, &lexer->previous, "Can't override a static class");
 	}
 
-	LitToken method_name = consume(lexer, TOKEN_IDENTIFIER, "Expected method name");
 	consume(lexer, TOKEN_LEFT_PAREN, "Expected '(' after method name");
 
 	LitParameters* parameters = NULL;
@@ -612,7 +564,7 @@ static LitStatement* parse_method_statement(LitLexer* lexer, bool class_abstract
 		if (abstract) {
 			error(lexer, &lexer->previous, "Abstract method can't have body");
 		} else {
-			body = parse_block_statement(lexer);
+			body = (LitBlockStatement*) parse_block_statement(lexer);
 		}
 	} else if (match(lexer, TOKEN_EQUAL)) {
 		consume(lexer, TOKEN_GREATER, "Expected '>' after '='");
@@ -623,14 +575,13 @@ static LitStatement* parse_method_statement(LitLexer* lexer, bool class_abstract
 			LitStatements* statements = (LitStatements*) reallocate(lexer->vm, NULL, 0, sizeof(LitStatements));
 
 			lit_init_statements(statements);
-			lit_statements_write(lexer->vm, statements, lit_make_return_statement(lexer->vm, parse_expression(lexer)));
+			lit_statements_write(lexer->vm, statements, (LitStatement*) lit_make_return_statement(lexer->vm, parse_expression(lexer)));
 
 			body = lit_make_block_statement(lexer->vm, statements);
 		}
 	}
 
-	return (LitStatement*) lit_make_method_statement(lexer->vm, copy_string(lexer, &method_name), parameters, body, (LitParameter) {NULL, return_type.type},
-		override, is_static, abstract, access);
+	return (LitStatement*) lit_make_method_statement(lexer->vm, name, parameters, (LitStatement*) body, (LitParameter) {NULL, return_type.type}, override, is_static, abstract, access);
 }
 
 static LitStatement* parse_return_statement(LitLexer* lexer) {
@@ -686,6 +637,10 @@ static LitStatement* parse_extended_var_declaration(LitLexer* lexer, LitToken* t
 	return (LitStatement*) lit_make_var_statement(lexer->vm, copy_string(lexer, name), init, copy_string(lexer, type));
 }
 
+static LitStatement* parse_field_declaration(LitLexer* lexer, bool is_static, bool final) {
+
+}
+
 static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, bool is_static, bool had_class_token) {
 	if (!had_class_token) {
 		consume(lexer, TOKEN_CLASS, "Expected 'class'");
@@ -708,20 +663,94 @@ static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, boo
 
 	if (match(lexer, TOKEN_LEFT_BRACE)) {
 		while (lexer->current.type != TOKEN_RIGHT_BRACE && !is_at_end(lexer)) {
+			bool field_is_static = is_static;
+			bool final = false;
+			bool override = false;
+			bool is_abstract = abstract;
+			LitAccessType access = UNDEFINED_ACCESS;
+
+			while (match(lexer, TOKEN_PUBLIC) || match(lexer, TOKEN_PROTECTED) || match(lexer, TOKEN_PRIVATE) || match(lexer, TOKEN_STATIC) || match(lexer, TOKEN_FINAL) || match(lexer, TOKEN_OVERRIDE) || match(lexer, TOKEN_ABSTRACT)) {
+				switch(lexer->previous.type) {
+					case TOKEN_FINAL: {
+						if (final) {
+							error(lexer, &lexer->previous, "Final modifier used twice or more per field");
+						} else {
+							final = true;
+						}
+
+						break;
+					}
+					case TOKEN_STATIC: {
+						if (field_is_static) {
+							error(lexer, &lexer->previous, is_static ? "No need to use static field modifier in a static class" : "Static keyword used twice or more per field");
+						}
+
+						field_is_static = true;
+						break;
+					}
+					case TOKEN_PRIVATE: {
+						if (access != UNDEFINED_ACCESS) {
+							error(lexer, &lexer->previous, "Access modifier used twice or more per field");
+						}
+	
+						access = PRIVATE_ACCESS;
+						break;
+					}
+					case TOKEN_PROTECTED: {
+						if (access != UNDEFINED_ACCESS) {
+							error(lexer, &lexer->previous, "Access modifier used twice or more per field");
+						}
+	
+						access = PROTECTED_ACCESS;
+						break;
+					}
+					case TOKEN_PUBLIC: {
+						if (access != UNDEFINED_ACCESS) {
+							error(lexer, &lexer->previous, "Access modifier used twice or more per field");
+						}
+	
+						access = PUBLIC_ACCESS;
+						break;
+					}
+					case TOKEN_OVERRIDE: {
+						if (override) {
+							error(lexer, &lexer->previous, "Override keyword used twice or more per field");
+						}
+
+						override = true;
+						break;
+					}
+					case TOKEN_ABSTRACT: {
+						if (is_abstract) {
+							error(lexer, &lexer->previous, "Abstract keyword used twice or more per field");
+						}
+
+						is_abstract = true;
+						break;
+					}
+				}
+			}
+
+			if (access == UNDEFINED_ACCESS) {
+				access = PUBLIC_ACCESS;
+			}
+
 			if (match(lexer, TOKEN_VAR)) {
-				if (fields == NULL) {
-					fields = (LitStatements*) reallocate(lexer->vm, NULL, 0, sizeof(LitStatements));
-					lit_init_statements(fields);
-				}
 
-				lit_statements_write(lexer->vm, fields, parse_var_declaration(lexer));
 			} else {
-				if (methods == NULL) {
-					methods = (LitMethods*) reallocate(lexer->vm, NULL, 0, sizeof(LitMethods));
-					lit_init_methods(methods);
-				}
+				consume(lexer, TOKEN_IDENTIFIER, "Expected method name or variable type");
 
-				lit_methods_write(lexer->vm, methods, (LitMethodStatement*) parse_method_statement(lexer, abstract, is_static));
+				if (lexer->current.type != TOKEN_IDENTIFIER) {
+					if (methods == NULL) {
+						methods = (LitMethods*) reallocate(lexer->vm, NULL, 0, sizeof(LitMethods));
+						lit_init_methods(methods);
+					}
+
+					lit_methods_write(lexer->vm, methods, (LitMethodStatement*) parse_method_statement(lexer, final, is_abstract, override, field_is_static, access, &lexer->previous));
+				} else {
+					LitToken type = lexer->previous;
+					// FIXME
+				}
 			}
 		}
 
