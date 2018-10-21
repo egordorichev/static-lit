@@ -264,9 +264,7 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 		return INTERPRET_COMPILE_ERROR;
 	}
 
-	/*
 	LitFunction* function = lit_emit(vm, &statements);
-	*/
 
 	for (int i = 0; i < statements.count; i++) {
 		lit_free_statement(vm, statements.values[i]);
@@ -274,7 +272,7 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 
 	lit_free_statements(vm, &statements);
 
-	/*if (function == NULL) {
+	if (function == NULL) {
 		return INTERPRET_COMPILE_ERROR;
 	}
 
@@ -289,7 +287,7 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 		call_value(vm, MAKE_OBJECT_VALUE(closure), 0);
 
 		return lit_interpret(vm);
-	}*/
+	}
 
 	return INTERPRET_OK;
 }
@@ -339,7 +337,9 @@ static void create_class(LitVm* vm, LitString* name, LitClass* super) {
 	lit_push(vm, MAKE_OBJECT_VALUE(class));
 
 	if (super != NULL) {
+		lit_table_add_all(vm, &class->static_methods, &super->static_methods);
 		lit_table_add_all(vm, &class->methods, &super->methods);
+		lit_table_add_all(vm, &class->static_fields, &super->static_fields);
 		lit_table_add_all(vm, &class->fields, &super->fields);
 	}
 }
@@ -370,7 +370,7 @@ static bool invoke(LitVm* vm, int arg_count) {
 	return value;
 }
 
-static void *functions[OP_SUPER + 1];
+static void *functions[OP_DEFINE_STATIC_METHOD + 1];
 static bool inited_functions;
 
 LitInterpretResult lit_interpret(LitVm* vm) {
@@ -412,12 +412,14 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		functions[OP_SUBCLASS] = &&op_subclass;
 		functions[OP_CLASS] = &&op_class;
 		functions[OP_METHOD] = &&op_method;
-		functions[OP_GET_PROPERTY] = &&op_get_property;
+		functions[OP_GET_FIELD] = &&op_get_property;
 		functions[OP_SET_PROPERTY] = &&op_set_property;
 		functions[OP_INVOKE] = &&op_invoke;
-		functions[OP_DEFINE_PROPERTY] = &&op_define_property;
+		functions[OP_DEFINE_FIELD] = &&op_define_field;
 		functions[OP_DEFINE_METHOD] = &&op_define_method;
 		functions[OP_SUPER] = &&op_super;
+		functions[OP_DEFINE_STATIC_FIELD] = &&op_define_static_field;
+		functions[OP_DEFINE_STATIC_METHOD] = &&op_define_static_method;
 	}
 
 	if (DEBUG_TRACE_EXECUTION) {
@@ -742,7 +744,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 			continue;
 		};
 
-		op_define_property: {
+		op_define_field: {
 			if (!IS_CLASS(PEEK(1))) {
 				runtime_error(vm, "Can't define a field in non-class");
 				return INTERPRET_RUNTIME_ERROR;
@@ -776,6 +778,27 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 			LitMethod* bound = lit_new_bound_method(vm, MAKE_OBJECT_VALUE(instance), AS_CLOSURE(*method));
 			PUSH(MAKE_OBJECT_VALUE(bound));
 
+			continue;
+		};
+
+		op_define_static_field: {
+			if (!IS_CLASS(PEEK(1))) {
+				runtime_error(vm, "Can't define a field in non-class");
+				return INTERPRET_RUNTIME_ERROR;
+			}
+
+			LitClass* class = AS_CLASS(PEEK(1));
+			lit_table_set(vm, &class->static_fields, READ_STRING(), POP());
+
+			continue;
+		};
+
+		op_define_static_method: {
+			LitString* name = READ_STRING();
+			LitValue method = POP();
+			LitClass* class = AS_CLASS(PEEK(0));
+
+			lit_table_set(vm, &class->static_methods, name, method);
 			continue;
 		};
 	}

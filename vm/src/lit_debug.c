@@ -542,10 +542,12 @@ int lit_disassemble_instruction(LitVm* vm, LitChunk* chunk, int offset) {
 		case OP_CLASS: return constant_instruction(vm, "OP_CLASS", chunk, offset);
 		case OP_SUBCLASS: return constant_instruction(vm, "OP_SUBCLASS", chunk, offset);
 		case OP_METHOD: return constant_instruction(vm, "OP_METHOD", chunk, offset);
-		case OP_GET_PROPERTY: return constant_instruction(vm, "OP_GET_PROPERTY", chunk, offset);
+		case OP_GET_FIELD: return constant_instruction(vm, "OP_GET_FIELD", chunk, offset);
 		case OP_SET_PROPERTY: return constant_instruction(vm, "OP_SET_PROPERTY", chunk, offset);
-		case OP_DEFINE_PROPERTY: return constant_instruction(vm, "OP_DEFINE_PROPERTY", chunk, offset);
+		case OP_DEFINE_FIELD: return constant_instruction(vm, "OP_DEFINE_FIELD", chunk, offset);
 		case OP_DEFINE_METHOD: return constant_instruction(vm, "OP_DEFINE_METHOD", chunk, offset);
+		case OP_DEFINE_STATIC_FIELD: return constant_instruction(vm, "OP_DEFINE_STATIC_FIELD", chunk, offset);
+		case OP_DEFINE_STATIC_METHOD: return constant_instruction(vm, "OP_DEFINE_STATIC_METHOD", chunk, offset);
 		case OP_INVOKE: return constant_instruction(vm, "OP_INVOKE", chunk, offset) + 1;
 		case OP_SUPER: return constant_instruction(vm, "OP_SUPER", chunk, offset);
 		case OP_CLOSURE: {

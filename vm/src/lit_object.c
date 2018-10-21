@@ -80,7 +80,8 @@ LitClass* lit_new_class(LitVm* vm, LitString* name, LitClass* super) {
 
 	lit_init_table(&class->methods);
 	lit_init_table(&class->static_methods);
-	lit_init_fields(&class->fields);
+	lit_init_table(&class->fields);
+	lit_init_table(&class->static_fields);
 
 	return class;
 }
@@ -90,8 +91,8 @@ LitInstance* lit_new_instance(LitVm* vm, LitClass* class) {
 
 	instance->type = class;
 
-	lit_init_fields(&instance->fields);
-	lit_fields_add_all(vm, &instance->fields, &class->fields);
+	lit_init_table(&instance->fields);
+	lit_table_add_all(vm, &instance->fields, &class->fields);
 
 	return instance;
 }
@@ -145,5 +146,5 @@ LitString* lit_copy_string(LitVm* vm, const char* chars, size_t length) {
 	memcpy(heap_chars, chars, length);
 	heap_chars[length] = '\0';
 
-	return allocate_string(vm, heap_chars, length, hash);
+	return allocate_string(vm, heap_chars, (int) length, hash);
 }

@@ -490,7 +490,6 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 			resource->type = var->type;
 
 			resolve_field_statement(resolver, var);
-
 			lit_resources_set(resolver->vm, &class->fields, lit_copy_string(resolver->vm, n, strlen(n)), resource);
 		}
 	}
@@ -844,6 +843,10 @@ static const char* resolve_set_expression(LitResolver* resolver, LitSetExpressio
 		return "error";
 	}
 
+	if (field->is_final) {
+		error(resolver, "Field %s is final, can't assign a value to it", expression->property);
+	}
+
 	return field->type;
 }
 
@@ -948,14 +951,13 @@ void lit_free_resolver(LitResolver* resolver) {
 		LitType* type = resolver->classes.entries[i].value;
 
 		if (type != NULL) {
-			// Nothing really to free here
-			/*for (int j = 0; j <= type->fields.capacity_mask; j++) {
+			for (int j = 0; j <= type->fields.capacity_mask; j++) {
 				LitResource* a = type->fields.entries[j].value;
 
 				if (a != NULL) {
-					lit_free_resource(resolver->vm, a);
+					reallocate(resolver->vm, (void*) a, sizeof(LitResource), 0);
 				}
-			}*/
+			}
 
 			for (int j = 0; j <= type->methods.capacity_mask; j++) {
 				LitRem* a = type->methods.entries[j].value;

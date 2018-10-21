@@ -250,7 +250,7 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 			LitGetExpression* expr = (LitGetExpression*) expression;
 
 			emit_expression(emitter, expr->object);
-			emit_bytes(emitter, OP_GET_PROPERTY, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, expr->property, strlen(expr->property)))));
+			emit_bytes(emitter, OP_GET_FIELD, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, expr->property, strlen(expr->property)))));
 
 			break;
 		}
@@ -529,21 +529,29 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 
 			if (stmt->fields != NULL) {
 				for (int i = 0; i < stmt->fields->count; i++) {
-					LitVarStatement* field = (LitVarStatement*) stmt->fields->values[i];
+					LitFieldStatement* field = (LitFieldStatement*) stmt->fields->values[i];
 
 					if (field->init != NULL) {
 						emit_expression(emitter, field->init);
 					} else {
-						emit_byte(emitter, OP_NIL); // TODO: default type! (like bool is false), also, shouldn't allow something like var a, should specify type
+						if (strcmp(field->type, "bool") == 0) {
+							emit_byte(emitter, OP_FALSE);
+						} else if (strcmp(field->type, "int") == 0 || strcmp(field->type, "double") == 0) {
+							emit_constant(emitter, MAKE_NUMBER_VALUE(0));
+						} else if (strcmp(field->type, "char") == 0) {
+							emit_constant(emitter, MAKE_CHAR_VALUE('\0'));
+						} else {
+							emit_byte(emitter, OP_NIL);
+						}
 					}
 
-					emit_bytes(emitter, OP_DEFINE_PROPERTY, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, field->name, strlen(field->name)))));
+					emit_bytes(emitter, field->is_static ? OP_DEFINE_STATIC_FIELD : OP_DEFINE_FIELD, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, field->name, strlen(field->name)))));
 				}
 			}
 
 			if (stmt->methods != NULL) {
 				for (int j = 0; j < stmt->methods->count; j++) {
-					LitFunctionStatement* method = stmt->methods->values[j];
+					LitMethodStatement* method = stmt->methods->values[j];
 					LitEmitterFunction function;
 
 					function.function = lit_new_function(emitter->vm);
@@ -588,7 +596,7 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 						emit_byte(emitter, function.upvalues[i].index);
 					}
 
-					emit_bytes(emitter, OP_DEFINE_METHOD, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, method->name, strlen(method->name)))));
+					emit_bytes(emitter, method->is_static ? OP_DEFINE_STATIC_METHOD : OP_DEFINE_METHOD, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, method->name, strlen(method->name)))));
 				}
 			}
 

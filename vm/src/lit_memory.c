@@ -86,17 +86,20 @@ static void blacken_object(LitVm* vm, LitObject* object) {
 		case OBJECT_NATIVE: case OBJECT_STRING: break;
 		case OBJECT_CLASS: {
 			LitClass* class = (LitClass*) object;
+
 			lit_gray_object(vm, (LitObject*) class->name);
 			lit_gray_object(vm, (LitObject*) class->super);
 			lit_table_gray(vm, &class->methods);
+			lit_table_gray(vm, &class->fields);
+			lit_table_gray(vm, &class->static_methods);
+			lit_table_gray(vm, &class->static_fields);
 
 			break;
 		}
 		case OBJECT_INSTANCE: {
 			LitInstance* instance = (LitInstance*) object;
 			lit_gray_object(vm, (LitObject*) instance->type);
-			// FIXME
-			// lit_table_gray(vm, &instance->fields);
+			lit_table_gray(vm, &instance->fields);
 
 			break;
 		}
@@ -150,8 +153,9 @@ static void free_object(LitVm* vm, LitObject* object) {
 			lit_free_table(vm, &class->methods);
 			lit_free_table(vm, &class->static_methods);
 			lit_free_table(vm, &class->fields);
-			FREE(vm, LitClass, object);
+			lit_free_table(vm, &class->static_methods);
 
+			FREE(vm, LitClass, object);
 			break;
 		}
 		case OBJECT_INSTANCE: {

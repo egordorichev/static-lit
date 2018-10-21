@@ -296,7 +296,7 @@ void lit_free_statement(LitVm* vm, LitStatement* statement) {
 				lit_free_statement(vm, stmt->setter);
 			}
 
-			reallocate(vm, (void*) statement, sizeof(LitVarStatement), 0);
+			reallocate(vm, (void*) statement, sizeof(LitFieldStatement), 0);
 			break;
 		}
 		case EXPRESSION_STATEMENT: {

@@ -14,6 +14,6 @@ int lit_disassemble_instruction(LitVm* vm, LitChunk* chunk, int offset);
 #define DEBUG_TRACE_EXECUTION true
 #define DEBUG_PRINT_CODE false
 #define DEBUG_TRACE_GC false
-#define DEBUG_NO_EXECUTE true
+#define DEBUG_NO_EXECUTE false
 
 #endif

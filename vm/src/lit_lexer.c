@@ -121,7 +121,7 @@ static void skip_whitespace(LitLexer* lexer) {
 
 static LitTokenType check_keyword(LitLexer* lexer, int start, int length, const char* rest, LitTokenType type) {
 	if (lexer->current_code - lexer->start == start + length &&
-	    memcmp(lexer->start + start, rest, length) == 0) {
+	    memcmp(lexer->start + start, rest, (size_t) length) == 0) {
 
 		return type;
 	}

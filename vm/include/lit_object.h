@@ -91,6 +91,7 @@ typedef struct sLitClass {
 	LitTable methods;
 	LitTable static_methods;
 	LitTable fields;
+	LitTable static_fields;
 } LitClass;
 
 typedef struct {

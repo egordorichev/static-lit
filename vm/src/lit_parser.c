@@ -519,8 +519,22 @@ static LitStatement* parse_function_statement(LitLexer* lexer) {
 		return_type.type = copy_string(lexer, &type);
 	}
 
-	consume(lexer, TOKEN_LEFT_BRACE, "Expected '{' before function body");
-	return (LitStatement*) lit_make_function_statement(lexer->vm, copy_string(lexer, &function_name), parameters, parse_block_statement(lexer), (LitParameter) {NULL, return_type.type});
+	LitBlockStatement* body;
+
+	if (match(lexer, TOKEN_EQUAL)) {
+		consume(lexer, TOKEN_GREATER, "Expected '>' after '='");
+		LitStatements* statements = (LitStatements*) reallocate(lexer->vm, NULL, 0, sizeof(LitStatements));
+
+		lit_init_statements(statements);
+		lit_statements_write(lexer->vm, statements, parse_statement(lexer));
+
+		body = lit_make_block_statement(lexer->vm, statements);
+	} else {
+		consume(lexer, TOKEN_LEFT_BRACE, "Expected '{' before function body");
+		body = (LitBlockStatement*) parse_block_statement(lexer);
+	}
+
+	return (LitStatement*) lit_make_function_statement(lexer->vm, copy_string(lexer, &function_name), parameters, (LitStatement*) body, (LitParameter) {NULL, return_type.type});
 }
 
 static LitStatement* parse_method_statement(LitLexer* lexer, bool final, bool abstract, bool override, bool is_static, LitAccessType access, LitToken* method_name) {
@@ -653,6 +667,10 @@ static LitStatement* parse_field_declaration(LitLexer* lexer, bool final, bool a
 
 	if (match(lexer, TOKEN_EQUAL)) {
 		init = parse_expression(lexer);
+	}
+
+	if (final && init == NULL) {
+		error(lexer, &lexer->previous, "Can't declare a final variable without value");
 	}
 
 	if (type == NULL && init == NULL) {
