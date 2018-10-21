@@ -673,7 +673,17 @@ static LitStatement* parse_var_declaration(LitLexer* lexer) {
 		init = parse_expression(lexer);
 	}
 
-	return (LitStatement*) lit_make_var_statement(lexer->vm, copy_string(lexer, &name), init);
+	return (LitStatement*) lit_make_var_statement(lexer->vm, copy_string(lexer, &name), init, NULL);
+}
+
+static LitStatement* parse_extended_var_declaration(LitLexer* lexer, LitToken* type, LitToken* name) {
+	LitExpression* init = NULL;
+
+	if (match(lexer, TOKEN_EQUAL)) {
+		init = parse_expression(lexer);
+	}
+
+	return (LitStatement*) lit_make_var_statement(lexer->vm, copy_string(lexer, name), init, copy_string(lexer, type));
 }
 
 static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, bool is_static, bool had_class_token) {
@@ -724,6 +734,19 @@ static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, boo
 static LitStatement* parse_declaration(LitLexer* lexer) {
 	if (match(lexer, TOKEN_VAR)) {
 		return parse_var_declaration(lexer);
+	}
+
+	if (match(lexer, TOKEN_IDENTIFIER)) {
+		if (lexer->current.type != TOKEN_IDENTIFIER) {
+			LitToken token = lexer->previous;
+
+			lexer->current = token;
+			lexer->current_code = token.start + token.length + 1;
+			lexer->line = token.line;
+		} else {
+			LitToken type = lexer->previous;
+			return parse_extended_var_declaration(lexer, &type, &lexer->current);
+		}
 	}
 
 	// A bit of a mess, maybe there is a way to parse it easier?

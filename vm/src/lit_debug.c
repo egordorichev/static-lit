@@ -23,6 +23,7 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 				LitVarStatement* var = (LitVarStatement*) statement;
 
 				printf("\"type\" : \"var declaration\",\n");
+				printf("\"var_type\" : \"%s\",\n", var->type == NULL ? "undefined" : var->type);
 				printf("\"name\" : \"%s\",\n", var->name);
 				printf("\"init\" : ");
 

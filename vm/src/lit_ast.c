@@ -144,11 +144,12 @@ LitLambdaExpression* lit_make_lambda_expression(LitVm* vm, LitParameters* parame
 	return expression;
 }
 
-LitVarStatement* lit_make_var_statement(LitVm* vm, const char* name, LitExpression* init) {
+LitVarStatement* lit_make_var_statement(LitVm* vm, const char* name, LitExpression* init, const char* type) {
 	LitVarStatement* statement = ALLOCATE_STATEMENT(vm, LitVarStatement, VAR_STATEMENT);
 
 	statement->name = name;
 	statement->init = init;
+	statement->type = type;
 
 	return statement;
 }
@@ -246,6 +247,10 @@ void lit_free_statement(LitVm* vm, LitStatement* statement) {
 		case VAR_STATEMENT: {
 			LitVarStatement* stmt = (LitVarStatement*) statement;
 			reallocate(vm, (void*) stmt->name, strlen(stmt->name) + 1, 0);
+
+			if (stmt->type != NULL) {
+				reallocate(vm, (void*) stmt->type, strlen(stmt->type) + 1, 0);
+			}
 
 			if (stmt->init != NULL) {
 				lit_free_expression(vm, stmt->init);

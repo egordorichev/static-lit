@@ -1,4 +1,6 @@
+int d = 10
+
+//*
 class Math {
-	private static floor(double a) > double => a
-	sin(double a) > double => 10
+	static final var PI = 3.415
 }

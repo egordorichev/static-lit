@@ -183,7 +183,7 @@ static void define(LitResolver* resolver, const char* name, const char* type, bo
 
 static const char* resolve_var_statement(LitResolver* resolver, LitVarStatement* statement) {
 	declare(resolver, statement->name);
-	char *type = "void";
+	const char *type = statement->type == NULL ? "void" : statement->type;
 
 	if (statement->init != NULL) {
 		type = (char*) resolve_expression(resolver, statement->init);
@@ -192,6 +192,7 @@ static const char* resolve_var_statement(LitResolver* resolver, LitVarStatement*
 	if (strcmp(type, "void") == 0) {
 		error(resolver, "Can't set variable's %s type to void", statement->name);
 	} else {
+		resolve_type(resolver, type);
 		define(resolver, statement->name, type, resolver->class != NULL && resolver->depth == 2);
 	}
 
@@ -405,6 +406,9 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 	}
 
 	LitType* class = (LitType*) reallocate(resolver->vm, NULL, 0, sizeof(LitType));
+
+	class->super = super;
+	class->name = lit_copy_string(resolver->vm, statement->name, len);
 
 	lit_init_rems(&class->methods);
 	lit_init_rems(&class->static_methods);
@@ -738,6 +742,16 @@ static const char* resolve_get_expression(LitResolver* resolver, LitGetExpressio
 
 		if (should_be_static && !method->is_static) {
 			error(resolver, "Can't access non-static methods from class call");
+		}
+
+		if (method->access == PRIVATE_ACCESS) {
+			if (expression->object->type != THIS_EXPRESSION || class->super != NULL) {
+				if (expression->object->type != THIS_EXPRESSION || lit_rems_get(&class->super->methods, str) != NULL || lit_rems_get(&class->super->static_methods, str) != NULL) {
+					error(resolver, "Can't access private method %s from %s", expression->property, type);
+				}
+			}
+		} else if (method->access == PROTECTED_ACCESS && expression->object->type != THIS_EXPRESSION && expression->object->type != SUPER_EXPRESSION) {
+			error(resolver, "Can't access protected method %s", expression->property);
 		}
 
 		return method->signature;
