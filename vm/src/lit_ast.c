@@ -211,7 +211,7 @@ LitReturnStatement* lit_make_return_statement(LitVm* vm, LitExpression* value) {
 }
 
 LitFieldStatement* lit_make_field_statement(LitVm* vm, const char* name, LitExpression* init, const char* type,
-	LitStatement* getter, LitStatement* setter, LitAccessType access) {
+	LitStatement* getter, LitStatement* setter, LitAccessType access, bool is_static, bool final) {
 
 	LitFieldStatement* statement = ALLOCATE_STATEMENT(vm, LitFieldStatement, FIELD_STATEMENT);
 
@@ -221,6 +221,8 @@ LitFieldStatement* lit_make_field_statement(LitVm* vm, const char* name, LitExpr
 	statement->getter = getter;
 	statement->setter = setter;
 	statement->access = access;
+	statement->is_static = is_static;
+	statement->final = final;
 
 	return statement;
 }
@@ -269,6 +271,29 @@ void lit_free_statement(LitVm* vm, LitStatement* statement) {
 
 			if (stmt->init != NULL) {
 				lit_free_expression(vm, stmt->init);
+			}
+
+			reallocate(vm, (void*) statement, sizeof(LitVarStatement), 0);
+			break;
+		}
+		case FIELD_STATEMENT: {
+			LitFieldStatement* stmt = (LitFieldStatement*) statement;
+			reallocate(vm, (void*) stmt->name, strlen(stmt->name) + 1, 0);
+
+			if (stmt->type != NULL) {
+				reallocate(vm, (void*) stmt->type, strlen(stmt->type) + 1, 0);
+			}
+
+			if (stmt->init != NULL) {
+				lit_free_expression(vm, stmt->init);
+			}
+
+			if (stmt->getter != NULL) {
+				lit_free_statement(vm, stmt->getter);
+			}
+
+			if (stmt->setter != NULL) {
+				lit_free_statement(vm, stmt->setter);
 			}
 
 			reallocate(vm, (void*) statement, sizeof(LitVarStatement), 0);

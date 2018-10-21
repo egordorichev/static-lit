@@ -27,6 +27,8 @@ static const char* resolve_expression(LitResolver* resolver, LitExpression* expr
 static void resolve_expressions(LitResolver* resolver, LitExpressions* expressions);
 
 static void error(LitResolver* resolver, const char* format, ...) {
+	fflush(stdout);
+
 	va_list vargs;
 	va_start(vargs, format);
 	fprintf(stderr, "Error: ");
@@ -34,6 +36,7 @@ static void error(LitResolver* resolver, const char* format, ...) {
 	fprintf(stderr, "\n");
 	va_end(vargs);
 
+	fflush(stderr);
 	resolver->had_error = true;
 }
 
@@ -339,10 +342,11 @@ static const char* access_to_string(LitAccessType type) {
 		case PRIVATE_ACCESS: return "private";
 		case PROTECTED_ACCESS: return "protected";
 		case UNDEFINED_ACCESS: return "undefined";
+		default: UNREACHABLE();
 	}
 }
 
-static void resolve_method_statement(LitResolver* resolver, LitMethodStatement* statement) {
+static void resolve_method_statement(LitResolver* resolver, LitMethodStatement* statement, char* signature) {
 	push_scope(resolver);
 	resolver->had_return = false;
 
@@ -358,6 +362,8 @@ static void resolve_method_statement(LitResolver* resolver, LitMethodStatement* 
 				error(resolver, "Method %s is declared static and can not be overriden", statement->name);
 			} else if (super_method->access != statement->access) {
 				error(resolver, "Method %s type was declared as %s in super, but been changed to %s in child", statement->name, access_to_string(super_method->access), access_to_string(statement->access));
+			} else if (strcmp(super_method->signature, signature) != 0) {
+				error(resolver, "Method %s signature was declared as %s in super, but been changed to %s in child", statement->name, super_method->signature, signature);
 			}
 		}
 	}
@@ -394,6 +400,29 @@ static void resolve_method_statement(LitResolver* resolver, LitMethodStatement* 
 	}
 
 	pop_scope(resolver);
+}
+
+static void resolve_field_statement(LitResolver* resolver, LitFieldStatement* statement) {
+	declare(resolver, statement->name);
+
+	if (statement->init != NULL) {
+		const char* given = (char*) resolve_expression(resolver, statement->init);
+
+		if (strcmp(statement->type, given) != 0) {
+			error(resolver, "Can't assign %s value to a %s var", given, statement->type);
+		}
+	}
+
+	resolve_type(resolver, statement->type);
+	define(resolver, statement->name, statement->type, resolver->class != NULL && resolver->depth == 2);
+
+	if (statement->getter != NULL) {
+		resolve_statement(resolver, statement->getter);
+	}
+
+	if (statement->setter != NULL) {
+		resolve_statement(resolver, statement->setter);
+	}
 }
 
 static void resolve_class_statement(LitResolver* resolver, LitClassStatement* statement) {
@@ -450,16 +479,17 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 
 	if (statement->fields != NULL) {
 		for (int i = 0; i < statement->fields->count; i++) {
-			LitVarStatement* var = ((LitVarStatement*) statement->fields->values[i]);
+			LitFieldStatement* var = ((LitFieldStatement*) statement->fields->values[i]);
 			const char* n = var->name;
 
 			LitResource* resource = (LitResource*) reallocate(resolver->vm, NULL, 0, sizeof(LitResource));
 
-			// FIXME: replace var statement with field statement, get access / static / final from it
-			resource->access = PUBLIC_ACCESS;
-			resource->is_static = false;
-			resource->is_final = false;
-			resource->type = resolve_var_statement(resolver, var);
+			resource->access = var->access;
+			resource->is_static = var->is_static;
+			resource->is_final = var->final;
+			resource->type = var->type;
+
+			resolve_field_statement(resolver, var);
 
 			lit_resources_set(resolver->vm, &class->fields, lit_copy_string(resolver->vm, n, strlen(n)), resource);
 		}
@@ -468,11 +498,13 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 	if (statement->methods != NULL) {
 		for (int i = 0; i < statement->methods->count; i++) {
 			LitMethodStatement* method = statement->methods->values[i];
-			resolve_method_statement(resolver, method);
+			char* signature = (char*) get_function_signature(resolver, method->parameters, &method->return_type);
+
+			resolve_method_statement(resolver, method, signature);
 
 			LitRem* rem = (LitRem*) reallocate(resolver->vm, NULL, 0, sizeof(LitRem));
 
-			rem->signature = (char*) get_function_signature(resolver, method->parameters, &method->return_type);
+			rem->signature = signature;
 			rem->is_static = method->is_static;
 			rem->access = method->access;
 			rem->is_overriden = method->overriden;
@@ -496,6 +528,8 @@ static void resolve_statement(LitResolver* resolver, LitStatement* statement) {
 		case FUNCTION_STATEMENT: resolve_function_statement(resolver, (LitFunctionStatement*) statement); break;
 		case RETURN_STATEMENT: resolve_return_statement(resolver, (LitReturnStatement*) statement); break;
 		case CLASS_STATEMENT: resolve_class_statement(resolver, (LitClassStatement*) statement); break;
+		case FIELD_STATEMENT: UNREACHABLE(); break;
+		case METHOD_STATEMENT: UNREACHABLE(); break;
 	}
 }
 

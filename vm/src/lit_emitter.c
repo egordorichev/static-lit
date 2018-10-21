@@ -17,6 +17,8 @@ static void emit_bytes(LitEmitter* emitter, uint8_t a, uint8_t b) {
 }
 
 static void error(LitEmitter* emitter, const char* format, ...) {
+	fflush(stdout);
+
 	va_list vargs;
 	va_start(vargs, format);
 	fprintf(stderr, "Error: ");
@@ -24,6 +26,7 @@ static void error(LitEmitter* emitter, const char* format, ...) {
 	fprintf(stderr, "\n");
 	va_end(vargs);
 
+	fflush(stderr);
 	emitter->had_error = true;
 }
 

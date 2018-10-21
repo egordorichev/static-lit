@@ -248,12 +248,14 @@ typedef struct {
 	LitStatement* getter;
 	LitStatement* setter;
 	LitAccessType access;
+	bool is_static;
+	bool final;
 	const char* name;
 	const char* type;
 } LitFieldStatement;
 
 LitFieldStatement* lit_make_field_statement(LitVm* vm, const char* name, LitExpression* init, const char* type,
-	LitStatement* getter, LitStatement* setter, LitAccessType access);
+	LitStatement* getter, LitStatement* setter, LitAccessType access, bool is_static, bool final);
 
 typedef struct {
 	LitStatement* expression;

@@ -85,15 +85,17 @@ static void error(LitLexer* lexer, LitToken *token, const char* message) {
 	lexer->panic_mode = true;
 	lexer->had_error = true;
 
-	printf("[line %d] Error", token->line);
+	fflush(stdout);
+	fprintf(stderr, "[line %d] Error", token->line);
 
 	if (token->type == TOKEN_EOF) {
-		printf(" at end");
+		fprintf(stderr, " at end");
 	} else if (token->type != TOKEN_ERROR) {
-		printf(" at '%.*s'", token->length, token->start);
+		fprintf(stderr, " at '%.*s'", token->length, token->start);
 	}
 
-	printf(": %s\n", message);
+	fprintf(stderr, ": %s\n", message);
+	fflush(stderr);
 }
 
 static LitToken consume(LitLexer* lexer, LitTokenType type, const char* message) {
@@ -637,8 +639,27 @@ static LitStatement* parse_extended_var_declaration(LitLexer* lexer, LitToken* t
 	return (LitStatement*) lit_make_var_statement(lexer->vm, copy_string(lexer, name), init, copy_string(lexer, type));
 }
 
-static LitStatement* parse_field_declaration(LitLexer* lexer, bool is_static, bool final) {
+static LitStatement* parse_field_declaration(LitLexer* lexer, bool final, bool abstract, bool override, bool is_static, LitAccessType access, LitToken* type, LitToken* var_name) {
+	LitExpression* init = NULL;
+	const char* name = copy_string(lexer, var_name);
 
+	if (abstract) {
+		error(lexer, var_name, "Can't declare abstract field");
+	}
+
+	if (override) {
+		error(lexer, var_name, "Can't override a field");
+	}
+
+	if (match(lexer, TOKEN_EQUAL)) {
+		init = parse_expression(lexer);
+	}
+
+	if (type == NULL && init == NULL) {
+		error(lexer, &lexer->previous, "Can't declare a field without type");
+	}
+
+	return (LitStatement*) lit_make_field_statement(lexer->vm, name, init, type == NULL ? NULL : copy_string(lexer, type), NULL, NULL, access, is_static, final);
 }
 
 static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, bool is_static, bool had_class_token) {
@@ -736,7 +757,14 @@ static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, boo
 			}
 
 			if (match(lexer, TOKEN_VAR)) {
+				if (fields == NULL) {
+					fields = (LitStatements*) reallocate(lexer->vm, NULL, 0, sizeof(LitStatements));
+					lit_init_statements(fields);
+				}
 
+				LitToken* name = &lexer->previous;
+				advance(lexer);
+				lit_statements_write(lexer->vm, fields, parse_field_declaration(lexer, final, is_abstract, override, field_is_static, access, NULL, name));
 			} else {
 				consume(lexer, TOKEN_IDENTIFIER, "Expected method name or variable type");
 
@@ -749,7 +777,15 @@ static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, boo
 					lit_methods_write(lexer->vm, methods, (LitMethodStatement*) parse_method_statement(lexer, final, is_abstract, override, field_is_static, access, &lexer->previous));
 				} else {
 					LitToken type = lexer->previous;
-					// FIXME
+
+					if (fields == NULL) {
+						fields = (LitStatements*) reallocate(lexer->vm, NULL, 0, sizeof(LitStatements));
+						lit_init_statements(fields);
+					}
+
+					LitToken* name = &lexer->previous;
+					advance(lexer);
+					lit_statements_write(lexer->vm, fields, parse_field_declaration(lexer, final, is_abstract, override, field_is_static, access, &type, name));
 				}
 			}
 		}
