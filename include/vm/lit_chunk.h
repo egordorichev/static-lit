@@ -2,7 +2,9 @@
 #define LIT_CHUNK_H
 
 #include <lit_common.h>
-#include <vm/lit_vm.h>
+#include <lit_predefines.h>
+#include <vm/lit_value.h>
+#include <vm/lit_memory.h>
 #include <util/lit_array.h>
 
 DECLARE_ARRAY(LitArray, LitValue, array)
@@ -64,9 +66,9 @@ typedef struct {
 } LitChunk;
 
 void lit_init_chunk(LitChunk* chunk);
-void lit_free_chunk(LitVm* vm, LitChunk* chunk);
+void lit_free_chunk(LitMemManager* manager, LitChunk* chunk);
 
-void lit_chunk_write(LitVm* vm, LitChunk* chunk, uint8_t byte);
-int lit_chunk_add_constant(LitVm* vm, LitChunk* chunk, LitValue constant);
+void lit_chunk_write(LitMemManager* manager, LitChunk* chunk, uint8_t byte);
+int lit_chunk_add_constant(LitMemManager* manager, LitChunk* chunk, LitValue constant);
 
 #endif

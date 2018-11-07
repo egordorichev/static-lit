@@ -3,7 +3,6 @@
 #include <memory.h>
 
 #include <lit.h>
-#include <lit_debug.h>
 
 void show_repl() {
 	LitVm vm;
@@ -30,7 +29,7 @@ static char* read_file(const char* path) {
 	FILE* file = fopen(path, "rb");
 
 	if (file == NULL) {
-		fprintf(stderr, "Could not open file \"%s\".\n", path);
+		fprintf(stderr, "Could not open file \"%s\"\n", path);
 		exit(74);
 	}
 
@@ -41,14 +40,14 @@ static char* read_file(const char* path) {
 	char* buffer = (char*) malloc(fileSize + 1);
 
 	if (buffer == NULL) {
-		fprintf(stderr, "Not enough memory to read \"%s\".\n", path);
+		fprintf(stderr, "Not enough memory to read \"%s\"\n", path);
 		exit(74);
 	}
 
 	size_t bytesRead = fread(buffer, sizeof(char), fileSize, file);
 
 	if (bytesRead < fileSize) {
-		fprintf(stderr, "Could not read file \"%s\".\n", path);
+		fprintf(stderr, "Could not read file \"%s\"\n", path);
 		exit(74);
 	}
 
@@ -90,14 +89,20 @@ int main(int argc, char** argv) {
 			  	return -1;
 			  }
 		  } else {
-			  LitVm vm;
-			  lit_init_vm(&vm);
-			  const char* script = read_file(arg);
-			  LitInterpretResult result = lit_execute(&vm, script);
-			  lit_free_vm(&vm);
-				free((void*) script);
+			  const char* source_code = read_file(arg);
+			  LitCompiler compiler;
 
-			  return result == INTERPRET_OK ? 0 : -2;
+		  	lit_init_compiler(&compiler);
+		  	LitChunk* chunk = lit_compile(&compiler, source_code);
+		  	lit_free_compiler(&compiler);
+
+		  	if (chunk == NULL) {
+				  free((void*) source_code);
+		  		return 2;
+		  	}
+
+			  free((void*) source_code);
+			  return 0;
 		  }
 	  }
   }

@@ -295,16 +295,12 @@ LitToken lit_lexer_next_token(LitLexer* lexer) {
 	return make_error_token(lexer, "Unexpected character");
 }
 
-void lit_init_lexer(LitLexer* lexer, const char* code) {
+void lit_init_lexer(LitCompiler* compiler, LitLexer* lexer, const char* code) {
 	lexer->start = code;
 	lexer->current_code = code;
 	lexer->line = 1;
 	lexer->had_error = false;
 	lexer->panic_mode = false;
-	lexer->vm = NULL;
+	lexer->compiler = compiler;
 	lexer->ended = false;
-}
-
-void lit_free_lexer(LitLexer* lexer) {
-
 }

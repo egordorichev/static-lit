@@ -1,7 +1,8 @@
 #ifndef LIT_LEXER_H
 #define LIT_LEXER_H
 
-#include <vm/lit_vm.h>
+#include <lit_common.h>
+#include <lit_predefines.h>
 
 typedef enum {
 	TOKEN_LEFT_PAREN, TOKEN_RIGHT_PAREN,
@@ -43,7 +44,7 @@ typedef struct {
 	const char* current_code;
 	int line;
 
-	LitVm* vm;
+	LitCompiler* compiler;
 
 	LitToken current;
 	LitToken previous;
@@ -53,8 +54,7 @@ typedef struct {
 	bool ended;
 } LitLexer;
 
-void lit_init_lexer(LitLexer* lexer, const char* code);
-void lit_free_lexer(LitLexer* lexer);
+void lit_init_lexer(LitCompiler* compiler, LitLexer* lexer, const char* code);
 
 LitToken lit_lexer_next_token(LitLexer* lexer);
 

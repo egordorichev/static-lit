@@ -4,10 +4,9 @@
 #include <stdio.h>
 
 #include <lit_common.h>
-#include <util/lit_array.h>
+#include <lit_predefines.h>
 
-typedef struct sLitObject LitObject;
-typedef struct sLitString LitString;
+#include <util/lit_array.h>
 
 #define SIGN_BIT ((uint64_t) 1 << 63)
 #define QNAN ((uint64_t) 0x7ffc000000000000)

@@ -3,17 +3,18 @@
 #include <zconf.h>
 #include <lit.h>
 
-#include <compiler/lit_emitter.h>
-#include <vm/lit_memory.h>
 #include <lit_debug.h>
 
+#include <compiler/lit_emitter.h>
+#include <vm/lit_memory.h>
+
 static void emit_byte(LitEmitter* emitter, uint8_t byte) {
-	lit_chunk_write(emitter->vm, &emitter->function->function->chunk, byte);
+	lit_chunk_write(emitter->compiler, &emitter->function->function->chunk, byte);
 }
 
 static void emit_bytes(LitEmitter* emitter, uint8_t a, uint8_t b) {
-	lit_chunk_write(emitter->vm, &emitter->function->function->chunk, a);
-	lit_chunk_write(emitter->vm, &emitter->function->function->chunk, b);
+	lit_chunk_write(emitter->compiler, &emitter->function->function->chunk, a);
+	lit_chunk_write(emitter->compiler, &emitter->function->function->chunk, b);
 }
 
 static void error(LitEmitter* emitter, const char* format, ...) {
@@ -31,7 +32,7 @@ static void error(LitEmitter* emitter, const char* format, ...) {
 }
 
 static uint8_t make_constant(LitEmitter* emitter, LitValue value) {
-	int constant = lit_chunk_add_constant(emitter->vm, &emitter->function->function->chunk, value);
+	int constant = lit_chunk_add_constant(emitter->compiler, &emitter->function->function->chunk, value);
 
 	if (constant > UINT8_MAX) {
 		error(emitter, "Too many constants in one chunk");
@@ -162,7 +163,7 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 				if (upvalue != -1) {
 					emit_bytes(emitter, OP_GET_UPVALUE, (uint8_t) upvalue);
 				} else {
-					emit_bytes(emitter, OP_GET_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, expr->name, strlen(expr->name)))));
+					emit_bytes(emitter, OP_GET_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, expr->name, strlen(expr->name)))));
 				}
 			}
 
@@ -183,7 +184,7 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 				if (upvalue != -1) {
 					emit_bytes(emitter, OP_SET_UPVALUE, (uint8_t) upvalue);
 				} else {
-					emit_bytes(emitter, OP_SET_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, e->name, strlen(e->name)))));
+					emit_bytes(emitter, OP_SET_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, e->name, strlen(e->name)))));
 				}
 			}
 
@@ -250,7 +251,7 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 			LitGetExpression* expr = (LitGetExpression*) expression;
 
 			emit_expression(emitter, expr->object);
-			emit_bytes(emitter, OP_GET_FIELD, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, expr->property, strlen(expr->property)))));
+			emit_bytes(emitter, OP_GET_FIELD, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, expr->property, strlen(expr->property)))));
 
 			break;
 		}
@@ -259,7 +260,7 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 
 			emit_expression(emitter, expr->object);
 			emit_expression(emitter, expr->value);
-			emit_bytes(emitter, OP_SET_FIELD, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, expr->property, strlen(expr->property)))));
+			emit_bytes(emitter, OP_SET_FIELD, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, expr->property, strlen(expr->property)))));
 
 			break;
 		}
@@ -267,12 +268,12 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 			LitLambdaExpression* expr = (LitFunctionStatement*) expression;
 			LitEmitterFunction function;
 
-			function.function = lit_new_function(emitter->vm);
+			function.function = lit_new_function(emitter->compiler);
 			function.depth = emitter->function->depth + 1;
 			function.local_count = 0;
 			function.enclosing = emitter->function;
-			function.function = lit_new_function(emitter->vm);
-			function.function->name = lit_copy_string(emitter->vm, "lambda", 6);
+			function.function = lit_new_function(emitter->compiler);
+			function.function->name = lit_copy_string(emitter->compiler, "lambda", 6);
 			function.function->arity = expr->parameters == NULL ? 0 : expr->parameters->count;
 
 			emitter->function = &function;
@@ -288,7 +289,7 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 			emit_statement(emitter, expr->body);
 
 			if (DEBUG_PRINT_CODE) {
-				lit_trace_chunk(emitter->vm, &function.function->chunk, "lambda");
+				lit_trace_chunk(emitter->compiler, &function.function->chunk, "lambda");
 			}
 
 			emitter->function = function.enclosing;
@@ -307,7 +308,7 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 		}
 		case SUPER_EXPRESSION: {
 			LitSuperExpression* expr = (LitSuperExpression*) expression;
-			emit_bytes(emitter, OP_SUPER, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, expr->method, strlen(expr->method)))));
+			emit_bytes(emitter, OP_SUPER, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, expr->method, strlen(expr->method)))));
 
 			break;
 		}
@@ -387,7 +388,7 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 			}
 
 			if (emitter->function->depth == 0) {
-				int str = make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, stmt->name, strlen(stmt->name))));
+				int str = make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, stmt->name, strlen(stmt->name))));
 				emit_bytes(emitter, OP_DEFINE_GLOBAL, (uint8_t) str);
 			} else {
 				emit_bytes(emitter, OP_SET_LOCAL, (uint8_t) add_local(emitter, stmt->name));
@@ -470,12 +471,12 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 			LitFunctionStatement* stmt = (LitFunctionStatement*) statement;
 			LitEmitterFunction function;
 
-			function.function = lit_new_function(emitter->vm);
+			function.function = lit_new_function(emitter->compiler);
 			function.depth = emitter->function->depth + 1;
 			function.local_count = 0;
 			function.enclosing = emitter->function;
-			function.function = lit_new_function(emitter->vm);
-			function.function->name = lit_copy_string(emitter->vm, stmt->name, (int) strlen(stmt->name));
+			function.function = lit_new_function(emitter->compiler);
+			function.function->name = lit_copy_string(emitter->compiler, stmt->name, (int) strlen(stmt->name));
 			function.function->arity = stmt->parameters == NULL ? 0 : stmt->parameters->count;
 
 			emitter->function = &function;
@@ -489,7 +490,7 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 			emit_statement(emitter, stmt->body);
 
 			if (DEBUG_PRINT_CODE) {
-				lit_trace_chunk(emitter->vm, &function.function->chunk, stmt->name);
+				lit_trace_chunk(emitter->compiler, &function.function->chunk, stmt->name);
 			}
 
 			emitter->function = function.enclosing;
@@ -501,7 +502,7 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 			}
 
 			if (emitter->function->depth == 0) {
-				emit_bytes(emitter, OP_DEFINE_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, stmt->name, strlen(stmt->name)))));
+				emit_bytes(emitter, OP_DEFINE_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, stmt->name, strlen(stmt->name)))));
 			} else {
 				emit_bytes(emitter, OP_SET_LOCAL, (uint8_t) add_local(emitter, stmt->name));
 			}
@@ -526,9 +527,9 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 
 			if (stmt->super != NULL) {
 				emit_expression(emitter, (LitExpression*) stmt->super);
-				emit_bytes(emitter, OP_SUBCLASS, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, stmt->name, strlen(stmt->name)))));
+				emit_bytes(emitter, OP_SUBCLASS, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, stmt->name, strlen(stmt->name)))));
 			} else {
-				emit_bytes(emitter, OP_CLASS, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, stmt->name, strlen(stmt->name)))));
+				emit_bytes(emitter, OP_CLASS, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, stmt->name, strlen(stmt->name)))));
 			}
 
 			if (stmt->fields != NULL) {
@@ -549,7 +550,7 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 						}
 					}
 
-					emit_bytes(emitter, field->is_static ? OP_DEFINE_STATIC_FIELD : OP_DEFINE_FIELD, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, field->name, strlen(field->name)))));
+					emit_bytes(emitter, field->is_static ? OP_DEFINE_STATIC_FIELD : OP_DEFINE_FIELD, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, field->name, strlen(field->name)))));
 				}
 			}
 
@@ -558,22 +559,22 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 					LitMethodStatement* method = stmt->methods->values[j];
 					LitEmitterFunction function;
 
-					function.function = lit_new_function(emitter->vm);
+					function.function = lit_new_function(emitter->compiler);
 					function.depth = emitter->function->depth + 1;
 					function.local_count = 1;
 					function.enclosing = emitter->function;
-					function.function = lit_new_function(emitter->vm);
+					function.function = lit_new_function(emitter->compiler);
 
 					size_t name_len = strlen(method->name);
 					size_t type_len = strlen(stmt->name);
 
-					char* name = (char*) reallocate(emitter->vm, NULL, 0, name_len + type_len + 1);
+					char* name = (char*) reallocate(emitter->compiler, NULL, 0, name_len + type_len + 1);
 
 					strncpy(name, stmt->name, type_len);
 					name[type_len] = '.';
 					strncpy(&name[type_len + 1], method->name, name_len);
 
-					function.function->name = lit_copy_string(emitter->vm, name, name_len + type_len + 1);
+					function.function->name = lit_copy_string(emitter->compiler, name, name_len + type_len + 1);
 					function.function->arity = method->parameters == NULL ? 0 : method->parameters->count;
 
 					emitter->function = &function;
@@ -589,7 +590,7 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 					emit_statement(emitter, method->body);
 
 					if (DEBUG_PRINT_CODE) {
-						lit_trace_chunk(emitter->vm, &function.function->chunk, method->name);
+						lit_trace_chunk(emitter->compiler, &function.function->chunk, method->name);
 					}
 
 					emitter->function = function.enclosing;
@@ -600,11 +601,11 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 						emit_byte(emitter, function.upvalues[i].index);
 					}
 
-					emit_bytes(emitter, method->is_static ? OP_DEFINE_STATIC_METHOD : OP_DEFINE_METHOD, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, method->name, strlen(method->name)))));
+					emit_bytes(emitter, method->is_static ? OP_DEFINE_STATIC_METHOD : OP_DEFINE_METHOD, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, method->name, strlen(method->name)))));
 				}
 			}
 
-			emit_bytes(emitter, OP_DEFINE_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, stmt->name, strlen(stmt->name)))));
+			emit_bytes(emitter, OP_DEFINE_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, stmt->name, strlen(stmt->name)))));
 			break;
 		}
 		case METHOD_STATEMENT: {
@@ -626,17 +627,17 @@ static void emit_statements(LitEmitter* emitter, LitStatements* statements) {
 }
 
 
-LitFunction* lit_emit(LitVm* vm, LitStatements* statements) {
+LitChunk* lit_emit(LitCompiler* compiler, LitStatements* statements) {
 	LitEmitter emitter;
 	LitEmitterFunction function;
 
-	function.function = lit_new_function(vm);
+	function.function = lit_new_function(compiler);
 	function.depth = 0;
 	function.local_count = 0;
 	function.enclosing = NULL;
 
 	emitter.had_error = false;
-	emitter.vm = vm;
+	emitter.compiler = compiler;
 	emitter.function = &function;
 	emitter.class = NULL;
 
@@ -644,5 +645,5 @@ LitFunction* lit_emit(LitVm* vm, LitStatements* statements) {
 	emit_byte(&emitter, OP_NIL);
 	emit_byte(&emitter, OP_RETURN);
 
-	return emitter.had_error ? NULL : function.function;
+	return emitter.had_error ? NULL : &function.function->chunk;
 }

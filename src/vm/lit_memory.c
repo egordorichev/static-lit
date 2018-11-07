@@ -8,11 +8,15 @@
 
 #define GC_HEAP_GROW_FACTOR 2
 
-void* reallocate(LitVm* vm, void* previous, size_t old_size, size_t new_size) {
-	vm->bytes_allocated += new_size - old_size;
+void* reallocate(LitMemManager* manager, void* previous, size_t old_size, size_t new_size) {
+	manager->bytes_allocated += new_size - old_size;
 
-	if (new_size > old_size && vm->bytes_allocated > vm->next_gc) {
-		lit_collect_garbage(vm);
+	if (new_size > old_size && manager->type == MANAGER_VM) {
+		LitVm* vm = (LitVm*) manager;
+
+		if (manager->bytes_allocated > vm->next_gc) {
+			lit_collect_garbage(vm);
+		}
 	}
 
 	if (new_size == 0) {
@@ -171,7 +175,7 @@ static void free_object(LitVm* vm, LitObject* object) {
 }
 
 void lit_collect_garbage(LitVm* vm) {
-	size_t before = vm->bytes_allocated;
+	size_t before = ((LitMemManager*) vm)->bytes_allocated;
 
 	if (DEBUG_TRACE_GC) {
 		printf("-- gc begin\n");
@@ -190,7 +194,6 @@ void lit_collect_garbage(LitVm* vm) {
 	}
 
 	lit_table_gray(vm, &vm->globals);
-
 	lit_gray_object(vm, (LitObject*) vm->init_string);
 
 	while (vm->gray_count > 0) {
@@ -212,10 +215,11 @@ void lit_collect_garbage(LitVm* vm) {
 		}
 	}
 
-	vm->next_gc = vm->bytes_allocated * GC_HEAP_GROW_FACTOR;
+	size_t bytes = ((LitMemManager*) vm)->bytes_allocated;
+	vm->next_gc = bytes * GC_HEAP_GROW_FACTOR;
 
 	if (DEBUG_TRACE_GC) {
-		printf("-- gc collected %ld bytes (from %ld to %ld) next at %ld\n", before - vm->bytes_allocated, before, vm->bytes_allocated, vm->next_gc);
+		printf("-- gc collected %ld bytes (from %ld to %ld) next at %ld\n", before - bytes, before, bytes, vm->next_gc);
 	}
 }
 

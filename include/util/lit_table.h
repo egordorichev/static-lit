@@ -3,7 +3,7 @@
 
 #include <lit_common.h>
 #include <vm/lit_value.h>
-#include <vm/lit_vm.h>
+#include <vm/lit_memory.h>
 
 #define TABLE_MAX_LOAD 0.75
 
@@ -20,13 +20,13 @@
 	} name; \
 	\
 	void lit_init_##shr(name* table); \
-	void lit_free_##shr(LitVm* vm, name* table); \
+	void lit_free_##shr(LitMemManager* manager, name* table); \
 	valp lit_##shr##_get(name* table, LitString* key); \
-	bool lit_##shr##_set(LitVm* vm, name* table, LitString* key, val value); \
-	bool lit_##shr##_delete(LitVm* vm, name* table, LitString* key); \
+	bool lit_##shr##_set(LitMemManager* manager, name* table, LitString* key, val value); \
+	bool lit_##shr##_delete(LitMemManager* manager, name* table, LitString* key); \
 	LitString* lit_##shr##_find(name* table, const char* chars, int length, uint32_t hash); \
-	void lit_##shr##_add_all(LitVm* vm, name* to, name* from); \
-	void lit_##shr##_remove_white(LitVm* vm, name* table); \
+	void lit_##shr##_add_all(LitMemManager* manager, name* to, name* from); \
+	void lit_##shr##_remove_white(LitMemManager* manager, name* table); \
 
 DECLARE_TABLE(LitTable, LitValue, table, LitValue*)
 
@@ -37,8 +37,8 @@ DECLARE_TABLE(LitTable, LitValue, table, LitValue*)
 		table->entries = NULL; \
 	} \
 	\
-	void lit_free_##shr(LitVm* vm, name* table) { \
-		FREE_ARRAY(vm, name##Entry, table->entries, table->capacity_mask + 1); \
+	void lit_free_##shr(LitMemManager* manager, name* table) { \
+		FREE_ARRAY(manager, name##Entry, table->entries, table->capacity_mask + 1); \
 		lit_init_##shr(table); \
 	} \
 	\
@@ -71,8 +71,8 @@ DECLARE_TABLE(LitTable, LitValue, table, LitValue*)
 		return op; \
 	} \
 	\
-	static void resize_##shr(LitVm* vm, name* table, int capacity_mask) { \
-		name##Entry* entries = ALLOCATE(vm, name##Entry, capacity_mask + 1); \
+	static void resize_##shr(LitMemManager* manager, name* table, int capacity_mask) { \
+		name##Entry* entries = ALLOCATE(manager, name##Entry, capacity_mask + 1); \
 	\
 		for (int i = 0; i <= capacity_mask; i++) { \
 			entries[i].key = NULL; \
@@ -95,16 +95,16 @@ DECLARE_TABLE(LitTable, LitValue, table, LitValue*)
 			table->count++; \
 		} \
 	\
-		FREE_ARRAY(vm, name##Entry, table->entries, table->capacity_mask + 1); \
+		FREE_ARRAY(manager, name##Entry, table->entries, table->capacity_mask + 1); \
 	\
 		table->entries = entries; \
 		table->capacity_mask = capacity_mask; \
 	} \
 	\
-	bool lit_##shr##_set(LitVm* vm, name* table, LitString* key, val value) { \
+	bool lit_##shr##_set(LitMemManager* manager, name* table, LitString* key, val value) { \
 		if (table->count + 1 > (table->capacity_mask + 1) * TABLE_MAX_LOAD) { \
 			int capacity_mask = GROW_CAPACITY(table->capacity_mask + 1) - 1; \
-			resize_##shr(vm, table, capacity_mask); \
+			resize_##shr(manager, table, capacity_mask); \
 		} \
 	\
 		uint32_t index = find_entry_##shr(table->entries, table->capacity_mask, key); \
@@ -121,7 +121,7 @@ DECLARE_TABLE(LitTable, LitValue, table, LitValue*)
 		return is_new; \
 	} \
 	\
-	bool lit_##shr##_delete(LitVm* vm, name* table, LitString* key) { \
+	bool lit_##shr##_delete(LitMemManager* manager, name* table, LitString* key) { \
 		if (table->count == 0) { \
 			return false; \
 		} \
@@ -151,7 +151,7 @@ DECLARE_TABLE(LitTable, LitValue, table, LitValue*)
 			entry->value = nil; \
 			table->count--; \
 	\
-			lit_##shr##_set(vm, table, temp_key, temp_value); \
+			lit_##shr##_set(manager, table, temp_key, temp_value); \
 		} \
 	\
 		return true; \
@@ -181,22 +181,22 @@ DECLARE_TABLE(LitTable, LitValue, table, LitValue*)
 		return NULL; \
 	} \
 	\
-	void lit_##shr##_add_all(LitVm* vm, name* to, name* from) { \
+	void lit_##shr##_add_all(LitMemManager* manager, name* to, name* from) { \
 		for (int i = 0; i <= from->capacity_mask; i++) { \
 			name##Entry* entry = &from->entries[i]; \
 	\
 			if (entry->key != NULL) { \
-				lit_##shr##_set(vm, to, entry->key, entry->value); \
+				lit_##shr##_set(manager, to, entry->key, entry->value); \
 			} \
 		} \
 	} \
 	\
-	void lit_##shr##_remove_white(LitVm* vm, name* table) { \
+	void lit_##shr##_remove_white(LitMemManager* manager, name* table) { \
 		for (int i = 0; i <= table->capacity_mask; i++) { \
 			name##Entry* entry = &table->entries[i]; \
 	\
 			if (entry->key != NULL && !entry->key->object.dark) { \
-				lit_##shr##_delete(vm, table, entry->key); \
+				lit_##shr##_delete(manager, table, entry->key); \
 			} \
 		} \
 	} \

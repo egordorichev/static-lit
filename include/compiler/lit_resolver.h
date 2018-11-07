@@ -2,10 +2,10 @@
 #define LIT_RESOLVER_H
 
 #include <lit_common.h>
+#include <lit_predefines.h>
+
 #include <compiler/lit_ast.h>
 #include <util/lit_table.h>
-#include <vm/lit_vm.h>
-#include <vm/lit_object.h>
 
 typedef struct LitLetal {
 	bool defined;
@@ -23,7 +23,7 @@ typedef struct LitResource {
 	const char* type;
 } LitResource;
 
-void lit_free_resource(LitVm* vm, LitResource* resource);
+void lit_free_resource(LitCompiler* compiler, LitResource* resource);
 
 DECLARE_TABLE(LitResources, LitResource*, resources, LitResource*)
 
@@ -34,13 +34,11 @@ typedef struct LitRem {
 	char* signature;
 } LitRem;
 
-void lit_free_rem(LitVm* vm, LitRem* rem);
+void lit_free_rem(LitCompiler* compiler, LitRem* rem);
 
 DECLARE_TABLE(LitRems, LitRem*, rems, LitRem*)
 
 typedef struct sLitType {
-	LitObject object;
-
 	LitString* name;
 	struct sLitType* super;
 	LitRems methods;
@@ -49,7 +47,7 @@ typedef struct sLitType {
 } LitType;
 
 void lit_init_type(LitType* type);
-void lit_free_type(LitVm* vm, LitType* type);
+void lit_free_type(LitCompiler* compiler, LitType* type);
 
 DECLARE_TABLE(LitLetals, LitLetal*, letals, LitLetal*)
 DECLARE_TABLE(LitTypes, bool, types, bool)
@@ -63,7 +61,9 @@ typedef struct LitResolver {
 	LitTypes types;
 	LitStrings allocated_strings;
 	LitClasses classes;
-	LitVm* vm;
+
+	LitCompiler* compiler;
+
 	int depth;
 	LitType* class;
 
@@ -76,6 +76,6 @@ typedef struct LitResolver {
 void lit_init_resolver(LitResolver* resolver);
 void lit_free_resolver(LitResolver* resolver);
 
-bool lit_resolve(LitVm* vm, LitStatements* statements);
+bool lit_resolve(LitCompiler* compiler, LitStatements* statements);
 
 #endif

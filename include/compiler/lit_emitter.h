@@ -36,11 +36,11 @@ typedef struct LitEmitterFunction {
 typedef struct LitEmitter {
 	LitEmitterFunction* function;
 	LitClassCompiler* class;
-	LitVm* vm;
+	LitCompiler* compiler;
 
 	bool had_error;
 } LitEmitter;
 
-LitFunction* lit_emit(LitVm* vm, LitStatements* statements);
+LitChunk* lit_emit(LitCompiler* compiler, LitStatements* statements);
 
 #endif

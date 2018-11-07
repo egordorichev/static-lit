@@ -2,11 +2,10 @@
 #define LIT_OBJECT_H
 
 #include <lit_common.h>
+#include <lit_predefines.h>
 
 #include <vm/lit_value.h>
-#include <vm/lit_vm.h>
 #include <vm/lit_chunk.h>
-
 #include <util/lit_table.h>
 #include <compiler/lit_ast.h>
 
@@ -68,6 +67,7 @@ typedef struct {
 
 	int arity;
 	int upvalue_count;
+
 	LitChunk chunk;
 	LitString* name;
 } LitFunction;

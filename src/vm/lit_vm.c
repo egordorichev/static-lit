@@ -32,7 +32,8 @@ void lit_define_native(LitVm* vm, const char* name, const char* type, LitNativeF
 	letal->defined = true;
 	letal->nil = false;
 
-	lit_letals_set(vm, &vm->resolver.externals, str, letal);
+	// FIXME
+	// lit_letals_set(vm, &vm->resolver.externals, str, letal);
 }
 
 static int time_function(LitVm* vm, int count) {
@@ -49,12 +50,16 @@ static int print_function(LitVm* vm, int count) {
 }
 
 void lit_init_vm(LitVm* vm) {
+	LitMemManager* manager = (LitMemManager*) vm;
+
+	manager->bytes_allocated = 0;
+	manager->type = MANAGER_VM;
+
 	reset_stack(vm);
 
 	lit_init_table(&vm->strings);
 	lit_init_table(&vm->globals);
 
-	vm->bytes_allocated = 0;
 	vm->next_gc = 1024 * 1024;
 	vm->objects = NULL;
 	vm->gray_capacity = 0;
@@ -63,24 +68,11 @@ void lit_init_vm(LitVm* vm) {
 
 	vm->init_string = lit_copy_string(vm, "init", 4);
 
-	vm->resolver.vm = vm;
-	lit_init_letals(&vm->resolver.externals);
-
 	lit_define_native(vm, "print", "function<any, void>", print_function);
 	lit_define_native(vm, "time", "function<double>", time_function);
 }
 
 void lit_free_vm(LitVm* vm) {
-	for (int i = 0; i <= vm->resolver.externals.capacity_mask; i++) {
-		LitLetal* letal = vm->resolver.externals.entries[i].value;
-
-		if (letal != NULL) {
-			reallocate(vm, (void*) letal->type, strlen(letal->type), 0);
-			reallocate(vm, (void*) letal, sizeof(LitLetal), 0);
-		}
-	}
-
-	lit_free_letals(vm, &vm->resolver.externals);
 	lit_free_table(vm, &vm->strings);
 	lit_free_table(vm, &vm->globals);
 	lit_free_objects(vm);
@@ -88,7 +80,7 @@ void lit_free_vm(LitVm* vm) {
 	vm->init_string = NULL;
 
 	if (DEBUG_TRACE_GC) {
-		printf("Bytes left after freeing vm: %i\n", (int) vm->bytes_allocated);
+		printf("Bytes left after freeing vm: %i\n", (int) ((LitMemManager*) vm)->bytes_allocated);
 	}
 }
 
@@ -226,7 +218,7 @@ static bool call_value(LitVm* vm, LitValue callee, int arg_count) {
 }
 
 LitInterpretResult lit_execute(LitVm* vm, const char* code) {
-	vm->abort = false;
+	/*vm->abort = false;
 	vm->code = code;
 
 	LitStatements statements;
@@ -289,7 +281,7 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 		call_value(vm, MAKE_OBJECT_VALUE(closure), 0);
 
 		return lit_interpret(vm) ? INTERPRET_OK : INTERPRET_RUNTIME_ERROR;
-	}
+	}*/
 
 	return INTERPRET_OK;
 }
