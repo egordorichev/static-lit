@@ -1,8 +1,14 @@
 // todo: static constructors
 // todo: constructor args
 
-class Math {
-	static final double PI = 3.141
+static class Math {
+	final double PI = 3.141
 }
 
+var m = Math()
+print(m)
+
+/*
+Math.PI = 0
 print(Math.PI)
+*/
