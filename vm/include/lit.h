@@ -50,7 +50,7 @@ LitValue lit_pop(LitVm* vm);
 LitValue lit_peek(LitVm* vm, int depth);
 
 LitInterpretResult lit_execute(LitVm* vm, const char* code);
-LitInterpretResult lit_interpret(LitVm* vm);
+bool lit_interpret(LitVm* vm);
 void lit_define_native(LitVm* vm, const char* name, const char* type, LitNativeFn function);
 
 #endif

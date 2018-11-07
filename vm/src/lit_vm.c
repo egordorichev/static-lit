@@ -87,7 +87,9 @@ void lit_free_vm(LitVm* vm) {
 
 	vm->init_string = NULL;
 
-	printf("left: %i\n", (int) vm->bytes_allocated);
+	if (DEBUG_TRACE_GC) {
+		printf("Bytes left after freeing vm: %i\n", (int) vm->bytes_allocated);
+	}
 }
 
 void lit_push(LitVm* vm, LitValue value) {
@@ -286,7 +288,7 @@ LitInterpretResult lit_execute(LitVm* vm, const char* code) {
 		lit_pop(vm);
 		call_value(vm, MAKE_OBJECT_VALUE(closure), 0);
 
-		return lit_interpret(vm);
+		return lit_interpret(vm) ? INTERPRET_OK : INTERPRET_RUNTIME_ERROR;
 	}
 
 	return INTERPRET_OK;
@@ -370,10 +372,10 @@ static bool invoke(LitVm* vm, int arg_count) {
 	return value;
 }
 
-static void *functions[OP_DEFINE_STATIC_METHOD + 1];
+static void *functions[OP_DEFINE_STATIC_METHOD + 2];
 static bool inited_functions;
 
-LitInterpretResult lit_interpret(LitVm* vm) {
+bool lit_interpret(LitVm* vm) {
 	if (!inited_functions) {
 		inited_functions = true;
 
@@ -412,14 +414,15 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		functions[OP_SUBCLASS] = &&op_subclass;
 		functions[OP_CLASS] = &&op_class;
 		functions[OP_METHOD] = &&op_method;
-		functions[OP_GET_FIELD] = &&op_get_property;
-		functions[OP_SET_PROPERTY] = &&op_set_property;
+		functions[OP_GET_FIELD] = &&op_get_field;
+		functions[OP_SET_FIELD] = &&op_set_field;
 		functions[OP_INVOKE] = &&op_invoke;
 		functions[OP_DEFINE_FIELD] = &&op_define_field;
 		functions[OP_DEFINE_METHOD] = &&op_define_method;
 		functions[OP_SUPER] = &&op_super;
 		functions[OP_DEFINE_STATIC_FIELD] = &&op_define_static_field;
 		functions[OP_DEFINE_STATIC_METHOD] = &&op_define_static_method;
+		functions[OP_DEFINE_STATIC_METHOD + 1] = &&op_unknown;
 	}
 
 	if (DEBUG_TRACE_EXECUTION) {
@@ -439,7 +442,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 
 	while (true) {
 		if (vm->abort) {
-			return INTERPRET_RUNTIME_ERROR;
+			return false;
 		}
 
 		if (DEBUG_TRACE_EXECUTION) {
@@ -448,6 +451,11 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		}
 
 		goto *functions[*frame->ip++];
+
+		op_unknown: {
+			runtime_error(vm, "Unknown opcode %i!", *(frame->ip - 1));
+			return false;
+		};
 
 		op_constant: {
 			PUSH(READ_CONSTANT());
@@ -654,10 +662,10 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		};
 
 		op_call: {
-			int arg_count = AS_NUMBER(POP());
+			int arg_count = (int) AS_NUMBER(POP());
 
 			if (!call_value(vm, PEEK(arg_count), arg_count)) {
-				return INTERPRET_RUNTIME_ERROR;
+				return false;
 			}
 
 			if (!last_native) {
@@ -677,7 +685,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 
 			if (!IS_CLASS(super)) {
 				runtime_error(vm, "Superclass must be a class");
-				return INTERPRET_RUNTIME_ERROR;
+				return false;
 			}
 
 			create_class(vm, READ_STRING(), AS_CLASS(super));
@@ -689,19 +697,19 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 			continue;
 		};
 
-		op_get_property: {
+		op_get_field: {
 			if (!IS_INSTANCE(PEEK(0))) {
 				runtime_error(vm, "Only instances have properties");
-				return INTERPRET_RUNTIME_ERROR;
+				return false;
 			}
 
 			LitInstance* instance = AS_INSTANCE(PEEK(0));
 			LitString* name = READ_STRING();
-			LitField* field = lit_table_get(&instance->fields, name);
+			LitValue* field = lit_table_get(&instance->fields, name);
 
 			if (field != NULL) {
 				POP();
-				PUSH(field->value);
+				PUSH(*field);
 			} else {
 				LitValue* method = lit_table_get(&instance->type->methods, name);
 
@@ -716,10 +724,10 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 			continue;
 		};
 
-		op_set_property: {
+		op_set_field: {
 			if (!IS_INSTANCE(PEEK(1))) {
 				runtime_error(vm, "Only instances have fields");
-				return INTERPRET_RUNTIME_ERROR;
+				return false;
 			}
 
 			LitInstance* instance = AS_INSTANCE(PEEK(1));
@@ -737,7 +745,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 			int arg_count = (int) AS_NUMBER(POP());
 
 			if (!invoke(vm, arg_count)) {
-				return INTERPRET_RUNTIME_ERROR;
+				return false;
 			}
 
 			frame = &vm->frames[vm->frame_count - 1];
@@ -747,7 +755,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		op_define_field: {
 			if (!IS_CLASS(PEEK(1))) {
 				runtime_error(vm, "Can't define a field in non-class");
-				return INTERPRET_RUNTIME_ERROR;
+				return false;
 			}
 
 			LitClass* class = AS_CLASS(PEEK(1));
@@ -784,7 +792,7 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 		op_define_static_field: {
 			if (!IS_CLASS(PEEK(1))) {
 				runtime_error(vm, "Can't define a field in non-class");
-				return INTERPRET_RUNTIME_ERROR;
+				return false;
 			}
 
 			LitClass* class = AS_CLASS(PEEK(1));
@@ -811,5 +819,5 @@ LitInterpretResult lit_interpret(LitVm* vm) {
 #undef POP
 #undef PEEK
 
-	return INTERPRET_OK;
+	return true;
 }

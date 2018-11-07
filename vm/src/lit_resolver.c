@@ -359,7 +359,7 @@ static void resolve_method_statement(LitResolver* resolver, LitMethodStatement* 
 			if (super_method == NULL) {
 				error(resolver, "Can't override method %s, it does not exist in the base class", statement->name);
 			} else if (super_method->is_static) {
-				error(resolver, "Method %s is declared static and can not be overriden", statement->name);
+				error(resolver, "Method %s is declared static and can not be overridden", statement->name);
 			} else if (super_method->access != statement->access) {
 				error(resolver, "Method %s type was declared as %s in super, but been changed to %s in child", statement->name, access_to_string(super_method->access), access_to_string(statement->access));
 			} else if (strcmp(super_method->signature, signature) != 0) {
@@ -411,6 +411,8 @@ static void resolve_field_statement(LitResolver* resolver, LitFieldStatement* st
 		if (strcmp(statement->type, given) != 0) {
 			error(resolver, "Can't assign %s value to a %s var", given, statement->type);
 		}
+	} else if (statement->final) {
+		error(resolver, "Final field must have a value assigned!");
 	}
 
 	resolve_type(resolver, statement->type);
@@ -527,8 +529,15 @@ static void resolve_statement(LitResolver* resolver, LitStatement* statement) {
 		case FUNCTION_STATEMENT: resolve_function_statement(resolver, (LitFunctionStatement*) statement); break;
 		case RETURN_STATEMENT: resolve_return_statement(resolver, (LitReturnStatement*) statement); break;
 		case CLASS_STATEMENT: resolve_class_statement(resolver, (LitClassStatement*) statement); break;
-		case FIELD_STATEMENT: UNREACHABLE(); break;
-		case METHOD_STATEMENT: UNREACHABLE(); break;
+		case FIELD_STATEMENT:
+		case METHOD_STATEMENT: {
+			printf("Field or method statement never should be resolved with resolve_statement\n");
+			UNREACHABLE();
+		}
+		default: {
+			printf("Unknown statement with id %i!\n", statement->type);
+			UNREACHABLE();
+		}
 	}
 }
 
@@ -782,6 +791,8 @@ static const char* resolve_get_expression(LitResolver* resolver, LitGetExpressio
 		class = lit_classes_get(&resolver->classes, lit_copy_string(resolver->vm, type, strlen(type)));
 	}
 
+	printf("Got to resolve get with %s and field %s\n", type, expression->property);
+
 	if (class == NULL) {
 		error(resolver, "Can't find class %s", type);
 		return "error";
@@ -908,6 +919,10 @@ static const char* resolve_expression(LitResolver* resolver, LitExpression* expr
 		case LAMBDA_EXPRESSION: return resolve_lambda_expression(resolver, (LitLambdaExpression*) expression);
 		case THIS_EXPRESSION: return resolve_this_expression(resolver, (LitThisExpression*) expression);
 		case SUPER_EXPRESSION: return resolve_super_expression(resolver, (LitSuperExpression*) expression);
+		default: {
+			printf("Unknown expression with id %i!\n", expression->type);
+			UNREACHABLE();
+		}
 	}
 
 	return "error";

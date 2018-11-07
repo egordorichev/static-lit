@@ -30,7 +30,7 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 				if (var->init != NULL) {
 					lit_trace_expression(vm, var->init, depth + 1);
 				} else {
-					printf("\"null\"");
+					printf("[]");
 				}
 
 				printf("\n");
@@ -258,7 +258,50 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 				printf("]\n");
 				break;
 			}
-			default: UNREACHABLE();
+			case FIELD_STATEMENT: {
+				LitFieldStatement* field = (LitFieldStatement*) statement;
+
+				printf("\"type\" : \"field\",\n");
+				printf("\"field_type\" : \"%s\",\n", field->type == NULL ? "undefined" : field->type);
+				printf("\"name\" : \"%s\",\n", field->name);
+				printf("\"static\" : \"%s\",\n", field->is_static ? "true" : "false");
+				printf("\"final\" : \"%s\",\n", field->final ? "true" : "false");
+				printf("\"access\" : \"%s\",\n", field->access == PUBLIC_ACCESS ? "public" :
+					(field->access == PROTECTED_ACCESS ? "protected" : "private"));
+
+				printf("\"init\" : ");
+
+				if (field->init != NULL) {
+					lit_trace_expression(vm, field->init, depth + 1);
+				} else {
+					printf("[]");
+				}
+
+				printf(",\n");
+				printf("\"getter\" : ");
+
+				if (field->getter != NULL) {
+					lit_trace_statement(vm, field->getter, depth + 1);
+				} else {
+					printf("[]");
+				}
+
+				printf(",\n");
+				printf("\"setter\" : ");
+
+				if (field->setter != NULL) {
+					lit_trace_statement(vm, field->setter, depth + 1);
+				} else {
+					printf("[]");
+				}
+
+				printf(",\n");
+				break;
+			}
+			default: {
+				printf("Statement with id %i has no pretty-printer!\n", statement->type);
+				UNREACHABLE();
+			}
 		}
 	}
 
@@ -461,7 +504,10 @@ void lit_trace_expression(LitVm* vm, LitExpression* expression, int depth) {
 				printf("\"method\" : \"%s\"\n", ((LitSuperExpression*) expression)->method);
 				break;
 			}
-			default: UNREACHABLE();
+			default: {
+				printf("Expression with id %i has no pretty-printer!\n", expression->type);
+				UNREACHABLE();
+			}
 		}
 	}
 
@@ -543,7 +589,7 @@ int lit_disassemble_instruction(LitVm* vm, LitChunk* chunk, int offset) {
 		case OP_SUBCLASS: return constant_instruction(vm, "OP_SUBCLASS", chunk, offset);
 		case OP_METHOD: return constant_instruction(vm, "OP_METHOD", chunk, offset);
 		case OP_GET_FIELD: return constant_instruction(vm, "OP_GET_FIELD", chunk, offset);
-		case OP_SET_PROPERTY: return constant_instruction(vm, "OP_SET_PROPERTY", chunk, offset);
+		case OP_SET_FIELD: return constant_instruction(vm, "OP_SET_FIELD", chunk, offset);
 		case OP_DEFINE_FIELD: return constant_instruction(vm, "OP_DEFINE_FIELD", chunk, offset);
 		case OP_DEFINE_METHOD: return constant_instruction(vm, "OP_DEFINE_METHOD", chunk, offset);
 		case OP_DEFINE_STATIC_FIELD: return constant_instruction(vm, "OP_DEFINE_STATIC_FIELD", chunk, offset);

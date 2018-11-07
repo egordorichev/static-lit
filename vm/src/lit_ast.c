@@ -434,7 +434,7 @@ void lit_free_statement(LitVm* vm, LitStatement* statement) {
 					lit_free_statement(vm, (LitStatement*) stmt->methods->values[i]);
 				}
 
-				lit_free_functions(vm, stmt->methods);
+				lit_free_methods(vm, stmt->methods);
 				reallocate(vm, (void*) stmt->methods, sizeof(LitFunctions), 0);
 			}
 
@@ -443,6 +443,13 @@ void lit_free_statement(LitVm* vm, LitStatement* statement) {
 			}
 
 			reallocate(vm, (void*) statement, sizeof(LitClassStatement), 0);
+			break;
+		}
+		default: {
+			fflush(stdin);
+			fprintf(stderr, "Statement with id %i has no freeing case!", statement->type);
+			fflush(stdout);
+
 			break;
 		}
 	}
@@ -572,6 +579,13 @@ void lit_free_expression(LitVm* vm, LitExpression* expression) {
 
 			reallocate(vm, (void*) expr->method, strlen(expr->method) + 1, 0);
 			reallocate(vm, (void*) expression, sizeof(LitSuperExpression), 0);
+
+			break;
+		}
+		default: {
+			fflush(stdin);
+			fprintf(stderr, "Expression with id %i has no freeing case!", expression->type);
+			fflush(stdout);
 
 			break;
 		}

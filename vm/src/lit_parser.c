@@ -188,6 +188,7 @@ static LitExpression* parse_call(LitLexer* lexer) {
 		if (match(lexer, TOKEN_LEFT_PAREN)) {
 			expression = finish_call(lexer, expression);
 		} else if (match(lexer, TOKEN_DOT)) {
+			printf("Consumed dot!\n");
 			LitToken token = consume(lexer, TOKEN_IDENTIFIER, "Expected property name after '.'");
 
 			if (match(lexer, TOKEN_EQUAL)) {

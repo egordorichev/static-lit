@@ -259,7 +259,7 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 
 			emit_expression(emitter, expr->object);
 			emit_expression(emitter, expr->value);
-			emit_bytes(emitter, OP_SET_PROPERTY, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, expr->property, strlen(expr->property)))));
+			emit_bytes(emitter, OP_SET_FIELD, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, expr->property, strlen(expr->property)))));
 
 			break;
 		}
@@ -310,6 +310,10 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 			emit_bytes(emitter, OP_SUPER, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, expr->method, strlen(expr->method)))));
 
 			break;
+		}
+		default: {
+			printf("Unknown expression with id %i!\n", expression->type);
+			UNREACHABLE();
 		}
 	}
 }
@@ -602,6 +606,15 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 
 			emit_bytes(emitter, OP_DEFINE_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->vm, stmt->name, strlen(stmt->name)))));
 			break;
+		}
+		case METHOD_STATEMENT: {
+			printf("Field or method statement never should be emitted with emit_statement\n");
+
+			UNREACHABLE();
+		}
+		default: {
+			printf("Unknown statement with id %i!\n", statement->type);
+			UNREACHABLE();
 		}
 	}
 }

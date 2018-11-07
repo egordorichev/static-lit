@@ -59,6 +59,8 @@ typedef struct sLitUpvalue {
 	struct sLitUpvalue* next;
 } LitUpvalue;
 
+LitUpvalue* lit_new_upvalue(LitVm* vm, LitValue* slot);
+
 typedef struct {
 	LitObject object;
 
@@ -68,12 +70,16 @@ typedef struct {
 	LitString* name;
 } LitFunction;
 
+LitFunction* lit_new_function(LitVm* vm);
+
 typedef int (*LitNativeFn)(LitVm *vm, int count);
 
 typedef struct {
 	LitObject object;
 	LitNativeFn function;
 } LitNative;
+
+LitNative* lit_new_native(LitVm* vm, LitNativeFn function);
 
 typedef struct {
 	LitObject object;
@@ -82,6 +88,8 @@ typedef struct {
 	LitUpvalue** upvalues;
 	int upvalue_count;
 } LitClosure;
+
+LitClosure* lit_new_closure(LitVm* vm, LitFunction* function);
 
 typedef struct sLitClass {
 	LitObject object;
@@ -94,12 +102,16 @@ typedef struct sLitClass {
 	LitTable static_fields;
 } LitClass;
 
+LitClass* lit_new_class(LitVm* vm, LitString* name, LitClass* super);
+
 typedef struct {
 	LitObject object;
 
 	LitClass* type;
 	LitTable fields;
 } LitInstance;
+
+LitInstance* lit_new_instance(LitVm* vm, LitClass* class);
 
 typedef struct {
 	LitObject object;
@@ -108,13 +120,7 @@ typedef struct {
 	LitClosure* method;
 } LitMethod;
 
-LitUpvalue* lit_new_upvalue(LitVm* vm, LitValue* slot);
-LitClosure* lit_new_closure(LitVm* vm, LitFunction* function);
-LitFunction* lit_new_function(LitVm* vm);
-LitNative* lit_new_native(LitVm* vm, LitNativeFn function);
 LitMethod* lit_new_bound_method(LitVm* vm, LitValue receiver, LitClosure* method);
-LitClass* lit_new_class(LitVm* vm, LitString* name, LitClass* super);
-LitInstance* lit_new_instance(LitVm* vm, LitClass* class);
 
 LitString* lit_make_string(LitVm* vm, char* chars, int length);
 LitString* lit_copy_string(LitVm* vm, const char* chars, size_t length);
