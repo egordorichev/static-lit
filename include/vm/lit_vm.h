@@ -43,6 +43,7 @@ typedef struct sLitVm {
 void lit_init_vm(LitVm* vm);
 void lit_free_vm(LitVm* vm);
 
+bool lit_eval(const char* source_code);
 bool lit_execute(LitVm* vm, LitFunction* function);
 void lit_define_native(LitVm* vm, const char* name, const char* type, LitNativeFn function);
 

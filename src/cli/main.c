@@ -5,6 +5,10 @@
 #include <lit.h>
 
 void show_repl() {
+	printf("FIXME: implement REPL!\nIf you want to run a file, use 'lit file.lit'\nUse 'lit -h' for help\n");
+	// This is super old
+
+	/*
 	LitVm vm;
 	lit_init_vm(&vm);
 
@@ -22,7 +26,14 @@ void show_repl() {
 	}
 
 	// TODO: quit command
-	lit_free_vm(&vm);
+	lit_free_vm(&vm);*/
+}
+
+void show_help() {
+	printf("lit - powerful and fast static-typed language\n");
+	printf("\tlit [file]\tRun the file\n");
+	printf("\t-e --exec [code string]\tExecutes a string of code\n");
+	printf("\t-h --help\tShows this hint\n");
 }
 
 static char* read_file(const char* path) {
@@ -69,68 +80,23 @@ int main(int argc, char** argv) {
 				  if (i == argc - 1) {
 					  printf("Usage: lit -e [code]");
 				  } else {
-					  i++;
-
-					  LitVm vm;
-
-					  lit_init_vm(&vm);
-					  // LitInterpretResult result = lit_execute(&vm, argv[i]);
-					  lit_free_vm(&vm);
-
-					  // FIXME
-					  return 0; // result == INTERPRET_OK ? 0 : -2;
+					  return lit_eval(argv[i + 1]) ? 0 : 2;
 				  }
 			  } else if (strcmp(arg, "-h") == 0 || strcmp(arg, "--help") == 0) {
-				  printf("lit - simple and fast scripting language\n");
-					printf("\tlit [file]\tRun the file\n");
-				  printf("\t-e --exec [code string]\tExecutes a string of code\n");
-				  printf("\t-h --help\tShows this hint\n");
+					show_help();
 			  } else {
 			  	printf("Unknown option %s! Run with -h for help.", arg);
 			  	return -1;
 			  }
 		  } else {
 			  const char* source_code = read_file(arg);
-			  LitCompiler compiler;
-
-		  	lit_init_compiler(&compiler);
-			  LitFunction* function = lit_compile(&compiler, source_code);
-		  	lit_free_compiler(&compiler);
-
-		  	if (function == NULL) {
-				  free((void*) source_code);
-		  		return 2;
-		  	}
-
+			  bool had_error = !lit_eval(source_code);
 			  free((void*) source_code);
-		  	LitVm vm;
 
-		  	lit_init_vm(&vm);
-		  	bool had_error = lit_execute(&vm, function);
-		  	lit_free_vm(&vm);
-
-			  return had_error ? 3 : 0;
+			  return had_error ? 2 : 0;
 		  }
 	  }
   }
-
-  // TODO: that's how the syntax for compiling and executing the code should work
-  // VM and compiler: two separate parts. I wonder how allocation will work :/
-  /*
-  LitCompiler compiler;
-
-	lit_init_compiler(&compiler);
-  LitFunction* function = lit_compiler(&compiler, code);
-	lit_free_compiler(&compiler);
-
-	LitVm vm;
-
-	lit_init_vm(&vm);
-	lit_execute(&vm, function);
-	lit_free_vm(&vm);
-
-	lit_free_function(function);
-   */
 
   return 0;
 }

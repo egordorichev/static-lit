@@ -2,6 +2,7 @@
 #include <zconf.h>
 #include <string.h>
 #include <time.h>
+#include <stdlib.h>
 
 #include <vm/lit_vm.h>
 #include <vm/lit_memory.h>
@@ -776,4 +777,24 @@ bool lit_execute(LitVm* vm, LitFunction* function) {
 	}
 
 	return true;
+}
+
+bool lit_eval(const char* source_code) {
+	LitCompiler compiler;
+
+	lit_init_compiler(&compiler);
+	LitFunction* function = lit_compile(&compiler, source_code);
+	lit_free_compiler(&compiler);
+
+	if (function == NULL) {
+		return false;
+	}
+
+	LitVm vm;
+
+	lit_init_vm(&vm);
+	bool had_error = lit_execute(&vm, function);
+	lit_free_vm(&vm);
+
+	return !had_error;
 }

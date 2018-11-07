@@ -6,9 +6,6 @@ print("Hi!")
 
 //*
 
-// todo: static constructors
-// todo: constructor args
-
 static class Math {
 	final double PI = 3.141
 }
@@ -20,3 +17,14 @@ print(m)
 Math.PI = 0
 print(Math.PI)
 */
+
+
+//*
+todo list:
+
+* static constructors
+* constructor args
+* native functions
+* foreign classes
+* foreign structs
+* repl (expression -> print result, statement -> just run)
