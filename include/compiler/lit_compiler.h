@@ -5,6 +5,8 @@
 
 #include <compiler/lit_resolver.h>
 #include <compiler/lit_lexer.h>
+#include <compiler/lit_emitter.h>
+
 #include <vm/lit_object.h>
 #include <vm/lit_chunk.h>
 #include <vm/lit_memory.h>
@@ -14,6 +16,7 @@ struct sLitCompiler {
 
 	LitResolver resolver;
 	LitLexer lexer;
+	LitEmitter emitter;
 } sLitCompiler;
 
 void lit_init_compiler(LitCompiler* compiler);

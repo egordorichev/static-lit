@@ -146,7 +146,8 @@ static LitExpression* parse_primary(LitLexer* lexer) {
 	}
 
 	if (match(lexer, TOKEN_STRING)) {
-		return (LitExpression*) lit_make_literal_expression(lexer->compiler, MAKE_OBJECT_VALUE(lit_copy_string(lexer->compiler, lexer->previous.start + 1, lexer->previous.length - 2)));
+		return (LitExpression*) lit_make_literal_expression(lexer->compiler,
+			MAKE_OBJECT_VALUE(lit_copy_string(lexer->compiler, lexer->previous.start + 1, lexer->previous.length - 2)));
 	}
 
 	if (match(lexer, TOKEN_CHAR)) {

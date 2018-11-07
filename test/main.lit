@@ -28,3 +28,14 @@ todo list:
 * foreign classes
 * foreign structs
 * repl (expression -> print result, statement -> just run)
+* LitConfig?
+* Nillable types (Awesome?)
+* 10.imAMethod()
+* Fix incomparable pointers from LitMemManager to LitVm and LitCompiler
+* Exceptions
+* Bytecode line numbers
+* Division by zero handling
+* Arrays
+* Ranges
+* Hashmaps (class)
+* Fixme: segfault in lit_to_string with closure (missing function name)

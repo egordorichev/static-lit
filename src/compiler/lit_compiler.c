@@ -4,7 +4,6 @@
 
 #include <compiler/lit_compiler.h>
 #include <compiler/lit_parser.h>
-#include <compiler/lit_emitter.h>
 
 void lit_init_compiler(LitCompiler* compiler) {
 	LitMemManager* manager = (LitMemManager*) compiler;
@@ -18,13 +17,23 @@ void lit_init_compiler(LitCompiler* compiler) {
 	compiler->resolver.compiler = compiler;
 	lit_init_resolver(&compiler->resolver);
 	lit_init_letals(&compiler->resolver.externals);
+
+	lit_init_emitter(compiler, &compiler->emitter);
 }
 
 void lit_free_compiler(LitCompiler* compiler) {
 	LitMemManager* manager = (LitMemManager*) compiler;
-	lit_free_table(compiler, &manager->strings);
+
+	if (DEBUG_TRACE_GC) {
+		printf("Bytes allocated after before freeing compiler: %ld\n", ((LitMemManager*) compiler)->bytes_allocated);
+	}
 
 	lit_free_resolver(&compiler->resolver);
+	lit_free_table(compiler, &manager->strings);
+
+	if (DEBUG_TRACE_GC) {
+		printf("Bytes allocated after freeing compiler: %ld\n", ((LitMemManager*) compiler)->bytes_allocated);
+	}
 }
 
 /*
@@ -71,7 +80,7 @@ LitFunction* lit_compile(LitCompiler* compiler, const char* source_code) {
 		return NULL; // Resolving error
 	}
 
-	LitFunction* function = lit_emit(compiler, &statements);
+	LitFunction* function = lit_emit(&compiler->emitter, &statements);
 
 	if (DEBUG_TRACE_CODE) {
 		lit_trace_chunk(compiler, &function->chunk, "top-level");

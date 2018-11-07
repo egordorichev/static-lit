@@ -41,6 +41,7 @@ typedef struct LitEmitter {
 	bool had_error;
 } LitEmitter;
 
-LitFunction* lit_emit(LitCompiler* compiler, LitStatements* statements);
+void lit_init_emitter(LitCompiler* compiler, LitEmitter* emitter);
+LitFunction* lit_emit(LitEmitter* emitter, LitStatements* statements);
 
 #endif

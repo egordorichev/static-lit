@@ -144,6 +144,7 @@ LitString* lit_copy_string(LitMemManager* manager, const char* chars, size_t len
 	}
 
 	char* heap_chars = ALLOCATE(manager, char, length + 1);
+
 	memcpy(heap_chars, chars, length);
 	heap_chars[length] = '\0';
 

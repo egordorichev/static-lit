@@ -631,24 +631,27 @@ static void emit_statements(LitEmitter* emitter, LitStatements* statements) {
 	}
 }
 
-// Fixme: store single emitter instance in LitCompiler!!!
-LitFunction* lit_emit(LitCompiler* compiler, LitStatements* statements) {
-	LitEmitter emitter;
+void lit_init_emitter(LitCompiler* compiler, LitEmitter* emitter) {
+	emitter->compiler = compiler;
+	emitter->function = NULL;
+	emitter->class = NULL;
+}
+
+LitFunction* lit_emit(LitEmitter* emitter, LitStatements* statements) {
+	emitter->had_error = false;
+
 	LitEmitterFunction function;
 
-	function.function = lit_new_function(compiler);
+	function.function = lit_new_function(emitter->compiler);
 	function.depth = 0;
 	function.local_count = 0;
 	function.enclosing = NULL;
 
-	emitter.had_error = false;
-	emitter.compiler = compiler;
-	emitter.function = &function;
-	emitter.class = NULL;
+	emitter->function = &function;
 
-	emit_statements(&emitter, statements);
-	emit_byte(&emitter, OP_NIL);
-	emit_byte(&emitter, OP_RETURN);
+	emit_statements(emitter, statements);
+	emit_byte(emitter, OP_NIL);
+	emit_byte(emitter, OP_RETURN);
 
-	return emitter.had_error ? NULL : function.function;
+	return emitter->had_error ? NULL : function.function;
 }

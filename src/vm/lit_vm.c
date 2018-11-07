@@ -752,21 +752,26 @@ void lit_init_vm(LitVm* vm) {
 
 	vm->init_string = lit_copy_string(vm, "init", 4);
 
-	lit_define_native(vm, "print", "function<any, void>", print_function);
-	lit_define_native(vm, "time", "function<double>", time_function);
+	// FIXME: find a better way to do this
+	// lit_define_native(vm, "print", "function<any, void>", print_function);
+	// lit_define_native(vm, "time", "function<double>", time_function);
 }
 
 void lit_free_vm(LitVm* vm) {
 	LitMemManager* manager = (LitMemManager*) vm;
-	lit_free_table(vm, &manager->strings);
 
+	if (DEBUG_TRACE_GC) {
+		printf("Bytes allocated before freeing vm: %ld\n", ((LitMemManager*) vm)->bytes_allocated);
+	}
+
+	lit_free_table(vm, &manager->strings);
 	lit_free_table(vm, &vm->globals);
 	lit_free_objects(vm);
 
 	vm->init_string = NULL;
 
 	if (DEBUG_TRACE_GC) {
-		printf("Bytes left after freeing vm: %i\n", (int) ((LitMemManager*) vm)->bytes_allocated);
+		printf("Bytes allocated after freeing vm: %ld\n", ((LitMemManager*) vm)->bytes_allocated);
 	}
 }
 
