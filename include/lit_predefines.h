@@ -6,6 +6,7 @@
  * loop includes, like resolver <-> compiler
  */
 
+typedef struct sLitMemManager LitMemManager;
 typedef struct sLitCompiler LitCompiler;
 typedef struct sLitVm LitVm;
 typedef struct sLitObject LitObject;

@@ -38,30 +38,33 @@ char *lit_to_string(LitVm* vm, LitValue value) {
 				sprintf(buffer, "<fun %s", name);
 				buffer[len + 5] = '>';
 				buffer[len + 6] = '\0';
+				// Fixme: should be Function<Args, Return>, might fit name here somehow?
 
 				return buffer;
 			}
 			case OBJECT_INSTANCE: {
 				char *name = AS_INSTANCE(value)->type->name->chars;
 				int len = strlen(name);
-				char* buffer = ALLOCATE(vm, char, len + 10);
+				char* buffer = ALLOCATE(vm, char, len + 1);
 
-				sprintf(buffer, "%s instance", name);
-				buffer[len + 10] = '\0';
+				sprintf(buffer, "%s", name);
+				buffer[len + 1] = '\0';
 
 				return buffer;
 			}
 			case OBJECT_CLASS: {
 				char *name = AS_CLASS(value)->name->chars;
 				int len = strlen(name);
-				char* buffer = ALLOCATE(vm, char, len + 7);
+				char* buffer = ALLOCATE(vm, char, len + 8);
 
-				sprintf(buffer, "class %s", name);
-				buffer[len + 7] = '\0';
+				sprintf(buffer, "Class<%s>", name);
+				buffer[len + 8] = '\0';
 
 				return buffer;
 			}
-			case OBJECT_UPVALUE: return "upvalue";
+			case OBJECT_UPVALUE: {
+				return "upvalue";
+			}
 			case OBJECT_BOUND_METHOD: {
 				char *name = AS_METHOD(value)->method->function->name->chars;
 				int len = strlen(name);

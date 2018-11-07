@@ -18,72 +18,6 @@ static inline void reset_stack(LitVm *vm) {
 	vm->frame_count = 0;
 }
 
-void lit_define_native(LitVm* vm, const char* name, const char* type, LitNativeFn function) {
-	LitString* str = lit_copy_string(vm, name, (int) strlen(name));
-	LitLetal* letal = (LitLetal*) reallocate(vm, NULL, 0, sizeof(LitLetal));
-
-	lit_table_set(vm, &vm->globals, AS_STRING(MAKE_OBJECT_VALUE(str)), MAKE_OBJECT_VALUE(lit_new_native(vm, function)));
-
-	size_t len = strlen(type);
-	char* tp = (char*) reallocate(vm, NULL, 0, len);
-	strncpy(tp, type, len);
-
-	letal->type = tp;
-	letal->defined = true;
-	letal->nil = false;
-
-	// FIXME
-	// lit_letals_set(vm, &vm->resolver.externals, str, letal);
-}
-
-static int time_function(LitVm* vm, int count) {
-	lit_push(vm, MAKE_NUMBER_VALUE((double) clock() / CLOCKS_PER_SEC));
-	return 1;
-}
-
-static int print_function(LitVm* vm, int count) {
-	for (int i = count - 1; i >= 0; i--) {
-		printf("%s\n", lit_to_string(vm, lit_peek(vm, i)));
-	}
-
-	return 0;
-}
-
-void lit_init_vm(LitVm* vm) {
-	LitMemManager* manager = (LitMemManager*) vm;
-
-	manager->bytes_allocated = 0;
-	manager->type = MANAGER_VM;
-
-	reset_stack(vm);
-
-	lit_init_table(&vm->strings);
-	lit_init_table(&vm->globals);
-
-	vm->next_gc = 1024 * 1024;
-	vm->objects = NULL;
-	vm->gray_capacity = 0;
-	vm->gray_count = 0;
-	vm->gray_stack = NULL;
-
-	vm->init_string = lit_copy_string(vm, "init", 4);
-
-	lit_define_native(vm, "print", "function<any, void>", print_function);
-	lit_define_native(vm, "time", "function<double>", time_function);
-}
-
-void lit_free_vm(LitVm* vm) {
-	lit_free_table(vm, &vm->strings);
-	lit_free_table(vm, &vm->globals);
-	lit_free_objects(vm);
-
-	vm->init_string = NULL;
-
-	if (DEBUG_TRACE_GC) {
-		printf("Bytes left after freeing vm: %i\n", (int) ((LitMemManager*) vm)->bytes_allocated);
-	}
-}
-
 void lit_push(LitVm* vm, LitValue value) {
 	*vm->stack_top = value;
 	vm->stack_top++;
@@ -217,75 +151,6 @@ static bool call_value(LitVm* vm, LitValue callee, int arg_count) {
 	return false;
 }
 
-LitInterpretResult lit_execute(LitVm* vm, const char* code) {
-	/*vm->abort = false;
-	vm->code = code;
-
-	LitStatements statements;
-
-	lit_init_statements(&statements);
-	bool had_error = lit_parse(vm, &statements);
-
-	if (DEBUG_PRINT_AST) {
-		printf("[\n");
-
-		for (int i = 0; i < statements.count; i++) {
-			lit_trace_statement(vm, statements.values[i], 1);
-
-			if (i < statements.count - 1) {
-				printf(",\n");
-			}
-		}
-
-		printf("\n]\n");
-	}
-
-	if (had_error) {
-		for (int i = 0; i < statements.count; i++) {
-			lit_free_statement(vm, statements.values[i]);
-		}
-
-		lit_free_statements(vm, &statements);
-		return INTERPRET_COMPILE_ERROR;
-	}
-
-	if (!lit_resolve(vm, &statements)) {
-		for (int i = 0; i < statements.count; i++) {
-			lit_free_statement(vm, statements.values[i]);
-		}
-
-		lit_free_statements(vm, &statements);
-		return INTERPRET_COMPILE_ERROR;
-	}
-
-	LitFunction* function = lit_emit(vm, &statements);
-
-	for (int i = 0; i < statements.count; i++) {
-		lit_free_statement(vm, statements.values[i]);
-	}
-
-	lit_free_statements(vm, &statements);
-
-	if (function == NULL) {
-		return INTERPRET_COMPILE_ERROR;
-	}
-
-	if (DEBUG_PRINT_CODE) {
-		lit_trace_chunk(vm, &function->chunk, "top-level");
-	}
-
-	if (!DEBUG_NO_EXECUTE) {
-		lit_push(vm, MAKE_OBJECT_VALUE(function));
-		LitClosure* closure = lit_new_closure(vm, function);
-		lit_pop(vm);
-		call_value(vm, MAKE_OBJECT_VALUE(closure), 0);
-
-		return lit_interpret(vm) ? INTERPRET_OK : INTERPRET_RUNTIME_ERROR;
-	}*/
-
-	return INTERPRET_OK;
-}
-
 static void close_upvalues(LitVm* vm, LitValue* last) {
 	while (vm->open_upvalues != NULL && vm->open_upvalues->value >= last) {
 		LitUpvalue* upvalue = vm->open_upvalues;
@@ -367,8 +232,9 @@ static bool invoke(LitVm* vm, int arg_count) {
 static void *functions[OP_DEFINE_STATIC_METHOD + 2];
 static bool inited_functions;
 
-bool lit_interpret(LitVm* vm) {
+static bool interpret(LitVm* vm) {
 	if (!inited_functions) {
+		// FIXME: shorten (take example of macros from wren)
 		inited_functions = true;
 
 		functions[OP_RETURN] = &&op_return;
@@ -461,7 +327,7 @@ bool lit_interpret(LitVm* vm) {
 			vm->frame_count--;
 
 			if (vm->frame_count == 0) {
-				return INTERPRET_OK;
+				return false;
 			}
 
 			vm->stack_top = frame->slots - 1;
@@ -527,7 +393,7 @@ bool lit_interpret(LitVm* vm) {
 		};
 
 		op_equal: {
-			vm->stack_top[-1] = MAKE_BOOL_VALUE(lit_are_values_equal(POP(), vm->stack_top[-2]));
+			vm->stack_top[-1] = MAKE_BOOL_VALUE(POP() == vm->stack_top[-2]);
 			continue;
 		};
 
@@ -560,7 +426,7 @@ bool lit_interpret(LitVm* vm) {
 		};
 
 		op_not_equal: {
-			vm->stack_top[-2] = MAKE_BOOL_VALUE(!lit_are_values_equal(POP(), vm->stack_top[-2]));
+			vm->stack_top[-2] = MAKE_BOOL_VALUE(POP() != vm->stack_top[-2]);
 			continue;
 		};
 
@@ -830,6 +696,84 @@ bool lit_interpret(LitVm* vm) {
 #undef PUSH
 #undef POP
 #undef PEEK
+
+	return true;
+}
+
+void lit_define_native(LitVm* vm, const char* name, const char* type, LitNativeFn function) {
+	LitString* str = lit_copy_string(vm, name, (int) strlen(name));
+	LitLetal* letal = (LitLetal*) reallocate(vm, NULL, 0, sizeof(LitLetal));
+
+	lit_table_set(vm, &vm->globals, AS_STRING(MAKE_OBJECT_VALUE(str)), MAKE_OBJECT_VALUE(lit_new_native(vm, function)));
+
+	size_t len = strlen(type);
+	char* tp = (char*) reallocate(vm, NULL, 0, len);
+	strncpy(tp, type, len);
+
+	letal->type = tp;
+	letal->defined = true;
+	letal->nil = false;
+
+	// FIXME
+	// lit_letals_set(vm, &vm->resolver.externals, str, letal);
+}
+
+static int time_function(LitVm* vm, int count) {
+	lit_push(vm, MAKE_NUMBER_VALUE((double) clock() / CLOCKS_PER_SEC));
+	return 1;
+}
+
+static int print_function(LitVm* vm, int count) {
+	for (int i = count - 1; i >= 0; i--) {
+		printf("%s\n", lit_to_string(vm, lit_peek(vm, i)));
+	}
+
+	return 0;
+}
+
+void lit_init_vm(LitVm* vm) {
+	LitMemManager* manager = (LitMemManager*) vm;
+
+	manager->bytes_allocated = 0;
+	manager->type = MANAGER_VM;
+	manager->objects = NULL;
+
+	lit_init_table(&manager->strings);
+
+	reset_stack(vm);
+
+	lit_init_table(&vm->globals);
+
+	vm->next_gc = 1024 * 1024;
+	vm->gray_capacity = 0;
+	vm->gray_count = 0;
+	vm->gray_stack = NULL;
+
+	vm->init_string = lit_copy_string(vm, "init", 4);
+
+	lit_define_native(vm, "print", "function<any, void>", print_function);
+	lit_define_native(vm, "time", "function<double>", time_function);
+}
+
+void lit_free_vm(LitVm* vm) {
+	LitMemManager* manager = (LitMemManager*) vm;
+	lit_free_table(vm, &manager->strings);
+
+	lit_free_table(vm, &vm->globals);
+	lit_free_objects(vm);
+
+	vm->init_string = NULL;
+
+	if (DEBUG_TRACE_GC) {
+		printf("Bytes left after freeing vm: %i\n", (int) ((LitMemManager*) vm)->bytes_allocated);
+	}
+}
+
+bool lit_execute(LitVm* vm, LitFunction* function) {
+	if (!DEBUG_NO_EXECUTE) {
+		call_value(vm, MAKE_OBJECT_VALUE(lit_new_closure(vm, function)), 0);
+		return interpret(vm);
+	}
 
 	return true;
 }

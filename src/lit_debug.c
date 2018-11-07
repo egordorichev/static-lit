@@ -1,10 +1,11 @@
 #include <stdio.h>
 
 #include <lit_debug.h>
+
 #include <vm/lit_object.h>
 #include <vm/lit_value.h>
 
-void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
+void lit_trace_statement(LitMemManager* manager, LitStatement* statement, int depth) {
 	printf("{\n");
 
 	if (statement != NULL) {
@@ -14,7 +15,7 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 
 				printf("\"type\" : \"expression\",\n");
 				printf("\"expression\" : ");
-				lit_trace_expression(vm, expression->expr, depth + 1);
+				lit_trace_expression(manager, expression->expr, depth + 1);
 				printf("\n");
 
 				break;
@@ -28,7 +29,7 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 				printf("\"init\" : ");
 
 				if (var->init != NULL) {
-					lit_trace_expression(vm, var->init, depth + 1);
+					lit_trace_expression(manager, var->init, depth + 1);
 				} else {
 					printf("[]");
 				}
@@ -41,11 +42,11 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 
 				printf("\"type\" : \"if\",\n");
 				printf("\"condition\" : ");
-				lit_trace_expression(vm, if_statement->condition, depth + 1);
+				lit_trace_expression(manager, if_statement->condition, depth + 1);
 				printf(",\n");
 
 				printf("\"if_branch\" : ");
-				lit_trace_statement(vm, if_statement->if_branch, depth + 1);
+				lit_trace_statement(manager, if_statement->if_branch, depth + 1);
 
 				printf(",\n\"else_if_branches\" : ");
 
@@ -58,9 +59,9 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 
 					for (int i = 0; i < cn; i++) {
 						printf("{\n\"condition\" : ");
-						lit_trace_expression(vm, if_statement->else_if_conditions->values[i], depth + 1);
+						lit_trace_expression(manager, if_statement->else_if_conditions->values[i], depth + 1);
 						printf(",\n\"body\" : ");
-						lit_trace_statement(vm, if_statement->else_if_branches->values[i], depth + 1);
+						lit_trace_statement(manager, if_statement->else_if_branches->values[i], depth + 1);
 
 						if (i < cn - 1) {
 							printf("},\n");
@@ -75,7 +76,7 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 				printf(",\n\"else_branch\" : ");
 
 				if (if_statement->else_branch != NULL) {
-					lit_trace_statement(vm, if_statement->else_branch, depth + 1);
+					lit_trace_statement(manager, if_statement->else_branch, depth + 1);
 				} else {
 					printf("{}");
 				}
@@ -95,7 +96,7 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 					printf("\n");
 
 					for (int i = 0; i < cn; i++) {
-						lit_trace_statement(vm, block->statements->values[i], depth + 1);
+						lit_trace_statement(manager, block->statements->values[i], depth + 1);
 
 						if (i < cn - 1) {
 							printf(",\n");
@@ -113,11 +114,11 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 
 				printf("\"type\" : \"while\",\n");
 				printf("\"condition\" : ");
-				lit_trace_expression(vm, while_statement->condition, depth + 1);
+				lit_trace_expression(manager, while_statement->condition, depth + 1);
 				printf(",\n");
 
 				printf("\"body\" : ");
-				lit_trace_statement(vm, while_statement->body, depth + 1);
+				lit_trace_statement(manager, while_statement->body, depth + 1);
 
 				printf("\n");
 				break;
@@ -149,7 +150,7 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 				}
 
 				printf("],\n\"body\" : ");
-				lit_trace_statement(vm, function->body, depth + 1);
+				lit_trace_statement(manager, function->body, depth + 1);
 
 				printf("\n");
 				break;
@@ -185,7 +186,7 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 				}
 
 				printf("],\n\"body\" : ");
-				lit_trace_statement(vm, function->body, depth + 1);
+				lit_trace_statement(manager, function->body, depth + 1);
 
 				printf("\n");
 				break;
@@ -199,7 +200,7 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 				if (return_statement->value == NULL) {
 					printf("[]\n");
 				} else {
-					lit_trace_expression(vm, return_statement->value, depth + 1);
+					lit_trace_expression(manager, return_statement->value, depth + 1);
 					printf("\n");
 				}
 
@@ -215,7 +216,7 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 				if (class->super == NULL) {
 					printf("[],\n");
 				} else {
-					lit_trace_expression(vm, (LitExpression*) class->super, depth + 1);
+					lit_trace_expression(manager, (LitExpression*) class->super, depth + 1);
 					printf(",\n");
 				}
 
@@ -226,7 +227,7 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 					printf("\n");
 
 					for (int i = 0; i < cn; i++) {
-						lit_trace_statement(vm, class->fields->values[i], depth + 1);
+						lit_trace_statement(manager, class->fields->values[i], depth + 1);
 
 						if (i < cn - 1) {
 							printf(",\n");
@@ -245,7 +246,7 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 					printf("\n");
 
 					for (int i = 0; i < cn; i++) {
-						lit_trace_statement(vm, (LitStatement*) class->methods->values[i], depth + 1);
+						lit_trace_statement(manager, (LitStatement*) class->methods->values[i], depth + 1);
 
 						if (i < cn - 1) {
 							printf(",\n");
@@ -272,7 +273,7 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 				printf("\"init\" : ");
 
 				if (field->init != NULL) {
-					lit_trace_expression(vm, field->init, depth + 1);
+					lit_trace_expression(manager, field->init, depth + 1);
 				} else {
 					printf("[]");
 				}
@@ -281,7 +282,7 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 				printf("\"getter\" : ");
 
 				if (field->getter != NULL) {
-					lit_trace_statement(vm, field->getter, depth + 1);
+					lit_trace_statement(manager, field->getter, depth + 1);
 				} else {
 					printf("[]");
 				}
@@ -290,7 +291,7 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 				printf("\"setter\" : ");
 
 				if (field->setter != NULL) {
-					lit_trace_statement(vm, field->setter, depth + 1);
+					lit_trace_statement(manager, field->setter, depth + 1);
 				} else {
 					printf("[]");
 				}
@@ -312,7 +313,7 @@ void lit_trace_statement(LitVm* vm, LitStatement* statement, int depth) {
 	}
 }
 
-void lit_trace_expression(LitVm* vm, LitExpression* expression, int depth) {
+void lit_trace_expression(LitMemManager* manager, LitExpression* expression, int depth) {
 	printf("{\n");
 
 	if (expression != NULL) {
@@ -322,9 +323,9 @@ void lit_trace_expression(LitVm* vm, LitExpression* expression, int depth) {
 
 				printf("\"type\" : \"binary\",\n");
 				printf("\"left\" : ");
-				lit_trace_expression(vm, binary->left, depth + 1);
+				lit_trace_expression(manager, binary->left, depth + 1);
 				printf(",\n\"right\" : ");
-				lit_trace_expression(vm, binary->right, depth + 1);
+				lit_trace_expression(manager, binary->right, depth + 1);
 				printf(",\n\"operator\" : ");
 
 				switch (binary->operator) {
@@ -345,9 +346,9 @@ void lit_trace_expression(LitVm* vm, LitExpression* expression, int depth) {
 
 				printf("\"type\" : \"logic\",\n");
 				printf("\"left\" : ");
-				lit_trace_expression(vm, logic->left, depth + 1);
+				lit_trace_expression(manager, logic->left, depth + 1);
 				printf(",\n\"right\" : ");
-				lit_trace_expression(vm, logic->right, depth + 1);
+				lit_trace_expression(manager, logic->right, depth + 1);
 				printf(",\n\"operator\" : ");
 
 				switch (logic->operator) {
@@ -361,7 +362,7 @@ void lit_trace_expression(LitVm* vm, LitExpression* expression, int depth) {
 				LitLiteralExpression* literal = (LitLiteralExpression*) expression;
 
 				printf("\"type\" : \"literal\",\n");
-				printf("\"value\" : \"%s\"\n", lit_to_string(vm, literal->value));
+				printf("\"value\" : \"%s\"\n", lit_to_string(manager, literal->value));
 				break;
 			}
 			case UNARY_EXPRESSION: {
@@ -369,7 +370,7 @@ void lit_trace_expression(LitVm* vm, LitExpression* expression, int depth) {
 
 				printf("\"type\" : \"unary\",\n");
 				printf("\"right\" : ");
-				lit_trace_expression(vm, unary->right, depth + 1);
+				lit_trace_expression(manager, unary->right, depth + 1);
 				printf(",\n\"operator\" : ");
 
 				switch (unary->operator) {
@@ -385,7 +386,7 @@ void lit_trace_expression(LitVm* vm, LitExpression* expression, int depth) {
 
 				printf("\"type\" : \"grouping\",\n");
 				printf("\"expression\" : ");
-				lit_trace_expression(vm, grouping->expr, depth + 1);
+				lit_trace_expression(manager, grouping->expr, depth + 1);
 				printf("\n");
 
 				break;
@@ -403,10 +404,10 @@ void lit_trace_expression(LitVm* vm, LitExpression* expression, int depth) {
 
 				printf("\"type\" : \"assign\",\n");
 				printf("\"to\" : ");
-				lit_trace_expression(vm, var->to, depth + 1);
+				lit_trace_expression(manager, var->to, depth + 1);
 				printf("\n");
 				printf("\"value\" : ");
-				lit_trace_expression(vm, var->value, depth + 1);
+				lit_trace_expression(manager, var->value, depth + 1);
 				printf("\n");
 
 				break;
@@ -416,7 +417,7 @@ void lit_trace_expression(LitVm* vm, LitExpression* expression, int depth) {
 
 				printf("\"type\" : \"call\",\n");
 				printf("\"callee\" : ");
-				lit_trace_expression(vm, call->callee, depth + 1);
+				lit_trace_expression(manager, call->callee, depth + 1);
 				printf(",\n\"args\" : [");
 
 				if (call->args->count > 0) {
@@ -424,7 +425,7 @@ void lit_trace_expression(LitVm* vm, LitExpression* expression, int depth) {
 					int cn = call->args->count;
 
 					for (int i = 0; i < cn; i++) {
-						lit_trace_expression(vm, call->args->values[i], depth + 1);
+						lit_trace_expression(manager, call->args->values[i], depth + 1);
 
 						if (i < cn - 1) {
 							printf(",\n");
@@ -444,7 +445,7 @@ void lit_trace_expression(LitVm* vm, LitExpression* expression, int depth) {
 				printf("\"type\" : \"get\",\n");
 				printf("\"object\" : ");
 
-				lit_trace_expression(vm, expr->object, depth);
+				lit_trace_expression(manager, expr->object, depth);
 
 				printf(",\n");
 				printf("\"property\" : \"%s\"\n", expr->property);
@@ -457,7 +458,7 @@ void lit_trace_expression(LitVm* vm, LitExpression* expression, int depth) {
 				printf("\"type\" : \"set\",\n");
 				printf("\"object\" : ");
 
-				lit_trace_expression(vm, expr->object, depth);
+				lit_trace_expression(manager, expr->object, depth);
 
 				printf(",\n");
 				printf("\"property\" : \"%s\"\n", expr->property);
@@ -490,7 +491,7 @@ void lit_trace_expression(LitVm* vm, LitExpression* expression, int depth) {
 				}
 
 				printf("],\n\"body\" : ");
-				lit_trace_statement(vm, lamba->body, depth + 1);
+				lit_trace_statement(manager, lamba->body, depth + 1);
 
 				printf("\n");
 				break;
@@ -518,11 +519,11 @@ void lit_trace_expression(LitVm* vm, LitExpression* expression, int depth) {
 	}
 }
 
-void lit_trace_chunk(LitVm* vm, LitChunk* chunk, const char* name) {
+void lit_trace_chunk(LitMemManager* manager, LitChunk* chunk, const char* name) {
 	printf("== %s ==\n", name);
 
 	for (int i = 0; i < chunk->count;) {
-		i = lit_disassemble_instruction(vm, chunk, i);
+		i = lit_disassemble_instruction(manager, chunk, i);
 	}
 }
 
@@ -531,9 +532,9 @@ static int simple_instruction(const char* name, int offset) {
 	return offset + 1;
 }
 
-static int constant_instruction(LitVm* vm, const char* name, LitChunk* chunk, int offset) {
+static int constant_instruction(LitMemManager* manager, const char* name, LitChunk* chunk, int offset) {
 	uint8_t constant = chunk->code[offset + 1];
-	printf("%-16s %4d '%s'\n", name, constant, lit_to_string(vm, chunk->constants.values[constant]));
+	printf("%-16s %4d '%s'\n", name, constant, lit_to_string(manager, chunk->constants.values[constant]));
 	return offset + 2;
 }
 
@@ -550,7 +551,7 @@ static int jump_instruction(const char* name, int sign, LitChunk* chunk, int off
 	return offset + 3;
 }
 
-int lit_disassemble_instruction(LitVm* vm, LitChunk* chunk, int offset) {
+int lit_disassemble_instruction(LitMemManager* manager, LitChunk* chunk, int offset) {
 	printf("%04d ", offset);
 	uint8_t instruction = chunk->code[offset];
 
@@ -574,32 +575,32 @@ int lit_disassemble_instruction(LitVm* vm, LitChunk* chunk, int offset) {
 		case OP_GREATER_EQUAL: return simple_instruction("OP_GREATER_EQUAL", offset);
 		case OP_LESS_EQUAL: return simple_instruction("OP_LESS_EQUAL", offset);
 		case OP_CALL: return simple_instruction("OP_CALL", offset);
-		case OP_DEFINE_GLOBAL: return constant_instruction(vm, "OP_DEFINE_GLOBAL", chunk, offset);
-		case OP_GET_GLOBAL: return constant_instruction(vm, "OP_GET_GLOBAL", chunk, offset);
-		case OP_SET_GLOBAL: return constant_instruction(vm, "OP_SET_GLOBAL", chunk, offset);
+		case OP_DEFINE_GLOBAL: return constant_instruction(manager, "OP_DEFINE_GLOBAL", chunk, offset);
+		case OP_GET_GLOBAL: return constant_instruction(manager, "OP_GET_GLOBAL", chunk, offset);
+		case OP_SET_GLOBAL: return constant_instruction(manager, "OP_SET_GLOBAL", chunk, offset);
 		case OP_GET_LOCAL: return byte_instruction("OP_GET_LOCAL", chunk, offset);
 		case OP_SET_LOCAL: return byte_instruction("OP_SET_LOCAL", chunk,offset);
 		case OP_GET_UPVALUE: return byte_instruction("OP_GET_UPVALUE", chunk, offset);
 		case OP_SET_UPVALUE: return byte_instruction("OP_SET_UPVALUE", chunk, offset);
-		case OP_CONSTANT: return constant_instruction(vm, "OP_CONSTANT", chunk, offset);
+		case OP_CONSTANT: return constant_instruction(manager, "OP_CONSTANT", chunk, offset);
 		case OP_JUMP: return jump_instruction("OP_JUMP", 1, chunk, offset);
 		case OP_JUMP_IF_FALSE: return jump_instruction("OP_JUMP_IF_FALSE", 1, chunk, offset);
 		case OP_LOOP: return jump_instruction("OP_LOOP", -1, chunk, offset);
-		case OP_CLASS: return constant_instruction(vm, "OP_CLASS", chunk, offset);
-		case OP_SUBCLASS: return constant_instruction(vm, "OP_SUBCLASS", chunk, offset);
-		case OP_METHOD: return constant_instruction(vm, "OP_METHOD", chunk, offset);
-		case OP_GET_FIELD: return constant_instruction(vm, "OP_GET_FIELD", chunk, offset);
-		case OP_SET_FIELD: return constant_instruction(vm, "OP_SET_FIELD", chunk, offset);
-		case OP_DEFINE_FIELD: return constant_instruction(vm, "OP_DEFINE_FIELD", chunk, offset);
-		case OP_DEFINE_METHOD: return constant_instruction(vm, "OP_DEFINE_METHOD", chunk, offset);
-		case OP_DEFINE_STATIC_FIELD: return constant_instruction(vm, "OP_DEFINE_STATIC_FIELD", chunk, offset);
-		case OP_DEFINE_STATIC_METHOD: return constant_instruction(vm, "OP_DEFINE_STATIC_METHOD", chunk, offset);
-		case OP_INVOKE: return constant_instruction(vm, "OP_INVOKE", chunk, offset) + 1;
-		case OP_SUPER: return constant_instruction(vm, "OP_SUPER", chunk, offset);
+		case OP_CLASS: return constant_instruction(manager, "OP_CLASS", chunk, offset);
+		case OP_SUBCLASS: return constant_instruction(manager, "OP_SUBCLASS", chunk, offset);
+		case OP_METHOD: return constant_instruction(manager, "OP_METHOD", chunk, offset);
+		case OP_GET_FIELD: return constant_instruction(manager, "OP_GET_FIELD", chunk, offset);
+		case OP_SET_FIELD: return constant_instruction(manager, "OP_SET_FIELD", chunk, offset);
+		case OP_DEFINE_FIELD: return constant_instruction(manager, "OP_DEFINE_FIELD", chunk, offset);
+		case OP_DEFINE_METHOD: return constant_instruction(manager, "OP_DEFINE_METHOD", chunk, offset);
+		case OP_DEFINE_STATIC_FIELD: return constant_instruction(manager, "OP_DEFINE_STATIC_FIELD", chunk, offset);
+		case OP_DEFINE_STATIC_METHOD: return constant_instruction(manager, "OP_DEFINE_STATIC_METHOD", chunk, offset);
+		case OP_INVOKE: return constant_instruction(manager, "OP_INVOKE", chunk, offset) + 1;
+		case OP_SUPER: return constant_instruction(manager, "OP_SUPER", chunk, offset);
 		case OP_CLOSURE: {
 			offset++;
 			uint8_t constant = chunk->code[offset++];
-			printf("%-16s %4d %s\n", "OP_CLOSURE", constant, lit_to_string(vm, chunk->constants.values[constant]));
+			printf("%-16s %4d %s\n", "OP_CLOSURE", constant, lit_to_string(manager, chunk->constants.values[constant]));
 
 			LitFunction* function = AS_FUNCTION(chunk->constants.values[constant]);
 

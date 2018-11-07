@@ -74,10 +74,11 @@ int main(int argc, char** argv) {
 					  LitVm vm;
 
 					  lit_init_vm(&vm);
-					  LitInterpretResult result = lit_execute(&vm, argv[i]);
+					  // LitInterpretResult result = lit_execute(&vm, argv[i]);
 					  lit_free_vm(&vm);
 
-					  return result == INTERPRET_OK ? 0 : -2;
+					  // FIXME
+					  return 0; // result == INTERPRET_OK ? 0 : -2;
 				  }
 			  } else if (strcmp(arg, "-h") == 0 || strcmp(arg, "--help") == 0) {
 				  printf("lit - simple and fast scripting language\n");
@@ -93,16 +94,22 @@ int main(int argc, char** argv) {
 			  LitCompiler compiler;
 
 		  	lit_init_compiler(&compiler);
-		  	LitChunk* chunk = lit_compile(&compiler, source_code);
+			  LitFunction* function = lit_compile(&compiler, source_code);
 		  	lit_free_compiler(&compiler);
 
-		  	if (chunk == NULL) {
+		  	if (function == NULL) {
 				  free((void*) source_code);
 		  		return 2;
 		  	}
 
 			  free((void*) source_code);
-			  return 0;
+		  	LitVm vm;
+
+		  	lit_init_vm(&vm);
+		  	bool had_error = lit_execute(&vm, function);
+		  	lit_free_vm(&vm);
+
+			  return had_error ? 3 : 0;
 		  }
 	  }
   }

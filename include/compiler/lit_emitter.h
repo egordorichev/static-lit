@@ -41,6 +41,6 @@ typedef struct LitEmitter {
 	bool had_error;
 } LitEmitter;
 
-LitChunk* lit_emit(LitCompiler* compiler, LitStatements* statements);
+LitFunction* lit_emit(LitCompiler* compiler, LitStatements* statements);
 
 #endif

@@ -12,16 +12,6 @@
 #define ALLOCATE(vm, type, count) (type*) reallocate(vm, NULL, 0, sizeof(type) * (count))
 #define FREE(vm, type, pointer) reallocate(vm, pointer, sizeof(type), 0)
 
-typedef enum {
-	MANAGER_COMPILER,
-	MANAGER_VM
-} LitMemManagerType;
-
-typedef struct LitMemManager {
-	LitMemManagerType type;
-	size_t bytes_allocated;
-} LitMemManager;
-
 // Used by both VM and compiler
 void* reallocate(LitMemManager* manager, void* previous, size_t old_size, size_t new_size);
 // VM only stuff

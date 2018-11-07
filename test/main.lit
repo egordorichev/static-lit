@@ -1,3 +1,11 @@
+fun print(String str) {
+
+}
+
+print("Hi!")
+
+//*
+
 // todo: static constructors
 // todo: constructor args
 

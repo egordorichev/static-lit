@@ -1,5 +1,7 @@
 #include <memory.h>
 
+#include <lit_debug.h>
+
 #include <compiler/lit_compiler.h>
 #include <compiler/lit_parser.h>
 #include <compiler/lit_emitter.h>
@@ -9,6 +11,9 @@ void lit_init_compiler(LitCompiler* compiler) {
 
 	manager->bytes_allocated = 0;
 	manager->type = MANAGER_COMPILER;
+	manager->objects = NULL;
+
+	lit_init_table(&manager->strings);
 
 	compiler->resolver.compiler = compiler;
 	lit_init_resolver(&compiler->resolver);
@@ -16,6 +21,9 @@ void lit_init_compiler(LitCompiler* compiler) {
 }
 
 void lit_free_compiler(LitCompiler* compiler) {
+	LitMemManager* manager = (LitMemManager*) compiler;
+	lit_free_table(compiler, &manager->strings);
+
 	lit_free_resolver(&compiler->resolver);
 }
 
@@ -25,19 +33,54 @@ void lit_free_compiler(LitCompiler* compiler) {
  * And emits it into bytecode
  */
 
-LitChunk* lit_compile(LitCompiler* compiler, const char* source_code) {
+LitFunction* lit_compile(LitCompiler* compiler, const char* source_code) {
 	lit_init_lexer(compiler, &compiler->lexer, source_code);
 	LitStatements statements;
 
 	lit_init_statements(&statements);
-	lit_parse(compiler, &compiler->lexer, &statements);
 
-	if (!lit_resolve(compiler, &statements)) {
+	if (lit_parse(compiler, &compiler->lexer, &statements)) {
+		for (int i = 0; i < statements.count; i++) {
+			lit_free_statement(compiler, statements.values[i]);
+		}
+
+		lit_free_statements((LitMemManager *) compiler, &statements);
+		return NULL; // Parsing error
+	}
+
+	if (DEBUG_TRACE_AST) {
+		printf("[\n");
+
+		for (int i = 0; i < statements.count; i++) {
+			lit_trace_statement(compiler, statements.values[i], 1);
+
+			if (i < statements.count - 1) {
+				printf(",\n");
+			}
+		}
+
+		printf("\n]\n");
+	}
+
+	if (lit_resolve(compiler, &statements)) {
+		for (int i = 0; i < statements.count; i++) {
+			lit_free_statement(compiler, statements.values[i]);
+		}
+
+		lit_free_statements((LitMemManager *) compiler, &statements);
 		return NULL; // Resolving error
 	}
 
-	LitChunk* chunk = lit_emit(compiler, &statements);
-	lit_free_statements((LitMemManager *) compiler, &statements);
+	LitFunction* function = lit_emit(compiler, &statements);
 
-	return chunk;
+	if (DEBUG_TRACE_CODE) {
+		lit_trace_chunk(compiler, &function->chunk, "top-level");
+	}
+
+	for (int i = 0; i < statements.count; i++) {
+		lit_free_statement(compiler, statements.values[i]);
+	}
+
+	lit_free_statements((LitMemManager *) compiler, &statements);
+	return function;
 }

@@ -3,7 +3,6 @@
 
 #include <lit_common.h>
 #include <vm/lit_value.h>
-#include <vm/lit_memory.h>
 
 #define TABLE_MAX_LOAD 0.75
 

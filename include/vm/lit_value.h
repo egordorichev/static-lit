@@ -68,6 +68,6 @@ static inline LitValue lit_num_to_value(double num) {
 }
 
 bool lit_is_false(LitValue value);
-bool lit_are_values_equal(LitValue a, LitValue b);
+char *lit_to_string(LitVm* vm, LitValue value);
 
 #endif

@@ -9,6 +9,6 @@ endif()
 set(CMAKE_C_FLAGS "-Wall -Wextra -O3 -flto -std=c99 -Wno-switch -Wno-unused-parameter -Wno-unused-function -Wno-sequence-point")
 set(CMAKE_C_FLAGS_DEBUG "-g")
 
-file(GLOB_RECURSE SOURCE_FILES src/cli/*.c src/vm/*.c src/compiler/*.c src/util/*.c)
+file(GLOB_RECURSE SOURCE_FILES src/*.c src/cli/*.c src/vm/*.c src/compiler/*.c src/util/*.c)
 include_directories(include/)
 add_executable(lit ${SOURCE_FILES})

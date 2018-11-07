@@ -1,26 +1,29 @@
 #include <string.h>
 
+#include <lit.h>
+
 #include <vm/lit_object.h>
 #include <vm/lit_memory.h>
 #include <util/lit_table.h>
-#include <lit.h>
 
-#define ALLOCATE_OBJECT(vm, type, object_type) \
-    (type*) allocate_object(vm, sizeof(type), object_type)
+#define ALLOCATE_OBJECT(manager, type, object_type) \
+    (type*) allocate_object(manager, sizeof(type), object_type)
 
-static LitObject* allocate_object(LitVm* vm, size_t size, LitObjectType type) {
-	LitObject* object = (LitObject*) reallocate(vm, NULL, 0, size);
+static LitObject* allocate_object(LitMemManager* manager, size_t size, LitObjectType type) {
+	LitObject* object = (LitObject*) reallocate(manager, NULL, 0, size);
+
 	object->type = type;
 	object->dark = false;
+	object->next = manager->objects;
 
-	object->next = vm->objects;
-	vm->objects = object;
+	manager->objects = object;
 
 	return object;
 }
 
-LitUpvalue* lit_new_upvalue(LitVm* vm, LitValue* slot) {
-	LitUpvalue* upvalue = ALLOCATE_OBJECT(vm, LitUpvalue, OBJECT_UPVALUE);
+LitUpvalue* lit_new_upvalue(LitMemManager* manager, LitValue* slot) {
+	LitUpvalue* upvalue = ALLOCATE_OBJECT(manager, LitUpvalue, OBJECT_UPVALUE);
+
 	upvalue->closed = NIL_VALUE;
 	upvalue->value = slot;
 	upvalue->next = NULL;
@@ -28,14 +31,14 @@ LitUpvalue* lit_new_upvalue(LitVm* vm, LitValue* slot) {
 	return upvalue;
 }
 
-LitClosure* lit_new_closure(LitVm* vm, LitFunction* function) {
-	LitUpvalue** upvalues = ALLOCATE(vm, LitUpvalue*, function->upvalue_count);
+LitClosure* lit_new_closure(LitMemManager* manager, LitFunction* function) {
+	LitUpvalue** upvalues = ALLOCATE(manager, LitUpvalue*, function->upvalue_count);
 
 	for (int i = 0; i < function->upvalue_count; i++) {
 		upvalues[i] = NULL;
 	}
 
-	LitClosure* closure = ALLOCATE_OBJECT(vm, LitClosure, OBJECT_CLOSURE);
+	LitClosure* closure = ALLOCATE_OBJECT(manager, LitClosure, OBJECT_CLOSURE);
 
 	closure->function = function;
 	closure->upvalues = upvalues;
@@ -44,8 +47,8 @@ LitClosure* lit_new_closure(LitVm* vm, LitFunction* function) {
 	return closure;
 }
 
-LitFunction* lit_new_function(LitVm* vm) {
-	LitFunction* function = ALLOCATE_OBJECT(vm, LitFunction, OBJECT_FUNCTION);
+LitFunction* lit_new_function(LitMemManager* manager) {
+	LitFunction* function = ALLOCATE_OBJECT(manager, LitFunction, OBJECT_FUNCTION);
 
 	function->arity = 0;
 	function->upvalue_count = 0;
@@ -56,15 +59,15 @@ LitFunction* lit_new_function(LitVm* vm) {
 	return function;
 }
 
-LitNative* lit_new_native(LitVm* vm, LitNativeFn function) {
-	LitNative* native = ALLOCATE_OBJECT(vm, LitNative, OBJECT_NATIVE);
+LitNative* lit_new_native(LitMemManager* manager, LitNativeFn function) {
+	LitNative* native = ALLOCATE_OBJECT(manager, LitNative, OBJECT_NATIVE);
 	native->function = function;
 
 	return native;
 }
 
-LitMethod* lit_new_bound_method(LitVm* vm, LitValue receiver, LitClosure* method) {
-	LitMethod* bound = ALLOCATE_OBJECT(vm, LitMethod, OBJECT_BOUND_METHOD);
+LitMethod* lit_new_bound_method(LitMemManager* manager, LitValue receiver, LitClosure* method) {
+	LitMethod* bound = ALLOCATE_OBJECT(manager, LitMethod, OBJECT_BOUND_METHOD);
 
 	bound->receiver = receiver;
 	bound->method = method;
@@ -72,8 +75,8 @@ LitMethod* lit_new_bound_method(LitVm* vm, LitValue receiver, LitClosure* method
 	return bound;
 }
 
-LitClass* lit_new_class(LitVm* vm, LitString* name, LitClass* super) {
-	LitClass* class = ALLOCATE_OBJECT(vm, LitClass, OBJECT_CLASS);
+LitClass* lit_new_class(LitMemManager* manager, LitString* name, LitClass* super) {
+	LitClass* class = ALLOCATE_OBJECT(manager, LitClass, OBJECT_CLASS);
 
 	class->name = name;
 	class->super = super;
@@ -86,27 +89,25 @@ LitClass* lit_new_class(LitVm* vm, LitString* name, LitClass* super) {
 	return class;
 }
 
-LitInstance* lit_new_instance(LitVm* vm, LitClass* class) {
-	LitInstance* instance = ALLOCATE_OBJECT(vm, LitInstance, OBJECT_INSTANCE);
+LitInstance* lit_new_instance(LitMemManager* manager, LitClass* class) {
+	LitInstance* instance = ALLOCATE_OBJECT(manager, LitInstance, OBJECT_INSTANCE);
 
 	instance->type = class;
 
 	lit_init_table(&instance->fields);
-	lit_table_add_all(vm, &instance->fields, &class->fields);
+	lit_table_add_all(manager, &instance->fields, &class->fields);
 
 	return instance;
 }
 
-static LitString* allocate_string(LitVm* vm, char* chars, int length, uint32_t hash) {
-	LitString* string = ALLOCATE_OBJECT(vm, LitString, OBJECT_STRING);
+static LitString* allocate_string(LitMemManager* manager, char* chars, int length, uint32_t hash) {
+	LitString* string = ALLOCATE_OBJECT(manager, LitString, OBJECT_STRING);
 
 	string->length = length;
 	string->chars = chars;
 	string->hash = hash;
 
-	lit_push(vm, MAKE_OBJECT_VALUE(string));
-	lit_table_set(vm, &vm->strings, string, NIL_VALUE);
-	lit_pop(vm);
+	lit_table_set(manager, &manager->strings, string, NIL_VALUE);
 
 	return string;
 }
@@ -123,29 +124,28 @@ static uint32_t hash_string(const char* key, int length) {
 	return hash;
 }
 
-LitString* lit_make_string(LitVm* vm, char* chars, int length) {
+LitString* lit_make_string(LitMemManager* manager, char* chars, int length) {
 	uint32_t hash = hash_string(chars, length);
-	LitString* interned = lit_table_find(&vm->strings, chars, length, hash);
+	LitString* interned = lit_table_find(&manager->strings, chars, length, hash);
 
 	if (interned != NULL) {
 		return interned;
 	}
 
-	return allocate_string(vm, chars, length, hash);
+	return allocate_string(manager, chars, length, hash);
 }
 
-LitString* lit_copy_string(LitVm* vm, const char* chars, size_t length) {
+LitString* lit_copy_string(LitMemManager* manager, const char* chars, size_t length) {
 	uint32_t hash = hash_string(chars, (int) length);
-	// FIXME: should not depend on vm!!!!! (strings are needed for compiler too)
-	LitString* interned = lit_table_find(&vm->strings, chars, (int) length, hash);
+	LitString* interned = lit_table_find(&manager->strings, chars, (int) length, hash);
 
 	if (interned != NULL) {
 		return interned;
 	}
 
-	char* heap_chars = ALLOCATE(vm, char, length + 1);
+	char* heap_chars = ALLOCATE(manager, char, length + 1);
 	memcpy(heap_chars, chars, length);
 	heap_chars[length] = '\0';
 
-	return allocate_string(vm, heap_chars, (int) length, hash);
+	return allocate_string(manager, heap_chars, (int) length, hash);
 }

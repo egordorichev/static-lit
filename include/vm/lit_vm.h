@@ -3,15 +3,11 @@
 
 #include <lit_common.h>
 #include <lit_predefines.h>
+#include <lit_mem_manager.h>
+
 #include <vm/lit_chunk.h>
 #include <vm/lit_object.h>
 #include <vm/lit_memory.h>
-
-typedef enum {
-	INTERPRET_OK,
-	INTERPRET_COMPILE_ERROR,
-	INTERPRET_RUNTIME_ERROR
-} LitInterpretResult;
 
 #define FRAMES_MAX 64
 #define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
@@ -28,15 +24,12 @@ typedef struct sLitVm {
 
 	LitValue stack[VM_STACK_MAX];
 	LitValue* stack_top;
-	LitObject* objects;
-	LitTable strings;
 	LitTable globals;
 	LitString *init_string;
 
 	LitFrame frames[FRAMES_MAX];
 	int frame_count;
 	bool abort;
-	const char* code;
 
 	LitUpvalue* open_upvalues;
 	size_t next_gc;
@@ -49,6 +42,9 @@ typedef struct sLitVm {
 
 void lit_init_vm(LitVm* vm);
 void lit_free_vm(LitVm* vm);
+
+bool lit_execute(LitVm* vm, LitFunction* function);
+void lit_define_native(LitVm* vm, const char* name, const char* type, LitNativeFn function);
 
 void lit_push(LitVm* vm, LitValue value);
 LitValue lit_pop(LitVm* vm);

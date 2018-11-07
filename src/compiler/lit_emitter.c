@@ -293,7 +293,7 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 
 			emit_statement(emitter, expr->body);
 
-			if (DEBUG_PRINT_CODE) {
+			if (DEBUG_TRACE_CODE) {
 				lit_trace_chunk(emitter->compiler, &function.function->chunk, "lambda");
 			}
 
@@ -494,7 +494,7 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 
 			emit_statement(emitter, stmt->body);
 
-			if (DEBUG_PRINT_CODE) {
+			if (DEBUG_TRACE_CODE) {
 				lit_trace_chunk(emitter->compiler, &function.function->chunk, stmt->name);
 			}
 
@@ -594,7 +594,7 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 
 					emit_statement(emitter, method->body);
 
-					if (DEBUG_PRINT_CODE) {
+					if (DEBUG_TRACE_CODE) {
 						lit_trace_chunk(emitter->compiler, &function.function->chunk, method->name);
 					}
 
@@ -631,8 +631,8 @@ static void emit_statements(LitEmitter* emitter, LitStatements* statements) {
 	}
 }
 
-
-LitChunk* lit_emit(LitCompiler* compiler, LitStatements* statements) {
+// Fixme: store single emitter instance in LitCompiler!!!
+LitFunction* lit_emit(LitCompiler* compiler, LitStatements* statements) {
 	LitEmitter emitter;
 	LitEmitterFunction function;
 
@@ -650,5 +650,5 @@ LitChunk* lit_emit(LitCompiler* compiler, LitStatements* statements) {
 	emit_byte(&emitter, OP_NIL);
 	emit_byte(&emitter, OP_RETURN);
 
-	return emitter.had_error ? NULL : &function.function->chunk;
+	return emitter.had_error ? NULL : function.function;
 }

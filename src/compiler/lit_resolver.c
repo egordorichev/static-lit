@@ -1028,11 +1028,8 @@ void lit_free_resolver(LitResolver* resolver) {
 }
 
 bool lit_resolve(LitCompiler* compiler, LitStatements* statements) {
-	lit_init_resolver(&compiler->resolver);
 	resolve_statements(&compiler->resolver, statements);
-	lit_free_resolver(&compiler->resolver);
-
-	return !compiler->resolver.had_error;
+	return compiler->resolver.had_error;
 }
 
 void lit_free_resource(LitCompiler* compiler, LitResource* resource) {

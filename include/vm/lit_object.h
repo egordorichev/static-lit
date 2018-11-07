@@ -52,6 +52,9 @@ struct sLitString {
 	uint32_t hash;
 };
 
+LitString* lit_make_string(LitMemManager* manager, char* chars, int length);
+LitString* lit_copy_string(LitMemManager* manager, const char* chars, size_t length);
+
 typedef struct sLitUpvalue {
 	LitObject object;
 
@@ -60,7 +63,7 @@ typedef struct sLitUpvalue {
 	struct sLitUpvalue* next;
 } LitUpvalue;
 
-LitUpvalue* lit_new_upvalue(LitVm* vm, LitValue* slot);
+LitUpvalue* lit_new_upvalue(LitMemManager* manager, LitValue* slot);
 
 typedef struct {
 	LitObject object;
@@ -72,7 +75,7 @@ typedef struct {
 	LitString* name;
 } LitFunction;
 
-LitFunction* lit_new_function(LitVm* vm);
+LitFunction* lit_new_function(LitMemManager* manager);
 
 typedef int (*LitNativeFn)(LitVm *vm, int count);
 
@@ -81,7 +84,7 @@ typedef struct {
 	LitNativeFn function;
 } LitNative;
 
-LitNative* lit_new_native(LitVm* vm, LitNativeFn function);
+LitNative* lit_new_native(LitMemManager* manager, LitNativeFn function);
 
 typedef struct {
 	LitObject object;
@@ -91,7 +94,7 @@ typedef struct {
 	int upvalue_count;
 } LitClosure;
 
-LitClosure* lit_new_closure(LitVm* vm, LitFunction* function);
+LitClosure* lit_new_closure(LitMemManager* manager, LitFunction* function);
 
 typedef struct sLitClass {
 	LitObject object;
@@ -104,7 +107,7 @@ typedef struct sLitClass {
 	LitTable static_fields;
 } LitClass;
 
-LitClass* lit_new_class(LitVm* vm, LitString* name, LitClass* super);
+LitClass* lit_new_class(LitMemManager* manager, LitString* name, LitClass* super);
 
 typedef struct {
 	LitObject object;
@@ -113,7 +116,7 @@ typedef struct {
 	LitTable fields;
 } LitInstance;
 
-LitInstance* lit_new_instance(LitVm* vm, LitClass* class);
+LitInstance* lit_new_instance(LitMemManager* manager, LitClass* class);
 
 typedef struct {
 	LitObject object;
@@ -122,10 +125,7 @@ typedef struct {
 	LitClosure* method;
 } LitMethod;
 
-LitMethod* lit_new_bound_method(LitVm* vm, LitValue receiver, LitClosure* method);
-
-LitString* lit_make_string(LitVm* vm, char* chars, int length);
-LitString* lit_copy_string(LitVm* vm, const char* chars, size_t length);
+LitMethod* lit_new_bound_method(LitMemManager* manager, LitValue receiver, LitClosure* method);
 
 static inline bool lit_is_object_type(LitValue value, LitObjectType type) {
 	return IS_OBJECT(value) && AS_OBJECT(value)->type == type;

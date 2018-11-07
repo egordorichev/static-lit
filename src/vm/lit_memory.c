@@ -201,13 +201,16 @@ void lit_collect_garbage(LitVm* vm) {
 		blacken_object(vm, object);
 	}
 
-	lit_table_remove_white(vm, &vm->strings);
-	LitObject** object = &vm->objects;
+	LitMemManager* manager = (LitMemManager*) vm;
+
+	lit_table_remove_white(vm, &manager->strings);
+	LitObject** object = &manager->objects;
 
 	while (*object != NULL) {
 		if (!((*object)->dark)) {
 			LitObject* unreached = *object;
 			*object = unreached->next;
+
 			free_object(vm, unreached);
 		} else {
 			(*object)->dark = false;
@@ -224,7 +227,7 @@ void lit_collect_garbage(LitVm* vm) {
 }
 
 void lit_free_objects(LitVm* vm) {
-	LitObject* object = vm->objects;
+	LitObject* object = ((LitMemManager*) vm)->objects;
 
 	while (object != NULL) {
 		LitObject* next = object->next;
