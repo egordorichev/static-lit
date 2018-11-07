@@ -1,0 +1,24 @@
+print(1 + 2) // Expected: 3
+print(10 - 3) // Expected: 7
+print(3 * 5) // Expected: 15
+print(100 / 5) // Expected: 20
+
+print(10 == 10) // Expected: true
+print(19 == 10) // Expected: false
+
+print(19 != 10) // Expected: true
+print(10 != 10) // Expected: false
+
+print(9 > 6) // Expected: true
+print(9 > 10) // Expected: false
+
+print(9 < 10) // Expected: true
+print(9 < 6) // Expected: false
+
+print(9 >= 6) // Expected: true
+print(9 >= 9) // Expected: true
+print(9 >= 10) // Expected: false
+
+print(9 <= 9) // Expected: true
+print(9 <= 10) // Expected: true
+print(9 <= 6) // Expected: false

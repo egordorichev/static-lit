@@ -1,0 +1,8 @@
+var test = 10
+
+print(test) // Expected: 10
+print(test + test) // Expected: 20
+
+test = 30
+
+print(test) // Expected: 30

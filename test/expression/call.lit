@@ -1,0 +1,11 @@
+fun test() {
+	print("test")
+}
+
+test() // Expected: test
+
+var fn = test
+fn() // Expected: test
+
+var null = nil
+null() // Expected: NilPointerException

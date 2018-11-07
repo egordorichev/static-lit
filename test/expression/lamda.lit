@@ -1,0 +1,10 @@
+fun call(Function<int, int, int> add, int a, b) > int {
+	return add(a, b)
+}
+
+var add = fun(int a, int b) > int {
+	return a + b
+}
+
+print(add(32, 3)) // Expected: 35
+print(call(add, 3, 5)) // Expected: 8

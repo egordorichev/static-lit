@@ -1,0 +1,5 @@
+var test = 30
+print(test = 20) // Expected: 20
+
+test = test * test
+print(test) // Expected 400

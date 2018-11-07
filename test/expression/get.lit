@@ -1,0 +1,12 @@
+class Test {
+	public double a = 10
+	public String b = "Hello, World"
+}
+
+var test = Test()
+var d = test
+
+print(test.a) // Expected: 10
+print(test.b) // Expected: Hello, World
+print(d.a) // Expected: 10
+print(d.b) // Expected: Hello, World

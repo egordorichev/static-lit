@@ -1,0 +1,13 @@
+class Test {
+	public var testStr = "test"
+
+	public init() {
+		this.sayTest()
+	}
+
+	public sayTest() {
+		print(this.testStr)
+	}
+}
+
+var test = Test() // Expected: test

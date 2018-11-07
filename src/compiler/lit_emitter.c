@@ -137,7 +137,10 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 
 			break;
 		}
-		case LITERAL_EXPRESSION: emit_constant(emitter, ((LitLiteralExpression*) expression)->value); break;
+		case LITERAL_EXPRESSION: {
+			emit_constant(emitter, ((LitLiteralExpression*) expression)->value);
+			break;
+		}
 		case UNARY_EXPRESSION: {
 			LitUnaryExpression* expr = (LitUnaryExpression*) expression;
 			emit_expression(emitter, expr->right);
@@ -149,11 +152,13 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 
 			break;
 		}
-		case GROUPING_EXPRESSION: emit_expression(emitter, ((LitGroupingExpression*) expression)->expr); break;
+		case GROUPING_EXPRESSION: {
+			emit_expression(emitter, ((LitGroupingExpression*) expression)->expr);
+			break;
+		}
 		case VAR_EXPRESSION: {
 			LitVarExpression* expr = (LitVarExpression*) expression;
 			int local = resolve_local(emitter->function, expr->name);
-
 
 			if (local != -1) {
 				emit_bytes(emitter, OP_GET_LOCAL, (uint8_t) local);
@@ -278,7 +283,7 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 
 			emitter->function = &function;
 
-			// add_local(emitter, "this");
+			// add_local(emitter, "this"); TODO: might refer to self? *why would you need that, tho?
 
 			if (expr->parameters != NULL) {
 				for (int i = 0; i < expr->parameters->count; i++) {

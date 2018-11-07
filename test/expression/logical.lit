@@ -1,0 +1,13 @@
+print(false && false) // Expected: false
+print(true && false) // Expected: false
+print(false && true) // Expected: false
+print(true && true) // Expected: true
+
+print(false || false) // Expected: false
+print(true || false) // Expected: true
+print(false || true) // Expected: true
+print(true || true) // Expected: true
+
+print("test" || nil) // Expected: test
+print(10 || nil) // Expected: 10
+print(nil || 20) // Expected: 20
