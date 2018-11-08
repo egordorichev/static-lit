@@ -16,7 +16,7 @@ void lit_init_compiler(LitCompiler* compiler) {
 
 	compiler->resolver.compiler = compiler;
 	lit_init_resolver(&compiler->resolver);
-	lit_init_letals(&compiler->resolver.externals);
+	lit_init_resolver_locals(&compiler->resolver.externals);
 
 	lit_init_emitter(compiler, &compiler->emitter);
 }

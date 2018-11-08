@@ -1,8 +1,4 @@
-fun print(String str) > double {
-	return 10
-}
-
-print("Hi!") + 20
+print("Hi!")
 
 //*
 

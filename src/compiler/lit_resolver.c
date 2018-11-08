@@ -13,14 +13,14 @@
 #include <vm/lit_memory.h>
 #include <vm/lit_object.h>
 
-DEFINE_ARRAY(LitScopes, LitLetals*, scopes)
+DEFINE_ARRAY(LitScopes, LitResolverLocals*, scopes)
 DEFINE_ARRAY(LitStrings, char*, strings)
 
-DEFINE_TABLE(LitLetals, LitLetal*, letals, LitLetal*, NULL, entry->value);
+DEFINE_TABLE(LitResolverLocals, LitResolverLocal*, resolver_locals, LitResolverLocal*, NULL, entry->value);
 DEFINE_TABLE(LitTypes, bool, types, bool, false, entry->value)
 DEFINE_TABLE(LitClasses, LitType*, classes, LitType*, NULL, entry->value)
-DEFINE_TABLE(LitResources, LitResource*, resources, LitResource*, NULL, entry->value)
-DEFINE_TABLE(LitRems, LitRem*, rems, LitRem*, NULL, entry->value)
+DEFINE_TABLE(LitResolverFields, LitResolverField*, resolver_fields, LitResolverField*, NULL, entry->value)
+DEFINE_TABLE(LitResolverMethods, LitResolverMethod*, resolver_methods, LitResolverMethod*, NULL, entry->value)
 
 static void resolve_statement(LitResolver* resolver, LitStatement* statement);
 static void resolve_statements(LitResolver* resolver, LitStatements* statements);
@@ -55,31 +55,31 @@ static bool compare_arg(char* needed, char* given) {
 }
 
 static void push_scope(LitResolver* resolver) {
-	LitLetals* table = (LitLetals*) reallocate(resolver->compiler, NULL, 0, sizeof(LitLetals));
-	lit_init_letals(table);
+	LitResolverLocals* table = (LitResolverLocals*) reallocate(resolver->compiler, NULL, 0, sizeof(LitResolverLocals));
+	lit_init_resolver_locals(table);
 	lit_scopes_write(resolver->compiler, &resolver->scopes, table);
 
 	resolver->depth ++;
 }
 
-static LitLetals* peek_scope(LitResolver* resolver) {
+static LitResolverLocals* peek_scope(LitResolver* resolver) {
 	return resolver->scopes.values[resolver->depth - 1];
 }
 
 static void pop_scope(LitResolver* resolver) {
 	resolver->scopes.count --;
-	LitLetals* table = resolver->scopes.values[resolver->scopes.count];
+	LitResolverLocals* table = resolver->scopes.values[resolver->scopes.count];
 
 	for (int i = 0; i <= table->capacity_mask; i++) {
-		LitLetal* value = table->entries[i].value;
+		LitResolverLocal* value = table->entries[i].value;
 
 		if (value != NULL) {
-			reallocate(resolver->compiler, (void*) value, sizeof(LitLetal), 0);
+			reallocate(resolver->compiler, (void*) value, sizeof(LitResolverLocal), 0);
 		}
 	}
 
-	lit_free_letals(resolver->compiler, table);
-	reallocate(resolver->compiler, table, sizeof(LitLetals), 0);
+	lit_free_resolver_locals(resolver->compiler, table);
+	reallocate(resolver->compiler, table, sizeof(LitResolverLocals), 0);
 
 	resolver->depth --;
 }
@@ -102,25 +102,25 @@ static void define_type(LitResolver* resolver, const char* type) {
 	lit_types_set(resolver->compiler, &resolver->types, str, true);
 }
 
-void lit_init_letal(LitLetal* letal) {
-	letal->type = NULL;
-	letal->defined = false;
-	letal->nil = false;
-	letal->field = false;
+void lit_init_resolver_local(LitResolverLocal* local) {
+	local->type = NULL;
+	local->defined = false;
+	local->nil = false;
+	local->field = false;
 }
 
-static LitLetal* resolve_local(LitResolver* resolver, const char* name) {
+static LitResolverLocal* resolve_local(LitResolver* resolver, const char* name) {
 	LitString *str = lit_copy_string(resolver->compiler, name, (int) strlen(name));
 
 	for (int i = resolver->scopes.count - 1; i >= 0; i --) {
-		LitLetal* value = lit_letals_get(resolver->scopes.values[i], str);
+		LitResolverLocal* value = lit_resolver_locals_get(resolver->scopes.values[i], str);
 
 		if (value != NULL && !value->nil) {
 			return value;
 		}
 	}
 
-	LitLetal* value = lit_letals_get(&resolver->externals, str);
+	LitResolverLocal* value = lit_resolver_locals_get(&resolver->externals, str);
 
 	if (value != NULL && !value->nil) {
 		return value;
@@ -131,54 +131,54 @@ static LitLetal* resolve_local(LitResolver* resolver, const char* name) {
 }
 
 static void declare(LitResolver* resolver, const char* name) {
-	LitLetals* scope = peek_scope(resolver);
+	LitResolverLocals* scope = peek_scope(resolver);
 	LitString* str = lit_copy_string(resolver->compiler, name, (int) strlen(name));
-	LitLetal* value = lit_letals_get(scope, str);
+	LitResolverLocal* value = lit_resolver_locals_get(scope, str);
 
 	if (value != NULL) {
 		error(resolver, "Variable %s is already defined in current scope", name);
 	}
 
-	LitLetal* letal = (LitLetal*) reallocate(resolver->compiler, NULL, 0, sizeof(LitLetal));
+	LitResolverLocal* local = (LitResolverLocal*) reallocate(resolver->compiler, NULL, 0, sizeof(LitResolverLocal));
 
-	lit_init_letal(letal);
-	lit_letals_set(resolver->compiler, scope, str, letal);
+	lit_init_resolver_local(local);
+	lit_resolver_locals_set(resolver->compiler, scope, str, local);
 }
 
 static void declare_and_define(LitResolver* resolver, const char* name, const char* type) {
-	LitLetals* scope = peek_scope(resolver);
+	LitResolverLocals* scope = peek_scope(resolver);
 	LitString* str = lit_copy_string(resolver->compiler, name, (int) strlen(name));
-	LitLetal* value = lit_letals_get(scope, str);
+	LitResolverLocal* value = lit_resolver_locals_get(scope, str);
 
 	if (value != NULL) {
 		error(resolver, "Variable %s is already defined in current scope", name);
 	} else {
-		LitLetal* letal = (LitLetal*) reallocate(resolver->compiler, NULL, 0, sizeof(LitLetal));
-		lit_init_letal(letal);
+		LitResolverLocal* local = (LitResolverLocal*) reallocate(resolver->compiler, NULL, 0, sizeof(LitResolverLocal));
+		lit_init_resolver_local(local);
 
-		letal->defined = true;
-		letal->type = type;
+		local->defined = true;
+		local->type = type;
 
-		lit_letals_set(resolver->compiler, scope, str, letal);
+		lit_resolver_locals_set(resolver->compiler, scope, str, local);
 	}
 }
 
 static void define(LitResolver* resolver, const char* name, const char* type, bool field) {
-	LitLetals* scope = peek_scope(resolver);
+	LitResolverLocals* scope = peek_scope(resolver);
 	LitString* str = lit_copy_string(resolver->compiler, name, (int) strlen(name));
 
-	LitLetal* value = lit_letals_get(scope, str);
+	LitResolverLocal* value = lit_resolver_locals_get(scope, str);
 
 	if (value == NULL) {
-		LitLetal* letal = (LitLetal*) reallocate(resolver->compiler, NULL, 0, sizeof(LitLetal));
+		LitResolverLocal* local = (LitResolverLocal*) reallocate(resolver->compiler, NULL, 0, sizeof(LitResolverLocal));
 
-		lit_init_letal(letal);
+		lit_init_resolver_local(local);
 
-		letal->defined = true;
-		letal->type = type;
-		letal->field = field;
+		local->defined = true;
+		local->type = type;
+		local->field = field;
 
-		lit_letals_set(resolver->compiler, scope, str, letal);
+		lit_resolver_locals_set(resolver->compiler, scope, str, local);
 	} else {
 		value->defined = true;
 		value->type = type;
@@ -356,7 +356,7 @@ static void resolve_method_statement(LitResolver* resolver, LitMethodStatement* 
 		if (resolver->class->super == NULL) {
 			error(resolver, "Can't override a method in a class without a base");
 		} else {
-			LitRem* super_method = lit_rems_get(&resolver->class->super->methods, lit_copy_string(resolver->compiler, statement->name, strlen(statement->name)));
+			LitResolverMethod* super_method = lit_resolver_methods_get(&resolver->class->super->methods, lit_copy_string(resolver->compiler, statement->name, strlen(statement->name)));
 
 			if (super_method == NULL) {
 				error(resolver, "Can't override method %s, it does not exist in the base class", statement->name);
@@ -470,13 +470,13 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 	class->super = super;
 	class->name = lit_copy_string(resolver->compiler, statement->name, len);
 
-	lit_init_rems(&class->methods);
-	lit_init_rems(&class->static_methods);
-	lit_init_resources(&class->fields);
+	lit_init_methods(&class->methods);
+	lit_init_methods(&class->static_methods);
+	lit_init_fields(&class->fields);
 
 	if (super != NULL) {
-		lit_rems_add_all(resolver->compiler, &class->methods, &super->methods);
-		lit_resources_add_all(resolver->compiler, &class->fields, &super->fields);
+		lit_resolver_methods_add_all(resolver->compiler, &class->methods, &super->methods);
+		lit_resolver_fields_add_all(resolver->compiler, &class->fields, &super->fields);
 	}
 
 	resolver->class = class;
@@ -488,16 +488,16 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 			LitFieldStatement* var = ((LitFieldStatement*) statement->fields->values[i]);
 			const char* n = var->name;
 
-			LitResource* resource = (LitResource*) reallocate(resolver->compiler, NULL, 0, sizeof(LitResource));
+			LitResolverField* field = (LitResolverField*) reallocate(resolver->compiler, NULL, 0, sizeof(LitResolverField));
 
-			resource->access = var->access;
-			resource->is_static = var->is_static;
-			resource->is_final = var->final;
+			field->access = var->access;
+			field->is_static = var->is_static;
+			field->is_final = var->final;
 
 			resolve_field_statement(resolver, var); // The var->type might be assigned here
-			resource->type = var->type; // Thats why this must go here
+			field->type = var->type; // Thats why this must go here
 
-			lit_resources_set(resolver->compiler, &class->fields, lit_copy_string(resolver->compiler, n, strlen(n)), resource);
+			lit_resolver_fields_set(resolver->compiler, &class->fields, lit_copy_string(resolver->compiler, n, strlen(n)), field);
 		}
 	}
 
@@ -508,14 +508,14 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 
 			resolve_method_statement(resolver, method, signature);
 
-			LitRem* rem = (LitRem*) reallocate(resolver->compiler, NULL, 0, sizeof(LitRem));
+			LitResolverMethod* m = (LitResolverMethod*) reallocate(resolver->compiler, NULL, 0, sizeof(LitResolverMethod));
 
-			rem->signature = signature;
-			rem->is_static = method->is_static;
-			rem->access = method->access;
-			rem->is_overriden = method->overriden;
+			m->signature = signature;
+			m->is_static = method->is_static;
+			m->access = method->access;
+			m->is_overriden = method->overriden;
 
-			lit_rems_set(resolver->compiler, &class->methods, lit_copy_string(resolver->compiler, method->name, strlen(method->name)), rem);
+			lit_resolver_methods_set(resolver->compiler, &class->methods, lit_copy_string(resolver->compiler, method->name, strlen(method->name)), m);
 		}
 	}
 
@@ -602,23 +602,23 @@ static const char* resolve_grouping_expression(LitResolver* resolver, LitGroupin
 }
 
 static const char* resolve_var_expression(LitResolver* resolver, LitVarExpression* expression) {
-	LitLetal* value = lit_letals_get(peek_scope(resolver), lit_copy_string(resolver->compiler, expression->name, (int) strlen(expression->name)));
+	LitResolverLocal* value = lit_resolver_locals_get(peek_scope(resolver), lit_copy_string(resolver->compiler, expression->name, (int) strlen(expression->name)));
 
 	if (value != NULL && !value->defined) {
 		error(resolver, "Can't use local variable %s in it's own initializer", expression->name);
 		return "error";
 	}
 
-	LitLetal* letal = resolve_local(resolver, expression->name);
+	LitResolverLocal* local = resolve_local(resolver, expression->name);
 	
-	if (letal == NULL) {
+	if (local == NULL) {
 		return "error";
-	} else if (letal->field && resolver->class != NULL && resolver->depth > 2) {
+	} else if (local->field && resolver->class != NULL && resolver->depth > 2) {
 		error(resolver, "Can't access class field %s without this", expression->name);
 		return "error";
 	}
 
-	return letal->type;
+	return local->type;
 }
 
 static const char* resolve_assign_expression(LitResolver* resolver, LitAssignExpression* expression) {
@@ -630,13 +630,13 @@ static const char* resolve_assign_expression(LitResolver* resolver, LitAssignExp
 	}
 
 	LitVarExpression* expr = (LitVarExpression*) expression->to;
-	LitLetal* letal = resolve_local(resolver, expr->name);
+	LitResolverLocal* local = resolve_local(resolver, expr->name);
 
-	if (letal == NULL) {
+	if (local == NULL) {
 		return "error";
 	}
 
-	return letal->type;
+	return local->type;
 }
 
 static const char* resolve_logical_expression(LitResolver* resolver, LitLogicalExpression* expression) {
@@ -805,10 +805,10 @@ static const char* resolve_get_expression(LitResolver* resolver, LitGetExpressio
 	}
 
 	LitString* str = lit_copy_string(resolver->compiler, expression->property, strlen(expression->property));
-	LitResource* field = lit_resources_get(&class->fields, str);
+	LitResolverField* field = lit_fields_get(&class->fields, str);
 
 	if (field == NULL) {
-		LitRem* method = lit_rems_get(&class->methods, str);
+		LitResolverMethod* method = lit_resolver_methods_get(&class->methods, str);
 
 		if (method == NULL) {
 			error(resolver, "Class %s has no field or method %s", type, expression->property);
@@ -821,7 +821,7 @@ static const char* resolve_get_expression(LitResolver* resolver, LitGetExpressio
 
 		if (method->access == PRIVATE_ACCESS) {
 			if (expression->object->type != THIS_EXPRESSION || class->super != NULL) {
-				if (expression->object->type != THIS_EXPRESSION || lit_rems_get(&class->super->methods, str) != NULL || lit_rems_get(&class->super->static_methods, str) != NULL) {
+				if (expression->object->type != THIS_EXPRESSION || lit_resolver_methods_get(&class->super->methods, str) != NULL || lit_resolver_methods_get(&class->super->static_methods, str) != NULL) {
 					error(resolver, "Can't access private method %s from %s", expression->property, type);
 				}
 			}
@@ -846,7 +846,7 @@ static const char* resolve_set_expression(LitResolver* resolver, LitSetExpressio
 		return "error";
 	}
 
-	LitResource* field = lit_resources_get(&class->fields, lit_copy_string(resolver->compiler, expression->property, strlen(expression->property)));
+	LitResolverField* field = lit_fields_get(&class->fields, lit_copy_string(resolver->compiler, expression->property, strlen(expression->property)));
 
 	if (field == NULL) {
 		error(resolver, "Class %s has no field %s", type, expression->property);
@@ -900,7 +900,7 @@ static const char* resolve_super_expression(LitResolver* resolver, LitSuperExpre
 		return "error";
 	}
 
-	LitRem* method = lit_rems_get(&resolver->class->super->methods, lit_copy_string(resolver->compiler, expression->method, strlen(expression->method)));
+	LitResolverMethod* method = lit_resolver_methods_get(&resolver->class->super->methods, lit_copy_string(resolver->compiler, expression->method, strlen(expression->method)));
 
 	if (method == NULL) {
 		error(resolver, "Class %s has no method %s", resolver->class->super->name->chars, expression->method);
@@ -969,47 +969,47 @@ void lit_free_resolver(LitResolver* resolver) {
 	pop_scope(resolver);
 
 	for (int i = 0; i <= resolver->externals.capacity_mask; i++) {
-		LitLetal* letal = resolver->externals.entries[i].value;
+		LitResolverLocal* local = resolver->externals.entries[i].value;
 
-		if (letal != NULL) {
-			reallocate(resolver->compiler, (void*) letal->type, strlen(letal->type), 0);
-			reallocate(resolver->compiler, (void*) letal, sizeof(LitLetal), 0);
+		if (local != NULL) {
+			reallocate(resolver->compiler, (void*) local->type, strlen(local->type), 0);
+			reallocate(resolver->compiler, (void*) local, sizeof(LitResolverLocal), 0);
 		}
 	}
 
-	lit_free_letals(resolver->compiler, &resolver->externals);
+	lit_free_resolver_locals(resolver->compiler, &resolver->externals);
 
 	for (int i = 0; i <= resolver->classes.capacity_mask; i++) {
 		LitType* type = resolver->classes.entries[i].value;
 
 		if (type != NULL) {
 			for (int j = 0; j <= type->fields.capacity_mask; j++) {
-				LitResource* a = type->fields.entries[j].value;
+				LitResolverField* a = type->fields.entries[j].value;
 
 				if (a != NULL) {
-					reallocate(resolver->compiler, (void*) a, sizeof(LitResource), 0);
+					reallocate(resolver->compiler, (void*) a, sizeof(LitResolverField), 0);
 				}
 			}
 
 			for (int j = 0; j <= type->methods.capacity_mask; j++) {
-				LitRem* a = type->methods.entries[j].value;
+				LitResolverMethod* a = type->methods.entries[j].value;
 
 				if (a != NULL) {
-					lit_free_rem(resolver->compiler, a);
+					lit_free_resolver_method(resolver->compiler, a);
 				}
 			}
 
 			for (int j = 0; j <= type->static_methods.capacity_mask; j++) {
-				LitRem* a = type->static_methods.entries[j].value;
+				LitResolverMethod* a = type->static_methods.entries[j].value;
 
 				if (a != NULL) {
-					lit_free_rem(resolver->compiler, a);
+					lit_free_resolver_method(resolver->compiler, a);
 				}
 			}
 
-			lit_free_resources(resolver->compiler, &type->fields);
-			lit_free_rems(resolver->compiler, &type->methods);
-			lit_free_rems(resolver->compiler, &type->static_methods);
+			lit_free_resolver_fields(resolver->compiler, &type->fields);
+			lit_free_resolver_methods(resolver->compiler, &type->methods);
+			lit_free_resolver_methods(resolver->compiler, &type->static_methods);
 
 			reallocate(resolver->compiler, (void*) type, sizeof(LitType), 0);
 		}
@@ -1032,11 +1032,11 @@ bool lit_resolve(LitCompiler* compiler, LitStatements* statements) {
 	return compiler->resolver.had_error;
 }
 
-void lit_free_resource(LitCompiler* compiler, LitResource* resource) {
+void lit_free_resolver_field(LitCompiler* compiler, LitResolverField* field) {
 	// Nothing to free :P
 }
 
-void lit_free_rem(LitCompiler* compiler, LitRem* rem) {
-	reallocate(compiler, (void*) rem->signature, strlen(rem->signature) + 1, 0);
-	reallocate(compiler, (void*) rem, sizeof(LitRem), 0);
+void lit_free_resolver_method(LitCompiler* compiler, LitResolverMethod* method) {
+	reallocate(compiler, (void*) method->signature, strlen(method->signature) + 1, 0);
+	reallocate(compiler, (void*) method, sizeof(LitResolverMethod), 0);
 }

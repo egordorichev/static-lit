@@ -704,7 +704,7 @@ static bool interpret(LitVm* vm) {
 
 void lit_define_native(LitVm* vm, const char* name, const char* type, LitNativeFn function) {
 	LitString* str = lit_copy_string(vm, name, (int) strlen(name));
-	LitLetal* letal = (LitLetal*) reallocate(vm, NULL, 0, sizeof(LitLetal));
+	LitResolverLocal* letal = (LitResolverLocal*) reallocate(vm, NULL, 0, sizeof(LitResolverLocal));
 
 	lit_table_set(vm, &vm->globals, AS_STRING(MAKE_OBJECT_VALUE(str)), MAKE_OBJECT_VALUE(lit_new_native(vm, function)));
 

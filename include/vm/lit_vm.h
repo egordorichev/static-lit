@@ -1,6 +1,11 @@
 #ifndef LIT_VM_H
 #define LIT_VM_H
 
+/*
+ * The lit VM
+ * Runs bytecode chunks
+ */
+
 #include <lit_common.h>
 #include <lit_predefines.h>
 #include <lit_mem_manager.h>

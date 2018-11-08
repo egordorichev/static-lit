@@ -1,67 +1,72 @@
 #ifndef LIT_RESOLVER_H
 #define LIT_RESOLVER_H
 
+/*
+ * Goes through AST and makes sure,
+ * that every accessed variable is defined,
+ * and all declarations are right
+ */
+
 #include <lit_common.h>
 #include <lit_predefines.h>
 
 #include <compiler/lit_ast.h>
 #include <util/lit_table.h>
 
-typedef struct LitLetal {
+typedef struct LitResolverLocal {
 	bool defined;
 	bool nil;
 	bool field;
 	const char* type;
-} LitLetal;
+} LitResolverLocal;
 
-void lit_init_letal(LitLetal* letal);
+void lit_init_resolver_local(LitResolverLocal* letal);
 
-typedef struct LitResource {
+typedef struct LitResolverField {
 	bool is_static;
 	bool is_final;
 	LitAccessType access;
 	const char* type;
-} LitResource;
+} LitResolverField;
 
-void lit_free_resource(LitCompiler* compiler, LitResource* resource);
+void lit_free_resolver_field(LitCompiler* compiler, LitResolverField* resource);
 
-DECLARE_TABLE(LitResources, LitResource*, resources, LitResource*)
+DECLARE_TABLE(LitResolverFields, LitResolverField*, resolver_fields, LitResolverField*)
 
-typedef struct LitRem {
+typedef struct LitResolverMethod {
 	bool is_static;
 	bool is_overriden;
 	LitAccessType access;
 	char* signature;
-} LitRem;
+} LitResolverMethod;
 
-void lit_free_rem(LitCompiler* compiler, LitRem* rem);
+void lit_free_resolver_method(LitCompiler* compiler, LitResolverMethod* method);
 
-DECLARE_TABLE(LitRems, LitRem*, rems, LitRem*)
+DECLARE_TABLE(LitResolverMethods, LitResolverMethod*, resolver_methods, LitResolverMethod*)
 
 typedef struct sLitType {
 	LitString* name;
 	struct sLitType* super;
-	LitRems methods;
-	LitRems static_methods;
-	LitResources fields;
+	LitResolverMethods methods;
+	LitResolverMethods static_methods;
+	LitResolverFields fields;
 } LitType;
 
 void lit_init_type(LitType* type);
 void lit_free_type(LitCompiler* compiler, LitType* type);
 
-DECLARE_TABLE(LitLetals, LitLetal*, letals, LitLetal*)
+DECLARE_TABLE(LitResolverLocals, LitResolverLocal*, letals, LitResolverLocal*)
 DECLARE_TABLE(LitTypes, bool, types, bool)
 DECLARE_TABLE(LitClasses, LitType*, classes, LitType*)
-DECLARE_ARRAY(LitScopes, LitLetals*, scopes)
+DECLARE_ARRAY(LitScopes, LitResolverLocals*, scopes)
 DECLARE_ARRAY(LitStrings, char*, strings)
 
 typedef struct LitResolver {
 	LitScopes scopes;
-	LitLetals externals;
+	LitResolverLocals externals;
 	LitTypes types;
 	LitStrings allocated_strings;
 	LitClasses classes;
-
 	LitCompiler* compiler;
 
 	int depth;
