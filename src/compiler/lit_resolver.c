@@ -745,8 +745,9 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 			}
 
 			size_t len = strlen(type);
-			char* tp = (char*) reallocate(resolver->compiler, NULL, 0, len);
+			char* tp = (char*) reallocate(resolver->compiler, NULL, 0, len + 1);
 			strncpy(tp, type, len);
+			tp[len] = '\0';
 
 			char* arg = tok(&tp[9]);
 			int i = 0;

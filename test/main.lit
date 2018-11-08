@@ -6,8 +6,7 @@ static class Math {
 	}
 }
 
-var a = Math.sin(Math.PI + 3)
-print(a)
+print(Math.sin(Math.PI + 3))
 
 /*
 Math.PI = 0
@@ -22,6 +21,7 @@ todo list:
 * check if fun test(Test test) {} is valid (undefined type)
 * remove OP_CONSTANT [arg count] in function call (replace with READ_BYTE() arg), also limit arg count to 255
 * break/continue
+* fix stdout / stderr sync
 * static constructors
 * constructor args
 * native functions
