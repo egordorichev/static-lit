@@ -822,10 +822,10 @@ static const char* resolve_get_expression(LitResolver* resolver, LitGetExpressio
 	LitResolverField* field = lit_resolver_fields_get(&class->static_fields, str);
 
 	if (field == NULL) {
-		LitResolverMethod* method = lit_resolver_methods_get(&class->methods, str);
+		LitResolverMethod* method = lit_resolver_methods_get(should_be_static ? &class->static_methods : &class->methods, str);
 
 		if (method == NULL) {
-			error(resolver, "Class %s has no static field or method %s", type, expression->property);
+			error(resolver, "%s%s has no static field or method %s", should_be_static ? "" : "Class ", type, expression->property);
 			return "error";
 		}
 

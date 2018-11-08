@@ -228,11 +228,12 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 		}
 		case CALL_EXPRESSION: {
 			LitCallExpression* expr = (LitCallExpression*) expression;
-			emit_expression(emitter, expr->callee);
 
 			if (expr->callee->type == GET_EXPRESSION) {
 				emit_expression(emitter, ((LitGetExpression*) expr->callee)->object);
 			}
+
+			emit_expression(emitter, expr->callee);
 
 			if (expr->args != NULL) {
 				for (int i = 0; i < expr->args->count; i++) {

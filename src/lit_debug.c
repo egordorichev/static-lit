@@ -595,7 +595,7 @@ int lit_disassemble_instruction(LitMemManager* manager, LitChunk* chunk, int off
 		case OP_DEFINE_METHOD: return constant_instruction(manager, "OP_DEFINE_METHOD", chunk, offset);
 		case OP_DEFINE_STATIC_FIELD: return constant_instruction(manager, "OP_DEFINE_STATIC_FIELD", chunk, offset);
 		case OP_DEFINE_STATIC_METHOD: return constant_instruction(manager, "OP_DEFINE_STATIC_METHOD", chunk, offset);
-		case OP_INVOKE: return constant_instruction(manager, "OP_INVOKE", chunk, offset) + 1;
+		case OP_INVOKE: return constant_instruction(manager, "OP_INVOKE", chunk, offset) + 2;
 		case OP_SUPER: return constant_instruction(manager, "OP_SUPER", chunk, offset);
 		case OP_CLOSURE: {
 			offset++;

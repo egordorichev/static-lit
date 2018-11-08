@@ -213,14 +213,14 @@ static void define_method(LitVm* vm, LitString* name) {
 }
 
 static bool invoke(LitVm* vm, int arg_count) {
-	LitValue receiver = lit_peek(vm, arg_count);
+	LitValue receiver = lit_peek(vm, arg_count + 1);
 
-	if (!IS_INSTANCE(receiver)) {
-		runtime_error(vm, "Only instances have methods");
+	if (!IS_INSTANCE(receiver) && !IS_CLASS(receiver)) {
+		runtime_error(vm, "Only instances and classes have methods");
 		return false;
 	}
 
-	bool value = call(vm, AS_CLOSURE(lit_peek(vm, arg_count + 1)), arg_count);
+	bool value = call(vm, AS_CLOSURE(lit_peek(vm, arg_count)), arg_count);
 
 	if (value) {
 		vm->frames[vm->frame_count - 1].slots = vm->stack_top - arg_count - 1;
@@ -631,7 +631,7 @@ static bool interpret(LitVm* vm) {
 		};
 
 		op_invoke: {
-			int arg_count = (int) AS_NUMBER(POP());
+			int arg_count = READ_BYTE();
 
 			if (!invoke(vm, arg_count)) {
 				return false;

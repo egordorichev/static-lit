@@ -1,10 +1,13 @@
 static class Math {
 	final var PI = 3.141
+
+	sin(double a) > double {
+		return a
+	}
 }
 
-Math.PI = 3
-
-print(Math.PI)
+var a = Math.sin(Math.PI + 3)
+print(a)
 
 /*
 Math.PI = 0
