@@ -118,55 +118,64 @@ static void blacken_object(LitVm* vm, LitObject* object) {
 	}
 }
 
-static void free_object(LitVm* vm, LitObject* object) {
+void lit_free_object(LitMemManager* manager, LitObject* object) {
 	if (DEBUG_TRACE_GC) {
-		printf("%p free %s\n", object, lit_to_string(vm, MAKE_OBJECT_VALUE(object)));
+		printf("free %p\n", object);
 	}
 
 	switch (object->type) {
 		case OBJECT_STRING: {
 			LitString* string = (LitString*) object;
 
-			FREE_ARRAY(vm, char, string->chars, string->length + 1);
-			FREE(vm, LitString, object);
+			FREE_ARRAY(manager, char, string->chars, string->length + 1);
+			FREE(manager, LitString, object);
 
 			break;
 		}
 		case OBJECT_CLOSURE: {
 			LitClosure* closure = (LitClosure*) object;
 
-			FREE_ARRAY(vm, LitValue, closure->upvalues, closure->upvalue_count);
-			FREE(vm, LitClosure, object);
+			FREE_ARRAY(manager, LitValue, closure->upvalues, closure->upvalue_count);
+			FREE(manager, LitClosure, object);
 
 			break;
 		}
 		case OBJECT_FUNCTION: {
 			LitFunction* function = (LitFunction*) object;
 
-			lit_free_chunk(vm, &function->chunk);
-			FREE(vm, LitFunction, object);
+			lit_free_chunk(manager, &function->chunk);
+			FREE(manager, LitFunction, object);
 
 			break;
 		}
-		case OBJECT_NATIVE: FREE(vm, LitNative, object); break;
-		case OBJECT_UPVALUE: FREE(vm, LitUpvalue, object); break;
-		case OBJECT_BOUND_METHOD: FREE(vm, LitMethod, object); break;
+		case OBJECT_NATIVE: {
+			FREE(manager, LitNative, object);
+			break;
+		}
+		case OBJECT_UPVALUE: {
+			FREE(manager, LitUpvalue, object);
+			break;
+		}
+		case OBJECT_BOUND_METHOD: {
+			FREE(manager, LitMethod, object);
+			break;
+		}
 		case OBJECT_CLASS: {
 			LitClass* class = ((LitClass*) object);
 
-			lit_free_table(vm, &class->methods);
-			lit_free_table(vm, &class->static_methods);
-			lit_free_table(vm, &class->fields);
-			lit_free_table(vm, &class->static_methods);
+			lit_free_table(manager, &class->methods);
+			lit_free_table(manager, &class->static_methods);
+			lit_free_table(manager, &class->fields);
+			lit_free_table(manager, &class->static_methods);
 
-			FREE(vm, LitClass, object);
+			FREE(manager, LitClass, object);
 			break;
 		}
 		case OBJECT_INSTANCE: {
 			LitInstance* instance = ((LitInstance*) object);
 
-			lit_free_table(vm, &instance->fields);
-			FREE(vm, LitInstance, object);
+			lit_free_table(manager, &instance->fields);
+			FREE(manager, LitInstance, object);
 
 			break;
 		}
@@ -211,7 +220,7 @@ void lit_collect_garbage(LitVm* vm) {
 			LitObject* unreached = *object;
 			*object = unreached->next;
 
-			free_object(vm, unreached);
+			lit_free_object(vm, unreached);
 		} else {
 			(*object)->dark = false;
 			object = &(*object)->next;
@@ -226,14 +235,16 @@ void lit_collect_garbage(LitVm* vm) {
 	}
 }
 
-void lit_free_objects(LitVm* vm) {
-	LitObject* object = ((LitMemManager*) vm)->objects;
+void lit_free_objects(LitMemManager* manager) {
+	LitObject* object = manager->objects;
 
 	while (object != NULL) {
 		LitObject* next = object->next;
-		free_object(vm, object);
+		lit_free_object(manager, object);
 		object = next;
 	}
 
-	free(vm->gray_stack);
+	if (manager->type == MANAGER_VM) {
+		free(((LitVm*) manager)->gray_stack);
+	}
 }

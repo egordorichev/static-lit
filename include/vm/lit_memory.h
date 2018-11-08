@@ -18,6 +18,7 @@ void* reallocate(LitMemManager* manager, void* previous, size_t old_size, size_t
 void lit_gray_object(LitVm* vm, LitObject* object);
 void lit_gray_value(LitVm* vm, LitValue value);
 void lit_collect_garbage(LitVm* vm);
-void lit_free_objects(LitVm* vm);
+void lit_free_object(LitMemManager* manager, LitObject* object);
+void lit_free_objects(LitMemManager* manager);
 
 #endif

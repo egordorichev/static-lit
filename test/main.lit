@@ -1,8 +1,8 @@
-fun print(String str) {
-
+fun print(String str) > double {
+	return 10
 }
 
-print("Hi!")
+print("Hi!") + 20
 
 //*
 
@@ -27,6 +27,7 @@ todo list:
 * native functions
 * foreign classes
 * foreign structs
+* enums
 * repl (expression -> print result, statement -> just run)
 * LitConfig?
 * Nillable types (Awesome?)

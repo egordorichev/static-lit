@@ -288,8 +288,9 @@ static bool interpret(LitVm* vm) {
 		printf("== start vm ==\n");
 	}
 
-	LitFrame* frame = &vm->frames[vm->frame_count - 1];
-	LitValue* stack = vm->stack;
+	// FIXME: optimize the dispatch
+	register LitFrame* frame = &vm->frames[vm->frame_count - 1];
+	register LitValue* stack = vm->stack;
 
 #define READ_BYTE() (*frame->ip++)
 #define READ_CONSTANT() (frame->closure->function->chunk.constants.values[READ_BYTE()])
@@ -760,7 +761,7 @@ void lit_init_vm(LitVm* vm) {
 void lit_free_vm(LitVm* vm) {
 	LitMemManager* manager = (LitMemManager*) vm;
 
-	if (DEBUG_TRACE_GC) {
+	if (DEBUG_TRACE_MEMORY_LEAKS) {
 		printf("Bytes allocated before freeing vm: %ld\n", ((LitMemManager*) vm)->bytes_allocated);
 	}
 
@@ -770,7 +771,7 @@ void lit_free_vm(LitVm* vm) {
 
 	vm->init_string = NULL;
 
-	if (DEBUG_TRACE_GC) {
+	if (DEBUG_TRACE_MEMORY_LEAKS) {
 		printf("Bytes allocated after freeing vm: %ld\n", ((LitMemManager*) vm)->bytes_allocated);
 	}
 }
@@ -796,10 +797,11 @@ bool lit_eval(const char* source_code) {
 	}
 
 	LitVm vm;
-
 	lit_init_vm(&vm);
 	bool had_error = lit_execute(&vm, function);
+
 	lit_free_vm(&vm);
+	lit_free_bytecode_objects(&compiler);
 
 	return !had_error;
 }

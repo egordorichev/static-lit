@@ -641,8 +641,12 @@ LitFunction* lit_emit(LitEmitter* emitter, LitStatements* statements) {
 	emitter->had_error = false;
 
 	LitEmitterFunction function;
+	LitMemManager* manager = (LitMemManager*) emitter->compiler;
+	LitFunction* fn = lit_new_function(emitter->compiler);
 
-	function.function = lit_new_function(emitter->compiler);
+	fn->name = lit_copy_string(emitter->compiler, "$main", 5);
+
+	function.function = fn;
 	function.depth = 0;
 	function.local_count = 0;
 	function.enclosing = NULL;

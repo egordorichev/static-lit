@@ -15,7 +15,8 @@ int lit_disassemble_instruction(LitMemManager* manager, LitChunk* chunk, int off
 #define DEBUG_TRACE_AST false
 #define DEBUG_TRACE_EXECUTION true
 #define DEBUG_TRACE_CODE false
-#define DEBUG_TRACE_GC true
+#define DEBUG_TRACE_GC false
+#define DEBUG_TRACE_MEMORY_LEAKS false
 #define DEBUG_NO_EXECUTE false
 
 #endif

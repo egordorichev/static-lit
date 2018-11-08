@@ -26,6 +26,7 @@
 #define AS_INSTANCE(value) ((LitInstance*) AS_OBJECT(value))
 #define AS_STRING(value) ((LitString*) AS_OBJECT(value))
 #define AS_CSTRING(value) (((LitString*) AS_OBJECT(value))->chars)
+#define AS_UPVALUE(value) ((LitUpvalue*) AS_OBJECT(value))
 
 typedef enum {
 	OBJECT_STRING,
@@ -54,6 +55,8 @@ struct sLitString {
 
 LitString* lit_make_string(LitMemManager* manager, char* chars, int length);
 LitString* lit_copy_string(LitMemManager* manager, const char* chars, size_t length);
+LitString* lit_format_string(LitMemManager* manager, const char* format, ...);
+char* lit_format_cstring(LitMemManager* manager, const char* format, ...);
 
 typedef struct sLitUpvalue {
 	LitObject object;

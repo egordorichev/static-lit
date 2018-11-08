@@ -24,15 +24,19 @@ void lit_init_compiler(LitCompiler* compiler) {
 void lit_free_compiler(LitCompiler* compiler) {
 	LitMemManager* manager = (LitMemManager*) compiler;
 
-	if (DEBUG_TRACE_GC) {
+	if (DEBUG_TRACE_MEMORY_LEAKS) {
 		printf("Bytes allocated after before freeing compiler: %ld\n", ((LitMemManager*) compiler)->bytes_allocated);
 	}
 
 	lit_free_resolver(&compiler->resolver);
 	lit_free_table(compiler, &manager->strings);
+}
 
-	if (DEBUG_TRACE_GC) {
-		printf("Bytes allocated after freeing compiler: %ld\n", ((LitMemManager*) compiler)->bytes_allocated);
+void lit_free_bytecode_objects(LitCompiler* compiler) {
+	lit_free_objects(compiler);
+
+	if (DEBUG_TRACE_MEMORY_LEAKS) {
+		printf("Bytes allocated after freeing compiler and bytecode: %ld\n", ((LitMemManager*) &compiler)->bytes_allocated);
 	}
 }
 

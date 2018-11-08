@@ -1,4 +1,5 @@
 #include <string.h>
+#include <zconf.h>
 
 #include <lit.h>
 
@@ -113,7 +114,7 @@ static LitString* allocate_string(LitMemManager* manager, char* chars, int lengt
 }
 
 static uint32_t hash_string(const char* key, int length) {
-	// FNV-1a hash. See: http://www.isthe.com/chongo/tech/comp/fnv/
+	// FNV-1a hash http://www.isthe.com/chongo/tech/comp/fnv/
 	uint32_t hash = 2166136261u;
 
 	for (int i = 0; i < length; i++) {
@@ -149,4 +150,102 @@ LitString* lit_copy_string(LitMemManager* manager, const char* chars, size_t len
 	heap_chars[length] = '\0';
 
 	return allocate_string(manager, heap_chars, (int) length, hash);
+}
+
+static int get_string_length(const char* format, va_list arg_list) {
+	int total_length = 0;
+
+	for (const char* c = format; *c != '\0'; c++) {
+		switch (*c) {
+			case '$': {
+				total_length += strlen(va_arg(arg_list, const char*));
+				break;
+			}
+			case '@': {
+				total_length += AS_STRING(va_arg(arg_list, LitValue))->length;
+				break;
+			}
+			case '%': {
+				total_length += va_arg(arg_list, LitString*)->length;
+				break;
+			}
+			default: {
+				total_length++;
+				break;
+			}
+		}
+	}
+
+	return total_length;
+}
+
+static char* concat_string(LitMemManager* manager, const char* format, int total_length, va_list arg_list) {
+	char* heap_chars = ALLOCATE(manager, char, total_length + 1);
+	char* start = heap_chars;
+
+	heap_chars[total_length] = '\0';
+
+	for (const char* c = format; *c != '\0'; c++) {
+		switch (*c) {
+			case '$': {
+				const char* string = va_arg(arg_list, const char*);
+				size_t length = strlen(string);
+				memcpy(start, string, length);
+				start += length;
+
+				break;
+			}
+
+			case '@': {
+				LitString* string = AS_STRING(va_arg(arg_list, LitValue));
+				memcpy(start, string->chars, (size_t) string->length);
+				start += string->length;
+
+				break;
+			}
+
+			case '%': {
+				LitString* string = va_arg(arg_list, LitString*);
+				memcpy(start, string->chars, (size_t) string->length);
+				start += string->length;
+
+				break;
+			}
+
+			default: {
+				*start++ = *c;
+				break;
+			}
+		}
+	}
+
+	return heap_chars;
+}
+
+char* lit_format_cstring(LitMemManager* manager, const char* format, ...) {
+	va_list arg_list;
+
+	va_start(arg_list, format);
+	size_t total_length = (size_t) get_string_length(format, arg_list);
+	va_end(arg_list);
+
+	va_start(arg_list, format);
+	char* result = concat_string(manager, format, (int) total_length, arg_list);
+	va_end(arg_list);
+
+	return result;
+}
+
+LitString* lit_format_string(LitMemManager* manager, const char* format, ...) {
+	va_list arg_list;
+
+	va_start(arg_list, format);
+	int total_length = get_string_length(format, arg_list);
+	va_end(arg_list);
+
+	va_start(arg_list, format);
+	char* result = concat_string(manager, format, total_length, arg_list);
+	va_end(arg_list);
+
+	return allocate_string(manager, result, total_length, hash_string(result, total_length));
 }

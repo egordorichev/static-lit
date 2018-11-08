@@ -22,6 +22,11 @@ struct sLitCompiler {
 void lit_init_compiler(LitCompiler* compiler);
 void lit_free_compiler(LitCompiler* compiler);
 
+/*
+ * Should be called after you freed the compiler
+ * and you are done working with LitFunction*
+ */
+void lit_free_bytecode_objects(LitCompiler* compiler);
 LitFunction* lit_compile(LitCompiler* compiler, const char* source_code);
 
 #endif
