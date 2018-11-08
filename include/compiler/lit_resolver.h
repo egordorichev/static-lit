@@ -46,10 +46,14 @@ DECLARE_TABLE(LitResolverMethods, LitResolverMethod*, resolver_methods, LitResol
 
 typedef struct sLitType {
 	LitString* name;
+	bool is_static;
+	bool final;
+	bool abstract;
 	struct sLitType* super;
 	LitResolverMethods methods;
 	LitResolverMethods static_methods;
 	LitResolverFields fields;
+	LitResolverFields static_fields;
 } LitType;
 
 void lit_init_type(LitType* type);

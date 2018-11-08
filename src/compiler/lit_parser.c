@@ -681,7 +681,7 @@ static LitStatement* parse_field_declaration(LitLexer* lexer, bool final, bool a
 	return (LitStatement*) lit_make_field_statement(lexer->compiler, name, init, type == NULL ? NULL : copy_string(lexer, type), NULL, NULL, access, is_static, final);
 }
 
-static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, bool is_static, bool had_class_token) {
+static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, bool is_static, bool final, bool had_class_token) {
 	if (!had_class_token) {
 		consume(lexer, TOKEN_CLASS, "Expected 'class'");
 	}
@@ -812,7 +812,7 @@ static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, boo
 		consume(lexer, TOKEN_RIGHT_BRACE, "Expect '}' after class body");
 	}
 
-	return (LitStatement*) lit_make_class_statement(lexer->compiler, copy_string(lexer, &name), super, methods, fields, abstract, is_static);
+	return (LitStatement*) lit_make_class_statement(lexer->compiler, copy_string(lexer, &name), super, methods, fields, abstract, is_static, final);
 }
 
 static LitStatement* parse_declaration(LitLexer* lexer) {
@@ -835,22 +835,22 @@ static LitStatement* parse_declaration(LitLexer* lexer) {
 
 	// A bit of a mess, maybe there is a way to parse it easier?
 	if (match(lexer, TOKEN_CLASS)) {
-		return parse_class_declaration(lexer, false, false, true);
+		return parse_class_declaration(lexer, false, false, match(lexer, TOKEN_FINAL), true);
 	}
 
 	if (match(lexer, TOKEN_ABSTRACT)) {
 		if (lexer->current.type == TOKEN_STATIC) {
-			error(lexer, &lexer->current, "Abstract class can not be declared static.");
+			error(lexer, &lexer->current, "Abstract class can not be declared static");
 		} else {
-			return parse_class_declaration(lexer, true, false, false);
+			return parse_class_declaration(lexer, true, false, match(lexer, TOKEN_FINAL), false);
 		}
 	}
 
 	if (match(lexer, TOKEN_STATIC)) {
 		if (lexer->current.type == TOKEN_ABSTRACT) {
-			error(lexer, &lexer->current, "Static class can not be declared abstract.");
+			error(lexer, &lexer->current, "Static class can not be declared abstract");
 		} else {
-			return parse_class_declaration(lexer, false, true, false);
+			return parse_class_declaration(lexer, false, true, match(lexer, TOKEN_FINAL), false);
 		}
 	}
 

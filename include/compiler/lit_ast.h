@@ -285,10 +285,11 @@ typedef struct {
 	LitStatements* fields;
 	bool abstract;
 	bool is_static;
+	bool final;
 	const char* name;
 } LitClassStatement;
 
-LitClassStatement* lit_make_class_statement(LitCompiler* compiler, const char* name, LitVarExpression* super, LitMethods* methods, LitStatements* fields, bool abstract, bool is_static);
+LitClassStatement* lit_make_class_statement(LitCompiler* compiler, const char* name, LitVarExpression* super, LitMethods* methods, LitStatements* fields, bool abstract, bool is_static, bool final);
 
 void lit_free_statement(LitCompiler* compiler, LitStatement* statement);
 void lit_free_expression(LitCompiler* compiler, LitExpression* expression);

@@ -477,10 +477,14 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 
 	class->super = super;
 	class->name = lit_copy_string(resolver->compiler, statement->name, len);
+	class->is_static = statement->is_static;
+	class->final = statement->final;
+	class->abstract = statement->abstract;
 
-	lit_init_methods(&class->methods);
-	lit_init_methods(&class->static_methods);
-	lit_init_fields(&class->fields);
+	lit_init_resolver_methods(&class->methods);
+	lit_init_resolver_methods(&class->static_methods);
+	lit_init_resolver_fields(&class->fields);
+	lit_init_resolver_fields(&class->static_fields);
 
 	if (super != NULL) {
 		lit_resolver_methods_add_all(resolver->compiler, &class->methods, &super->methods);
@@ -505,7 +509,7 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 			resolve_field_statement(resolver, var); // The var->type might be assigned here
 			field->type = var->type; // Thats why this must go here
 
-			lit_resolver_fields_set(resolver->compiler, &class->fields, lit_copy_string(resolver->compiler, n, strlen(n)), field);
+			lit_resolver_fields_set(resolver->compiler, field->is_static ? &class->static_fields : &class->fields, lit_copy_string(resolver->compiler, n, strlen(n)), field);
 		}
 	}
 
@@ -523,7 +527,7 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 			m->access = method->access;
 			m->is_overriden = method->overriden;
 
-			lit_resolver_methods_set(resolver->compiler, &class->methods, lit_copy_string(resolver->compiler, method->name, strlen(method->name)), m);
+			lit_resolver_methods_set(resolver->compiler, method->is_static ? &class->static_methods : &class->methods, lit_copy_string(resolver->compiler, method->name, strlen(method->name)), m);
 		}
 	}
 
@@ -727,9 +731,11 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 			return_type[len - 7] = '\0';
 
 			lit_strings_write(resolver->compiler, &resolver->allocated_strings, return_type);
-			LitClass* cl = lit_classes_get(&resolver->classes, lit_copy_string(resolver->compiler, return_type, len - 6));
+			LitType* cl = lit_classes_get(&resolver->classes, lit_copy_string(resolver->compiler, return_type, len - 7));
 
-			// FIXME: should not allow to use it on static classes
+			if (cl->is_static) {
+				error(resolver, "Can not create an instance of a static class %s", cl->name->chars);
+			}
 		} else if (strcmp_ignoring(type, "Function<") != 0) {
 			error(resolver, "Can't call non-function variable %s with type %s", name, type);
 		} else {
@@ -813,13 +819,13 @@ static const char* resolve_get_expression(LitResolver* resolver, LitGetExpressio
 	}
 
 	LitString* str = lit_copy_string(resolver->compiler, expression->property, strlen(expression->property));
-	LitResolverField* field = lit_fields_get(&class->fields, str);
+	LitResolverField* field = lit_resolver_fields_get(&class->static_fields, str);
 
 	if (field == NULL) {
 		LitResolverMethod* method = lit_resolver_methods_get(&class->methods, str);
 
 		if (method == NULL) {
-			error(resolver, "Class %s has no field or method %s", type, expression->property);
+			error(resolver, "Class %s has no static field or method %s", type, expression->property);
 			return "error";
 		}
 
@@ -854,7 +860,7 @@ static const char* resolve_set_expression(LitResolver* resolver, LitSetExpressio
 		return "error";
 	}
 
-	LitResolverField* field = lit_fields_get(&class->fields, lit_copy_string(resolver->compiler, expression->property, strlen(expression->property)));
+	LitResolverField* field = lit_resolver_fields_get(&class->fields, lit_copy_string(resolver->compiler, expression->property, strlen(expression->property)));
 
 	if (field == NULL) {
 		error(resolver, "Class %s has no field %s", type, expression->property);
@@ -991,31 +997,48 @@ void lit_free_resolver(LitResolver* resolver) {
 		LitType* type = resolver->classes.entries[i].value;
 
 		if (type != NULL) {
-			for (int j = 0; j <= type->fields.capacity_mask; j++) {
-				LitResolverField* a = type->fields.entries[j].value;
+			if (type->fields.count != 0) {
+				for (int j = 0; j <= type->fields.capacity_mask; j++) {
+					LitResolverField *a = type->fields.entries[j].value;
 
-				if (a != NULL) {
-					reallocate(resolver->compiler, (void*) a, sizeof(LitResolverField), 0);
+					if (a != NULL) {
+						reallocate(resolver->compiler, (void *) a, sizeof(LitResolverField), 0);
+					}
 				}
 			}
 
-			for (int j = 0; j <= type->methods.capacity_mask; j++) {
-				LitResolverMethod* a = type->methods.entries[j].value;
+			if (type->static_fields.count != 0) {
+				for (int j = 0; j <= type->static_fields.capacity_mask; j++) {
+					LitResolverField *a = type->static_fields.entries[j].value;
 
-				if (a != NULL) {
-					lit_free_resolver_method(resolver->compiler, a);
+					if (a != NULL) {
+						reallocate(resolver->compiler, (void *) a, sizeof(LitResolverField), 0);
+					}
 				}
 			}
 
-			for (int j = 0; j <= type->static_methods.capacity_mask; j++) {
-				LitResolverMethod* a = type->static_methods.entries[j].value;
+			if (type->methods.count != 0) {
+				for (int j = 0; j <= type->methods.capacity_mask; j++) {
+					LitResolverMethod *a = type->methods.entries[j].value;
 
-				if (a != NULL) {
-					lit_free_resolver_method(resolver->compiler, a);
+					if (a != NULL) {
+						lit_free_resolver_method(resolver->compiler, a);
+					}
+				}
+			}
+
+			if (type->static_methods.count != 0) {
+				for (int j = 0; j <= type->static_methods.capacity_mask; j++) {
+					LitResolverMethod *a = type->static_methods.entries[j].value;
+
+					if (a != NULL) {
+						lit_free_resolver_method(resolver->compiler, a);
+					}
 				}
 			}
 
 			lit_free_resolver_fields(resolver->compiler, &type->fields);
+			lit_free_resolver_fields(resolver->compiler, &type->static_fields);
 			lit_free_resolver_methods(resolver->compiler, &type->methods);
 			lit_free_resolver_methods(resolver->compiler, &type->static_methods);
 

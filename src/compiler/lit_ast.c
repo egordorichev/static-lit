@@ -245,7 +245,7 @@ LitMethodStatement* lit_make_method_statement(LitCompiler* compiler, const char*
 }
 
 LitClassStatement* lit_make_class_statement(LitCompiler* compiler, const char* name, LitVarExpression* super, LitMethods* methods,
-		LitStatements* fields, bool abstract, bool is_static) {
+		LitStatements* fields, bool abstract, bool is_static, bool final) {
 
 	LitClassStatement* statement = ALLOCATE_STATEMENT(compiler, LitClassStatement, CLASS_STATEMENT);
 
@@ -255,6 +255,7 @@ LitClassStatement* lit_make_class_statement(LitCompiler* compiler, const char* n
 	statement->fields = fields;
 	statement->abstract = abstract;
 	statement->is_static = is_static;
+	statement->final = final;
 
 	return statement;
 }

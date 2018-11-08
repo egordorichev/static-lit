@@ -1,13 +1,8 @@
-print(time())
-
-//*
-
 static class Math {
 	final double PI = 3.141
 }
 
-var m = Math()
-print(m)
+print(Math.PI)
 
 /*
 Math.PI = 0
@@ -18,6 +13,7 @@ print(Math.PI)
 //*
 todo list:
 
+* final classes
 * check if fun test(Test test) {} is valid (undefined type)
 * remove OP_CONSTANT [arg count] in function call (replace with READ_BYTE() arg), also limit arg count to 255
 * break/continue
