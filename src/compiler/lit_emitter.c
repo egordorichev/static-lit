@@ -238,16 +238,18 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 				for (int i = 0; i < expr->args->count; i++) {
 					emit_expression(emitter, expr->args->values[i]);
 				}
-
-				emit_constant(emitter, MAKE_NUMBER_VALUE(expr->args->count));
-			} else {
-				emit_constant(emitter, MAKE_NUMBER_VALUE(0));
 			}
 
 			if (expr->callee->type == GET_EXPRESSION) {
 				emit_byte(emitter, OP_INVOKE);
 			} else {
 				emit_byte(emitter, OP_CALL);
+			}
+
+			if (expr->args != NULL) {
+				emit_byte(emitter, (uint8_t) expr->args->count);
+			} else {
+				emit_byte(emitter, 0);
 			}
 
 			break;

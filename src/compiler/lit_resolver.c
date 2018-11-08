@@ -285,7 +285,7 @@ static const char* get_function_signature(LitResolver* resolver, LitParameters* 
 	len += strlen(return_type->type);
 	char* type = (char*) reallocate(resolver->compiler, NULL, 0, len);
 
-	strncpy(type, "function<", 9);
+	strncpy(type, "Function<", 9);
 	int place = 9;
 
 	if (parameters != NULL) {
@@ -323,6 +323,10 @@ static void resolve_function_statement(LitResolver* resolver, LitFunctionStateme
 	resolver->function = last;
 
 	lit_strings_write(resolver->compiler, &resolver->allocated_strings, (char*) type);
+
+	if (statement->parameters->count > 255) {
+		error(resolver, "Function %s has more than 255 parameters", statement->name);
+	}
 }
 
 static void resolve_return_statement(LitResolver* resolver, LitReturnStatement* statement) {
@@ -375,6 +379,10 @@ static void resolve_method_statement(LitResolver* resolver, LitMethodStatement* 
 			LitParameter parameter = statement->parameters->values[i];
 			resolve_type(resolver, parameter.type);
 			define(resolver, parameter.name, parameter.type, false);
+		}
+
+		if (statement->parameters->count > 255) {
+			error(resolver, "Method %s has more than 255 parameters", statement->name);
 		}
 	}
 
@@ -722,7 +730,7 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 			LitClass* cl = lit_classes_get(&resolver->classes, lit_copy_string(resolver->compiler, return_type, len - 6));
 
 			// FIXME: should not allow to use it on static classes
-		} else if (strcmp_ignoring(type, "function<") != 0) {
+		} else if (strcmp_ignoring(type, "Function<") != 0) {
 			error(resolver, "Can't call non-function variable %s with type %s", name, type);
 		} else {
 			if (strcmp(type, "error") == 0) {

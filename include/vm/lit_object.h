@@ -80,7 +80,13 @@ typedef struct {
 
 LitFunction* lit_new_function(LitMemManager* manager);
 
-typedef int (*LitNativeFn)(LitVm *vm, int count);
+typedef int (*LitNativeFn)(LitVm *vm, LitValue* args, int count);
+
+typedef struct {
+	LitNativeFn function;
+	const char* name;
+	const char* signature;
+} LitNativeRegistry;
 
 typedef struct {
 	LitObject object;

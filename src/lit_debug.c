@@ -574,7 +574,7 @@ int lit_disassemble_instruction(LitMemManager* manager, LitChunk* chunk, int off
 		case OP_NOT_EQUAL: return simple_instruction("OP_NOT_EQUAL", offset);
 		case OP_GREATER_EQUAL: return simple_instruction("OP_GREATER_EQUAL", offset);
 		case OP_LESS_EQUAL: return simple_instruction("OP_LESS_EQUAL", offset);
-		case OP_CALL: return simple_instruction("OP_CALL", offset);
+		case OP_CALL: return simple_instruction("OP_CALL", offset) + 1;
 		case OP_DEFINE_GLOBAL: return constant_instruction(manager, "OP_DEFINE_GLOBAL", chunk, offset);
 		case OP_GET_GLOBAL: return constant_instruction(manager, "OP_GET_GLOBAL", chunk, offset);
 		case OP_SET_GLOBAL: return constant_instruction(manager, "OP_SET_GLOBAL", chunk, offset);

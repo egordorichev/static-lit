@@ -46,11 +46,12 @@ typedef struct sLitVm {
 } sLitVm;
 
 void lit_init_vm(LitVm* vm);
+void lit_vm_define_native(LitVm* vm, LitNativeRegistry* native);
+void lit_vm_define_natives(LitVm* vm, LitNativeRegistry* natives);
 void lit_free_vm(LitVm* vm);
 
 bool lit_eval(const char* source_code);
 bool lit_execute(LitVm* vm, LitFunction* function);
-void lit_define_native(LitVm* vm, const char* name, const char* type, LitNativeFn function);
 
 void lit_push(LitVm* vm, LitValue value);
 LitValue lit_pop(LitVm* vm);

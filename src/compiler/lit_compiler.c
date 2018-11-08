@@ -29,10 +29,10 @@ void lit_free_compiler(LitCompiler* compiler) {
 	}
 
 	lit_free_resolver(&compiler->resolver);
-	lit_free_table(compiler, &manager->strings);
 }
 
 void lit_free_bytecode_objects(LitCompiler* compiler) {
+	lit_free_table(compiler, &compiler->mem_manager.strings);
 	lit_free_objects(compiler);
 
 	if (DEBUG_TRACE_MEMORY_LEAKS) {
@@ -96,4 +96,32 @@ LitFunction* lit_compile(LitCompiler* compiler, const char* source_code) {
 
 	lit_free_statements((LitMemManager *) compiler, &statements);
 	return function;
+}
+
+void lit_compiler_define_native(LitCompiler* compiler, LitNativeRegistry* native) {
+	LitString* str = lit_copy_string(compiler, native->name, (int) strlen(native->name));
+	LitResolverLocal* letal = (LitResolverLocal*) reallocate(compiler, NULL, 0, sizeof(LitResolverLocal));
+
+	size_t len = strlen(native->signature);
+	char* tp = (char*) reallocate(compiler, NULL, 0, len);
+	strncpy(tp, native->signature, len);
+
+	letal->type = tp;
+	letal->defined = true;
+	letal->nil = false;
+
+	lit_resolver_locals_set(compiler, &compiler->resolver.externals, str, letal);
+}
+
+void lit_compiler_define_natives(LitCompiler* compiler, LitNativeRegistry* natives) {
+	int i = 0;
+	LitNativeRegistry native;
+
+	do {
+		native = natives[i++];
+
+		if (native.name != NULL) {
+			lit_compiler_define_native(compiler, &native);
+		}
+	} while (native.name != NULL);
 }

@@ -98,7 +98,7 @@ static bool call_value(LitVm* vm, LitValue callee, int arg_count) {
 			case OBJECT_CLOSURE: return call(vm, AS_CLOSURE(callee), arg_count);
 			case OBJECT_NATIVE: {
 				last_native = true;
-				int count = AS_NATIVE(callee)(vm, arg_count);
+				int count = AS_NATIVE(callee)(vm, vm->stack_top - arg_count - 1, arg_count);
 
 				if (count == 0) {
 					count = 1;
@@ -116,7 +116,7 @@ static bool call_value(LitVm* vm, LitValue callee, int arg_count) {
 					lit_pop(vm);
 				}
 
-				lit_to_string(vm, lit_pop(vm)); // Pop native function
+				lit_pop(vm); // Pop native function
 
 				for (int i = 0; i < count; i++) {
 					lit_push(vm, values[i]);
@@ -451,7 +451,8 @@ static bool interpret(LitVm* vm) {
 
 		op_get_global: {
 			LitString* name = READ_STRING();
-			PUSH(*lit_table_get(&vm->globals, name));
+			LitValue *value = lit_table_get(&vm->globals, name);
+			PUSH(*value);
 
 			continue;
 		};
@@ -522,7 +523,7 @@ static bool interpret(LitVm* vm) {
 		};
 
 		op_call: {
-			int arg_count = (int) AS_NUMBER(POP());
+			int arg_count = READ_BYTE();
 
 			if (!call_value(vm, PEEK(arg_count), arg_count)) {
 				return false;
@@ -702,37 +703,6 @@ static bool interpret(LitVm* vm) {
 	return true;
 }
 
-void lit_define_native(LitVm* vm, const char* name, const char* type, LitNativeFn function) {
-	LitString* str = lit_copy_string(vm, name, (int) strlen(name));
-	LitResolverLocal* letal = (LitResolverLocal*) reallocate(vm, NULL, 0, sizeof(LitResolverLocal));
-
-	lit_table_set(vm, &vm->globals, AS_STRING(MAKE_OBJECT_VALUE(str)), MAKE_OBJECT_VALUE(lit_new_native(vm, function)));
-
-	size_t len = strlen(type);
-	char* tp = (char*) reallocate(vm, NULL, 0, len);
-	strncpy(tp, type, len);
-
-	letal->type = tp;
-	letal->defined = true;
-	letal->nil = false;
-
-	// FIXME
-	// lit_letals_set(vm, &vm->resolver.externals, str, letal);
-}
-
-static int time_function(LitVm* vm, int count) {
-	lit_push(vm, MAKE_NUMBER_VALUE((double) clock() / CLOCKS_PER_SEC));
-	return 1;
-}
-
-static int print_function(LitVm* vm, int count) {
-	for (int i = count - 1; i >= 0; i--) {
-		printf("%s\n", lit_to_string(vm, lit_peek(vm, i)));
-	}
-
-	return 0;
-}
-
 void lit_init_vm(LitVm* vm) {
 	LitMemManager* manager = (LitMemManager*) vm;
 
@@ -752,10 +722,6 @@ void lit_init_vm(LitVm* vm) {
 	vm->gray_stack = NULL;
 
 	vm->init_string = lit_copy_string(vm, "init", 4);
-
-	// FIXME: find a better way to do this
-	// lit_define_native(vm, "print", "function<any, void>", print_function);
-	// lit_define_native(vm, "time", "function<double>", time_function);
 }
 
 void lit_free_vm(LitVm* vm) {
@@ -785,11 +751,33 @@ bool lit_execute(LitVm* vm, LitFunction* function) {
 	return true;
 }
 
+static int time_function(LitVm* vm, LitValue* args, int count) {
+	lit_push(vm, MAKE_NUMBER_VALUE((double) clock() / CLOCKS_PER_SEC));
+	return 1;
+}
+
+static int print_function(LitVm* vm, LitValue* args, int count) {
+	for (int i = 1; i <= count; i++) {
+		printf("%s\n", lit_to_string(vm, args[i]));
+	}
+
+	return 0;
+}
+
+static LitNativeRegistry std[] = {
+	{ time_function, "time", "Function<double>" },
+	{ print_function, "print", "Function<any, void>" },
+	{ NULL, NULL, NULL } // Null terminator
+};
+
 bool lit_eval(const char* source_code) {
 	LitCompiler compiler;
 
 	lit_init_compiler(&compiler);
+	lit_compiler_define_natives(&compiler, std);
+
 	LitFunction* function = lit_compile(&compiler, source_code);
+
 	lit_free_compiler(&compiler);
 
 	if (function == NULL) {
@@ -798,10 +786,32 @@ bool lit_eval(const char* source_code) {
 
 	LitVm vm;
 	lit_init_vm(&vm);
+	lit_table_add_all(&vm, &vm.mem_manager.strings, &compiler.mem_manager.strings);
+
+	lit_vm_define_natives(&vm, std);
+
 	bool had_error = lit_execute(&vm, function);
 
 	lit_free_vm(&vm);
 	lit_free_bytecode_objects(&compiler);
 
 	return !had_error;
+}
+
+void lit_vm_define_native(LitVm* vm, LitNativeRegistry* native) {
+	LitString* str = lit_copy_string(vm, native->name, (int) strlen(native->name));
+	lit_table_set(vm, &vm->globals, AS_STRING(MAKE_OBJECT_VALUE(str)), MAKE_OBJECT_VALUE(lit_new_native(vm, native->function)));
+}
+
+void lit_vm_define_natives(LitVm* vm, LitNativeRegistry* natives) {
+	int i = 0;
+	LitNativeRegistry native;
+
+	do {
+		native = natives[i++];
+
+		if (native.name != NULL) {
+			lit_vm_define_native(vm, &native);
+		}
+	} while (native.name != NULL);
 }
