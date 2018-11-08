@@ -853,32 +853,68 @@ static const char* resolve_get_expression(LitResolver* resolver, LitGetExpressio
 
 static const char* resolve_set_expression(LitResolver* resolver, LitSetExpression* expression) {
 	const char* type = resolve_expression(resolver, expression->object);
-	LitType* class = lit_classes_get(&resolver->classes, lit_copy_string(resolver->compiler, type, strlen(type)));
 
-	if (class == NULL) {
-		error(resolver, "Undefined type %s", type);
-		return "error";
+	if (strcmp_ignoring("Class<", type) == 0) {
+		size_t len = strlen(type);
+		char* tp = (char*) reallocate(resolver->compiler, NULL, 0, len - 6);
+		strncpy(tp, &type[6], len - 7);
+		tp[len - 7] = '\0';
+
+		lit_strings_write(resolver->compiler, &resolver->allocated_strings, tp);
+		LitType* class = lit_classes_get(&resolver->classes, lit_copy_string(resolver->compiler, tp, len - 7));
+
+		if (class == NULL) {
+			error(resolver, "Undefined type %s", type);
+			return "error";
+		}
+
+		LitResolverField *field = lit_resolver_fields_get(&class->static_fields, lit_copy_string(resolver->compiler, expression->property, strlen(expression->property)));
+
+		if (field == NULL) {
+			error(resolver, "Class %s has no field %s", type, expression->property);
+			return "error";
+		}
+
+		const char *var_type = expression->value == NULL ? "void" : resolve_expression(resolver, expression->value);
+
+		if (!compare_arg((char *) field->type, (char *) var_type)) {
+			error(resolver, "Can't assign %s value to %s field %s", var_type, field->type, expression->property);
+			return "error";
+		}
+
+		if (field->is_final) {
+			error(resolver, "Field %s is final, can't assign a value to it", expression->property);
+		}
+
+		return field->type;
+	} else {
+		LitType *class = lit_classes_get(&resolver->classes, lit_copy_string(resolver->compiler, type, strlen(type)));
+
+		if (class == NULL) {
+			error(resolver, "Undefined type %s", type);
+			return "error";
+		}
+
+		LitResolverField *field = lit_resolver_fields_get(&class->fields, lit_copy_string(resolver->compiler, expression->property, strlen(expression->property)));
+
+		if (field == NULL) {
+			error(resolver, "Class %s has no field %s", type, expression->property);
+			return "error";
+		}
+
+		const char *var_type = expression->value == NULL ? "void" : resolve_expression(resolver, expression->value);
+
+		if (!compare_arg((char *) field->type, (char *) var_type)) {
+			error(resolver, "Can't assign %s value to %s field %s", var_type, field->type, expression->property);
+			return "error";
+		}
+
+		if (field->is_final) {
+			error(resolver, "Field %s is final, can't assign a value to it", expression->property);
+		}
+
+		return field->type;
 	}
-
-	LitResolverField* field = lit_resolver_fields_get(&class->fields, lit_copy_string(resolver->compiler, expression->property, strlen(expression->property)));
-
-	if (field == NULL) {
-		error(resolver, "Class %s has no field %s", type, expression->property);
-		return "error";
-	}
-
-	const char* var_type = expression->value == NULL ? "void" : resolve_expression(resolver, expression->value);
-
-	if (!compare_arg((char*) field->type, (char*) var_type)) {
-		error(resolver, "Can't assign %s value to %s field %s", var_type, field->type, expression->property);
-		return "error";
-	}
-
-	if (field->is_final) {
-		error(resolver, "Field %s is final, can't assign a value to it", expression->property);
-	}
-
-	return field->type;
 }
 
 static const char* resolve_lambda_expression(LitResolver* resolver, LitLambdaExpression* expression) {

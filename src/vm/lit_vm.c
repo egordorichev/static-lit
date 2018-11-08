@@ -606,18 +606,26 @@ static bool interpret(LitVm* vm) {
 		};
 
 		op_set_field: {
-			if (!IS_INSTANCE(PEEK(1))) {
-				runtime_error(vm, "Only instances have fields");
+			LitValue from = PEEK(1);
+
+			if (IS_CLASS(from)) {
+				LitValue value = POP();
+				lit_table_set(vm, &AS_CLASS(from)->static_fields, READ_STRING(), value);
+
+				POP();
+				PUSH(value);
+			} else if (IS_INSTANCE(from)) {
+				LitInstance* instance = AS_INSTANCE(PEEK(1));
+				LitValue value = POP();
+
+				lit_table_set(vm, &instance->fields, READ_STRING(), value);
+
+				POP();
+				PUSH(value);
+			} else {
+				runtime_error(vm, "Only instances and classes have fields");
 				return false;
 			}
-
-			LitInstance* instance = AS_INSTANCE(PEEK(1));
-			LitValue value = POP();
-
-			lit_table_set(vm, &instance->fields, READ_STRING(), value);
-
-			POP();
-			PUSH(value);
 
 			continue;
 		};
