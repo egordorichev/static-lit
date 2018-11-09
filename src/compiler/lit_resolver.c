@@ -107,6 +107,7 @@ void lit_init_resolver_local(LitResolverLocal* local) {
 	local->defined = false;
 	local->nil = false;
 	local->field = false;
+	local->final = false;
 }
 
 static LitResolverLocal* resolve_local(LitResolver* resolver, const char* name) {
@@ -163,7 +164,7 @@ static void declare_and_define(LitResolver* resolver, const char* name, const ch
 	}
 }
 
-static void define(LitResolver* resolver, const char* name, const char* type, bool field) {
+static LitResolverLocal* define(LitResolver* resolver, const char* name, const char* type, bool field) {
 	LitResolverLocals* scope = peek_scope(resolver);
 	LitString* str = lit_copy_string(resolver->compiler, name, (int) strlen(name));
 
@@ -179,10 +180,13 @@ static void define(LitResolver* resolver, const char* name, const char* type, bo
 		local->field = field;
 
 		lit_resolver_locals_set(resolver->compiler, scope, str, local);
+		return local;
 	} else {
 		value->defined = true;
 		value->type = type;
 		value->field = field;
+
+		return value;
 	}
 }
 
@@ -192,13 +196,16 @@ static const char* resolve_var_statement(LitResolver* resolver, LitVarStatement*
 
 	if (statement->init != NULL) {
 		type = (char*) resolve_expression(resolver, statement->init);
+	} else if (statement->final) {
+		error(resolver, "Final variable must be assigned a value in the declaration!");
 	}
 
 	if (strcmp(type, "void") == 0) {
 		error(resolver, "Can't set variable's %s type to void", statement->name);
 	} else {
 		resolve_type(resolver, type);
-		define(resolver, statement->name, type, resolver->class != NULL && resolver->depth == 2);
+		define(resolver, statement->name, type, resolver->class != NULL && resolver->depth == 2)
+			->final = true;
 	}
 
 	return type;
@@ -667,6 +674,10 @@ static const char* resolve_assign_expression(LitResolver* resolver, LitAssignExp
 
 	if (local == NULL) {
 		return "error";
+	}
+
+	if (local->final) {
+		error(resolver, "Can't assign value to a final %s var", type);
 	}
 
 	return local->type;

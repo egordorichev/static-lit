@@ -144,12 +144,13 @@ LitLambdaExpression* lit_make_lambda_expression(LitCompiler* compiler, LitParame
 	return expression;
 }
 
-LitVarStatement* lit_make_var_statement(LitCompiler* compiler, const char* name, LitExpression* init, const char* type) {
+LitVarStatement* lit_make_var_statement(LitCompiler* compiler, const char* name, LitExpression* init, const char* type, bool final) {
 	LitVarStatement* statement = ALLOCATE_STATEMENT(compiler, LitVarStatement, VAR_STATEMENT);
 
 	statement->name = name;
 	statement->init = init;
 	statement->type = type;
+	statement->final = final;
 
 	return statement;
 }

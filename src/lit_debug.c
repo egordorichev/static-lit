@@ -26,6 +26,7 @@ void lit_trace_statement(LitMemManager* manager, LitStatement* statement, int de
 				printf("\"type\" : \"var declaration\",\n");
 				printf("\"var_type\" : \"%s\",\n", var->type == NULL ? "undefined" : var->type);
 				printf("\"name\" : \"%s\",\n", var->name);
+				printf("\"final\" : \"%s\",\n", var->final ? "true" : "false");
 				printf("\"init\" : ");
 
 				if (var->init != NULL) {

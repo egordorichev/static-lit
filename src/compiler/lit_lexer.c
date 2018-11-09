@@ -158,7 +158,16 @@ static LitTokenType find_identifier_type(LitLexer* lexer) {
 
 			break;
 		}
-		case 'v': return check_keyword(lexer, 1, 2, "ar", TOKEN_VAR);
+		case 'v': {
+			if (lexer->current_code - lexer->start > 2) {
+				switch (lexer->start[2]) {
+					case 'r': return check_keyword(lexer, 3, 0, "", TOKEN_VAR);
+					case 'l': return check_keyword(lexer, 3, 0, "", TOKEN_VAL);
+				}
+			}
+
+			break;
+		}
 		case 'w': return check_keyword(lexer, 1, 4, "hile", TOKEN_WHILE);
 		case 'f': {
 			if (lexer->current_code - lexer->start > 1) {

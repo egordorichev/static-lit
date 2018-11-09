@@ -172,9 +172,10 @@ typedef struct {
 	LitExpression* init;
 	const char* name;
 	const char* type;
+	bool final;
 } LitVarStatement;
 
-LitVarStatement* lit_make_var_statement(LitCompiler* compiler, const char* name, LitExpression* init, const char* type);
+LitVarStatement* lit_make_var_statement(LitCompiler* compiler, const char* name, LitExpression* init, const char* type, bool final);
 
 typedef struct {
 	LitStatement* expression;

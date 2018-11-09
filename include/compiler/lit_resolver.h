@@ -17,6 +17,7 @@ typedef struct LitResolverLocal {
 	bool defined;
 	bool nil;
 	bool field;
+	bool final;
 	const char* type;
 } LitResolverLocal;
 

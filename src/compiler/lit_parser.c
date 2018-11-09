@@ -10,7 +10,7 @@
 static LitExpression* parse_expression(LitLexer* lexer);
 static LitStatement* parse_statement(LitLexer* lexer);
 static LitStatement* parse_declaration(LitLexer* lexer);
-static LitStatement* parse_var_declaration(LitLexer* lexer);
+static LitStatement* parse_var_declaration(LitLexer* lexer, bool final);
 
 static const char* copy_string(LitLexer* lexer, LitToken* name) {
 	char* str = (char*) reallocate(lexer->compiler, NULL, 0, (size_t) name->length + (size_t) 1);
@@ -368,7 +368,7 @@ static LitStatement* parse_for(LitLexer* lexer) {
 	LitStatement* init = NULL;
 
 	if (match(lexer, TOKEN_VAR)) {
-		init = parse_var_declaration(lexer);
+		init = parse_var_declaration(lexer, false);
 		consume(lexer, TOKEN_SEMICOLON, "Expected ; after for init");
 	} else if (!match(lexer, TOKEN_SEMICOLON)) {
 		init = parse_expression_statement(lexer);
@@ -641,7 +641,7 @@ static LitStatement* parse_statement(LitLexer* lexer) {
 	return parse_expression_statement(lexer);
 }
 
-static LitStatement* parse_var_declaration(LitLexer* lexer) {
+static LitStatement* parse_var_declaration(LitLexer* lexer, bool final) {
 	LitToken name = consume(lexer, TOKEN_IDENTIFIER, "Expected variable name");
 	LitExpression* init = NULL;
 
@@ -649,17 +649,17 @@ static LitStatement* parse_var_declaration(LitLexer* lexer) {
 		init = parse_expression(lexer);
 	}
 
-	return (LitStatement*) lit_make_var_statement(lexer->compiler, copy_string(lexer, &name), init, NULL);
+	return (LitStatement*) lit_make_var_statement(lexer->compiler, copy_string(lexer, &name), init, NULL, final);
 }
 
-static LitStatement* parse_extended_var_declaration(LitLexer* lexer, LitToken* type, LitToken* name) {
+static LitStatement* parse_extended_var_declaration(LitLexer* lexer, LitToken* type, LitToken* name, bool final) {
 	LitExpression* init = NULL;
 
 	if (match(lexer, TOKEN_EQUAL)) {
 		init = parse_expression(lexer);
 	}
 
-	return (LitStatement*) lit_make_var_statement(lexer->compiler, copy_string(lexer, name), init, copy_string(lexer, type));
+	return (LitStatement*) lit_make_var_statement(lexer->compiler, copy_string(lexer, name), init, copy_string(lexer, type), final);
 }
 
 static LitStatement* parse_field_declaration(LitLexer* lexer, bool final, bool abstract, bool override, bool is_static, LitAccessType access, LitToken* type, LitToken* var_name) {
@@ -825,7 +825,11 @@ static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, boo
 
 static LitStatement* parse_declaration(LitLexer* lexer) {
 	if (match(lexer, TOKEN_VAR)) {
-		return parse_var_declaration(lexer);
+		return parse_var_declaration(lexer, false);
+	}
+
+	if (match(lexer, TOKEN_VAL)) {
+		return parse_var_declaration(lexer, true);
 	}
 
 	if (match(lexer, TOKEN_IDENTIFIER)) {
@@ -837,15 +841,16 @@ static LitStatement* parse_declaration(LitLexer* lexer) {
 			lexer->line = token.line;
 		} else {
 			LitToken type = lexer->previous;
-			return parse_extended_var_declaration(lexer, &type, &lexer->current);
+			// TODO: final int test = 10
+			return parse_extended_var_declaration(lexer, &type, &lexer->current, false);
 		}
 	}
 
-	// TODO: a lot of mess, maybe there is a way to parse it easier?
 	if (match(lexer, TOKEN_CLASS)) {
 		return parse_class_declaration(lexer, false, false, false, true);
 	}
 
+	// TODO: a lot of mess, maybe there is a way to parse it easier?
 	if (match(lexer, TOKEN_ABSTRACT)) {
 		if (lexer->current.type == TOKEN_STATIC) {
 			error(lexer, &lexer->current, "Abstract class can not be declared static");
@@ -863,14 +868,20 @@ static LitStatement* parse_declaration(LitLexer* lexer) {
 			return parse_class_declaration(lexer, false, true, false, false);
 		}
 	} else if (match(lexer, TOKEN_FINAL)) {
-		if (lexer->current.type == TOKEN_ABSTRACT) {
-			error(lexer, &lexer->current, "Abstract class can not be declared abstract");
-		} else if (lexer->current.type == TOKEN_STATIC) {
-			error(lexer, &lexer->current, "Final class can not be declared static");
+		if (match(lexer, TOKEN_VAR)) {
+			return parse_var_declaration(lexer, true);
+		} else if (match(lexer, TOKEN_VAL)) {
+			error(lexer, &lexer->previous, "Val can't be declared final, because it is already final by definition");
+			return parse_var_declaration(lexer, true);
 		} else {
-			return parse_class_declaration(lexer, false, false, true, false);
+			if (lexer->current.type == TOKEN_ABSTRACT) {
+				error(lexer, &lexer->current, "Abstract class can not be declared abstract");
+			} else if (lexer->current.type == TOKEN_STATIC) {
+				error(lexer, &lexer->current, "Final class can not be declared static");
+			} else {
+				return parse_class_declaration(lexer, false, false, true, false);
+			}
 		}
-
 	}
 
 	return parse_statement(lexer);
