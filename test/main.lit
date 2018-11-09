@@ -1,4 +1,6 @@
-print("Hello, World")
+var a = 10
+a += 20
+print(a)
 
 //* todo list:
 

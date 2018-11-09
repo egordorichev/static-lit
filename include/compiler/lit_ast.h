@@ -42,6 +42,7 @@ typedef struct {
 	LitExpression* left;
 	LitExpression* right;
 
+	bool ignore_left; // If true the left expression wont be freed
 	LitTokenType operator;
 } LitBinaryExpression;
 

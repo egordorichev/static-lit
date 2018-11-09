@@ -37,6 +37,7 @@ LitBinaryExpression* lit_make_binary_expression(LitCompiler* compiler, LitExpres
 
 	expression->left = left;
 	expression->right = right;
+	expression->ignore_left = false;
 	expression->operator = operator;
 
 	return expression;
@@ -461,7 +462,7 @@ void lit_free_statement(LitCompiler* compiler, LitStatement* statement) {
 		}
 		default: {
 			fflush(stdin);
-			fprintf(stderr, "Statement with id %i has no freeing case!", statement->type);
+			fprintf(stderr, "Statement with id %i has no freeing case!\n", statement->type);
 			fflush(stdout);
 
 			break;
@@ -474,7 +475,10 @@ void lit_free_expression(LitCompiler* compiler, LitExpression* expression) {
 		case BINARY_EXPRESSION: {
 			LitBinaryExpression* expr = (LitBinaryExpression*) expression;
 
-			lit_free_expression(compiler, expr->left);
+			if (!expr->ignore_left) {
+				lit_free_expression(compiler, expr->left);
+			}
+
 			lit_free_expression(compiler, expr->right);
 			reallocate(compiler, (void*) expression, sizeof(LitBinaryExpression), 0);
 
@@ -598,7 +602,7 @@ void lit_free_expression(LitCompiler* compiler, LitExpression* expression) {
 		}
 		default: {
 			fflush(stdin);
-			fprintf(stderr, "Expression with id %i has no freeing case!", expression->type);
+			fprintf(stderr, "Expression with id %i has no freeing case!\n", expression->type);
 			fflush(stdout);
 
 			break;

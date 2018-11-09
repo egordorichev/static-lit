@@ -205,7 +205,7 @@ static const char* resolve_var_statement(LitResolver* resolver, LitVarStatement*
 	} else {
 		resolve_type(resolver, type);
 		define(resolver, statement->name, type, resolver->class != NULL && resolver->depth == 2)
-			->final = true;
+			->final = statement->final;
 	}
 
 	return type;
