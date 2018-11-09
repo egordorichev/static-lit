@@ -8,6 +8,8 @@
 #include <compiler/lit_emitter.h>
 #include <vm/lit_memory.h>
 
+DEFINE_ARRAY(LitInts, int, ints)
+
 static void emit_byte(LitEmitter* emitter, uint8_t byte) {
 	lit_chunk_write(emitter->compiler, &emitter->function->function->chunk, byte);
 }
@@ -49,6 +51,13 @@ static void emit_constant(LitEmitter* emitter, LitValue constant) {
 static int emit_jump(LitEmitter* emitter, uint8_t instruction) {
 	emit_byte(emitter, instruction);
 	emit_bytes(emitter, 0xff, 0xff);
+
+	return emitter->function->function->chunk.count - 2;
+}
+
+static int emit_jump_instant(LitEmitter* emitter, uint8_t instruction, int jump) {
+	emit_byte(emitter, instruction);
+	emit_bytes(emitter, (uint8_t) ((jump >> 8) & 0xff), (uint8_t) (jump & 0xff));
 
 	return emitter->function->function->chunk.count - 2;
 }
@@ -464,6 +473,8 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 			LitWhileStatement* stmt = (LitWhileStatement*) statement;
 
 			int loop_start = emitter->function->function->chunk.count;
+			emitter->loop_start = loop_start; // Save for continue statements
+
 			no_pop = true;
 			emit_expression(emitter, stmt->condition);
 			int exit_jump = emit_jump(emitter, OP_JUMP_IF_FALSE);
@@ -473,6 +484,13 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 			emit_loop(emitter, loop_start);
 			patch_jump(emitter, exit_jump);
 
+			// Patch breaks
+			for (int i = 0; i < emitter->breaks.count; i++) {
+				patch_jump(emitter, emitter->breaks.values[i]);
+			}
+
+			// Clear the array, it automaticly calls lit_init_ints() too
+			lit_free_ints(emitter->compiler, &emitter->breaks);
 			break;
 		}
 		case FUNCTION_STATEMENT: {
@@ -618,8 +636,15 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 		}
 		case METHOD_STATEMENT: {
 			printf("Field or method statement never should be emitted with emit_statement\n");
-
 			UNREACHABLE();
+		}
+		case BREAK_STATEMENT: {
+			int jump = emit_jump(emitter, OP_JUMP);
+			break;
+		}
+		case CONTINUE_STATEMENT: {
+			emit_jump_instant(emitter, OP_JUMP, emitter->loop_start);
+			break;
 		}
 		default: {
 			printf("Unknown statement with id %i!\n", statement->type);
@@ -638,6 +663,12 @@ void lit_init_emitter(LitCompiler* compiler, LitEmitter* emitter) {
 	emitter->compiler = compiler;
 	emitter->function = NULL;
 	emitter->class = NULL;
+
+	lit_init_ints(&emitter->breaks);
+}
+
+void lit_free_emitter(LitEmitter* emitter) {
+	lit_free_ints(emitter->compiler, &emitter->breaks);
 }
 
 LitFunction* lit_emit(LitEmitter* emitter, LitStatements* statements) {

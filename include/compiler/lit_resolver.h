@@ -71,6 +71,7 @@ typedef struct LitResolver {
 	LitTypes types;
 	LitStrings allocated_strings;
 	LitClasses classes;
+	LitStatement* loop;
 	LitCompiler* compiler;
 
 	int depth;

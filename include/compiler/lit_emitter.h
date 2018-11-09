@@ -33,15 +33,20 @@ typedef struct LitEmitterFunction {
 	LitEmvalue upvalues[UINT8_COUNT];
 } LitEmitterFunction;
 
+DECLARE_ARRAY(LitInts, int, ints)
+
 typedef struct LitEmitter {
 	LitEmitterFunction* function;
 	LitClassCompiler* class;
 	LitCompiler* compiler;
+	LitInts breaks;
 
+	int loop_start;
 	bool had_error;
 } LitEmitter;
 
 void lit_init_emitter(LitCompiler* compiler, LitEmitter* emitter);
+void lit_free_emitter(LitEmitter* emitter);
 LitFunction* lit_emit(LitEmitter* emitter, LitStatements* statements);
 
 #endif

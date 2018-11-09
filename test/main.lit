@@ -1,15 +1,18 @@
-static class Math {
-	final var PI = 3.141
+int i
 
-	sin(double a) > double {
-		return a
-	}
+while (i < 10) {
+	print(i)
+	break
+	print("NO BREAK WHUT")
+	i = i + 1
 }
 
-print(Math.sin(Math.PI))
+print("hi")
 
 //* todo list:
 
+* final var / val
+* += etc
 * break/continue
 * fix stdout / stderr sync
 * static constructors

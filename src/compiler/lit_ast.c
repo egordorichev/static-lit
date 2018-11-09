@@ -260,6 +260,14 @@ LitClassStatement* lit_make_class_statement(LitCompiler* compiler, const char* n
 	return statement;
 }
 
+LitBreakStatement* lit_make_break_statement(LitCompiler* compiler) {
+	return ALLOCATE_STATEMENT(compiler, LitBreakStatement, BREAK_STATEMENT);
+}
+
+LitContinueStatement* lit_make_continue_statement(LitCompiler* compiler) {
+	return ALLOCATE_STATEMENT(compiler, LitContinueStatement, CONTINUE_STATEMENT);
+}
+
 void lit_free_statement(LitCompiler* compiler, LitStatement* statement) {
 	switch (statement->type) {
 		case VAR_STATEMENT: {
@@ -444,6 +452,10 @@ void lit_free_statement(LitCompiler* compiler, LitStatement* statement) {
 			}
 
 			reallocate(compiler, (void*) statement, sizeof(LitClassStatement), 0);
+			break;
+		}
+		case BREAK_STATEMENT:
+		case CONTINUE_STATEMENT: {
 			break;
 		}
 		default: {

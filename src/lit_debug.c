@@ -299,6 +299,14 @@ void lit_trace_statement(LitMemManager* manager, LitStatement* statement, int de
 				printf(",\n");
 				break;
 			}
+			case BREAK_STATEMENT: {
+				printf("\"type\" : \"break\"\n");
+				break;
+			}
+			case CONTINUE_STATEMENT: {
+				printf("\"type\" : \"continue\"\n");
+				break;
+			}
 			default: {
 				printf("Statement with id %i has no pretty-printer!\n", statement->type);
 				UNREACHABLE();

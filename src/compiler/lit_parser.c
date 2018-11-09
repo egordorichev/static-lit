@@ -630,6 +630,14 @@ static LitStatement* parse_statement(LitLexer* lexer) {
 		return parse_while(lexer);
 	}
 
+	if (match(lexer, TOKEN_BREAK)) {
+		return (LitStatement *) lit_make_break_statement(lexer->compiler);
+	}
+
+	if (match(lexer, TOKEN_CONTINUE)) {
+		return (LitStatement *) lit_make_continue_statement(lexer->compiler);
+	}
+
 	return parse_expression_statement(lexer);
 }
 

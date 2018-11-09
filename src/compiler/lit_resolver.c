@@ -231,8 +231,13 @@ static void resolve_block_statement(LitResolver* resolver, LitBlockStatement* st
 }
 
 static void resolve_while_statement(LitResolver* resolver, LitWhileStatement* statement) {
+	LitStatement* enclosing = resolver->loop;
+	resolver->loop = statement;
+
 	resolve_expression(resolver, statement->condition);
 	resolve_statement(resolver, statement->body);
+
+	resolver->loop = enclosing;
 }
 
 static void resolve_function(LitResolver* resolver, LitParameters* parameters, LitParameter* return_type, LitStatement* body,
@@ -538,6 +543,18 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 	lit_strings_write(resolver->compiler, &resolver->allocated_strings, type);
 }
 
+static void resolve_break_statement(LitResolver* resolver, LitBreakStatement* statement) {
+	if (resolver->loop == NULL) {
+		error(resolver, "Can't use 'break' outside of a loop");
+	}
+}
+
+static void resolve_continue_statement(LitResolver* resolver, LitContinueStatement* statement) {
+	if (resolver->loop == NULL) {
+		error(resolver, "Can't use 'continue' outside of a loop");
+	}
+}
+
 static void resolve_statement(LitResolver* resolver, LitStatement* statement) {
 	switch (statement->type) {
 		case VAR_STATEMENT: resolve_var_statement(resolver, (LitVarStatement*) statement); break;
@@ -553,6 +570,8 @@ static void resolve_statement(LitResolver* resolver, LitStatement* statement) {
 			printf("Field or method statement never should be resolved with resolve_statement\n");
 			UNREACHABLE();
 		}
+		case BREAK_STATEMENT: resolve_break_statement(resolver, (LitBreakStatement*) statement); break;
+		case CONTINUE_STATEMENT: resolve_continue_statement(resolver, (LitContinueStatement*) statement); break;
 		default: {
 			printf("Unknown statement with id %i!\n", statement->type);
 			UNREACHABLE();
@@ -999,6 +1018,7 @@ void lit_init_resolver(LitResolver* resolver) {
 	lit_init_classes(&resolver->classes);
 	lit_init_strings(&resolver->allocated_strings);
 
+	resolver->loop = NULL;
 	resolver->had_error = false;
 	resolver->depth = 0;
 	resolver->function = NULL;
