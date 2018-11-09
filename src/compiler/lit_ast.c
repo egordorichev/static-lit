@@ -135,6 +135,18 @@ LitSuperExpression* lit_make_super_expression(LitCompiler* compiler, const char*
 	return expression;
 }
 
+LitIfExpression* lit_make_if_expression(LitCompiler* compiler, LitExpression* condition, LitExpression* if_branch, LitExpression* else_branch, LitExpressions* else_if_branches, LitExpressions* else_if_conditions) {
+	LitIfExpression* expression = ALLOCATE_EXPRESSION(compiler, LitIfExpression, IF_EXPRESSION);
+
+	expression->condition = condition;
+	expression->if_branch = if_branch;
+	expression->else_branch = else_branch;
+	expression->else_if_branches = else_if_branches;
+	expression->else_if_conditions = else_if_conditions;
+
+	return expression;
+}
+
 LitLambdaExpression* lit_make_lambda_expression(LitCompiler* compiler, LitParameters* parameters, LitStatement* body, LitParameter return_type) {
 	LitLambdaExpression* expression = ALLOCATE_EXPRESSION(compiler, LitLambdaExpression, LAMBDA_EXPRESSION);
 
@@ -598,6 +610,32 @@ void lit_free_expression(LitCompiler* compiler, LitExpression* expression) {
 			reallocate(compiler, (void*) expr->method, strlen(expr->method) + 1, 0);
 			reallocate(compiler, (void*) expression, sizeof(LitSuperExpression), 0);
 
+			break;
+		}
+		case IF_EXPRESSION: {
+			LitIfExpression* expr = (LitIfExpression*) expression;
+
+			lit_free_expression(compiler, expr->condition);
+			lit_free_expression(compiler, expr->if_branch);
+
+			if (expr->else_if_branches != NULL) {
+				for (int i = 0; i < expr->else_if_branches->count; i++) {
+					lit_free_expression(compiler, expr->else_if_conditions->values[i]);
+					lit_free_expression(compiler, expr->else_if_branches->values[i]);
+				}
+
+				lit_free_expressions(compiler, expr->else_if_conditions);
+				lit_free_expressions(compiler, expr->else_if_branches);
+
+				reallocate(compiler, (void*) expr->else_if_conditions, sizeof(LitExpressions), 0);
+				reallocate(compiler, (void*) expr->else_if_branches, sizeof(LitExpressions), 0);
+			}
+
+			if (expr->else_branch != NULL) {
+				lit_free_expression(compiler, expr->else_branch);
+			}
+
+			reallocate(compiler, (void*) expr, sizeof(LitIfExpression), 0);
 			break;
 		}
 		default: {

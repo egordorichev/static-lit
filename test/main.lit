@@ -1,10 +1,13 @@
-var a = 10
-a += 20
-print(a)
+fun test() > int {
+	return if (false) 20
+	       else if (true) 40
+				 else 30
+}
+
+print(test())
 
 //* todo list:
 
-* += etc
 * fix stdout / stderr sync
 * static constructors
 * constructor args

@@ -107,6 +107,51 @@ static LitToken consume(LitLexer* lexer, LitTokenType type, const char* message)
 	return lexer->previous;
 }
 
+static LitExpression* parse_if_expression(LitLexer* lexer, bool shrt) {
+	if (shrt) {
+		return NULL; // TODO
+	} else {
+		consume(lexer, TOKEN_LEFT_PAREN, "Expected '(' after if");
+		LitExpression* condition = parse_expression(lexer);
+		consume(lexer, TOKEN_RIGHT_PAREN, "Expected ')' after if condition");
+
+		LitExpression* if_branch = parse_expression(lexer);
+		LitExpression* else_branch = NULL;
+		LitExpressions* else_if_branches = NULL;
+		LitExpressions* else_if_conditions = NULL;
+
+		while (match(lexer, TOKEN_ELSE)) {
+			if (match(lexer, TOKEN_IF)) {
+				if (else_branch != NULL) {
+					error(lexer, &lexer->current, "Else branch is already defined for this if");
+				}
+
+				if (else_if_branches == NULL) {
+					else_if_conditions = (LitExpressions*) reallocate(lexer->compiler, NULL, 0, sizeof(LitExpressions));
+					lit_init_expressions(else_if_conditions);
+
+					else_if_branches = (LitExpressions*) reallocate(lexer->compiler, NULL, 0, sizeof(LitExpressions));
+					lit_init_expressions(else_if_branches);
+				}
+
+				consume(lexer, TOKEN_LEFT_PAREN, "Expected '(' after else if");
+				lit_expressions_write(lexer->compiler, else_if_conditions, parse_expression(lexer));
+				consume(lexer, TOKEN_RIGHT_PAREN, "Expected ')' after else if condition");
+
+				lit_expressions_write(lexer->compiler, else_if_branches, parse_expression(lexer));
+			} else {
+				else_branch = parse_expression(lexer);
+			}
+		}
+
+		if (else_branch == NULL) {
+			error(lexer, &lexer->previous, "If expression must have else branch");
+		}
+
+		return (LitExpression*) lit_make_if_expression(lexer->compiler, condition, if_branch, else_branch, else_if_branches, else_if_conditions);
+	}
+}
+
 static LitExpression* parse_lambda(LitLexer* lexer);
 
 static LitExpression* parse_primary(LitLexer* lexer) {
@@ -158,6 +203,10 @@ static LitExpression* parse_primary(LitLexer* lexer) {
 		LitExpression* expression = parse_expression(lexer);
 		consume(lexer, TOKEN_RIGHT_PAREN, "Expected ')' after expression");
 		return (LitExpression*) lit_make_grouping_expression(lexer->compiler, expression);
+	}
+
+	if (match(lexer, TOKEN_IF)) {
+		return parse_if_expression(lexer, false);
 	}
 
 	error(lexer, &lexer->current, "Unexpected token");

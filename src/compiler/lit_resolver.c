@@ -336,7 +336,7 @@ static void resolve_function_statement(LitResolver* resolver, LitFunctionStateme
 
 	lit_strings_write(resolver->compiler, &resolver->allocated_strings, (char*) type);
 
-	if (statement->parameters->count > 255) {
+	if (statement->parameters != NULL && statement->parameters->count > 255) {
 		error(resolver, "Function %s has more than 255 parameters", statement->name);
 	}
 }
@@ -993,6 +993,33 @@ static const char* resolve_super_expression(LitResolver* resolver, LitSuperExpre
 	return method->signature;
 }
 
+static const char* resolve_if_expression(LitResolver* resolver, LitIfExpression* expression) {
+	resolve_expression(resolver, expression->condition);
+	const char* type = resolve_expression(resolver, expression->if_branch);
+
+	if (expression->else_if_branches != NULL) {
+		resolve_expressions(resolver, expression->else_if_conditions);
+
+		for (int i = 0; i < expression->else_if_branches->count; i++) {
+			const char* branch_type = resolve_expression(resolver, expression->else_if_branches->values[i]);
+
+			if (strcmp(branch_type, type) != 0) {
+				error(resolver, "If expression type was declared %s (from if branch), can't return a %s value from else if branch", type, branch_type);
+			}
+		}
+	}
+
+	if (expression->else_branch != NULL) {
+		const char* branch_type = resolve_expression(resolver, expression->else_branch);
+
+		if (strcmp(branch_type, type) != 0) {
+			error(resolver, "If expression type was declared %s (from if branch), can't return a %s value from else branch", type, branch_type);
+		}
+	}
+
+	return type;
+}
+
 static const char* resolve_expression(LitResolver* resolver, LitExpression* expression) {
 	switch (expression->type) {
 		case BINARY_EXPRESSION: return resolve_binary_expression(resolver, (LitBinaryExpression*) expression);
@@ -1008,6 +1035,7 @@ static const char* resolve_expression(LitResolver* resolver, LitExpression* expr
 		case LAMBDA_EXPRESSION: return resolve_lambda_expression(resolver, (LitLambdaExpression*) expression);
 		case THIS_EXPRESSION: return resolve_this_expression(resolver, (LitThisExpression*) expression);
 		case SUPER_EXPRESSION: return resolve_super_expression(resolver, (LitSuperExpression*) expression);
+		case IF_EXPRESSION: return resolve_if_expression(resolver, (LitIfExpression*) expression);
 		default: {
 			printf("Unknown expression with id %i!\n", expression->type);
 			UNREACHABLE();

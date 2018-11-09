@@ -27,7 +27,8 @@ typedef enum {
 	GET_EXPRESSION = 9,
 	SET_EXPRESSION = 10,
 	THIS_EXPRESSION = 11,
-	SUPER_EXPRESSION = 12
+	SUPER_EXPRESSION = 12,
+	IF_EXPRESSION = 13
 } LitExpresionType;
 
 typedef struct LitExpression {
@@ -136,6 +137,18 @@ typedef struct {
 
 LitSuperExpression* lit_make_super_expression(LitCompiler* compiler, const char* method);
 
+typedef struct {
+	LitExpression* expression;
+
+	LitExpression* condition;
+	LitExpression* if_branch;
+	LitExpression* else_branch;
+	LitExpressions* else_if_branches;
+	LitExpressions* else_if_conditions;
+} LitIfExpression;
+
+LitIfExpression* lit_make_if_expression(LitCompiler* compiler, LitExpression* condition, LitExpression* if_branch, LitExpression* else_branch, LitExpressions* else_if_branches, LitExpressions* else_if_conditions);
+
 typedef enum {
 	VAR_STATEMENT,
 	EXPRESSION_STATEMENT,
@@ -168,7 +181,7 @@ typedef struct {
 LitLambdaExpression* lit_make_lambda_expression(LitCompiler* compiler, LitParameters* parameters, LitStatement* body, LitParameter return_type);
 
 typedef struct {
-	LitStatement* expression;
+	LitStatement* statement;
 
 	LitExpression* init;
 	const char* name;

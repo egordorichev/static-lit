@@ -329,6 +329,42 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 
 			break;
 		}
+		case IF_EXPRESSION: {
+			LitIfExpression* expr = (LitIfExpression*) expression;
+			emit_expression(emitter, expr->condition);
+
+			int else_jump = emit_jump(emitter, OP_JUMP_IF_FALSE);
+			emit_expression(emitter, expr->if_branch);
+
+			int end_jump = emit_jump(emitter, OP_JUMP);
+			int end_jumps[expr->else_if_branches == NULL ? 0 : expr->else_if_branches->count];
+
+			if (expr->else_if_branches != NULL) {
+				for (int i = 0; i < expr->else_if_branches->count; i++) {
+					patch_jump(emitter, else_jump);
+					emit_expression(emitter, expr->else_if_conditions->values[i]);
+					else_jump = emit_jump(emitter, OP_JUMP_IF_FALSE);
+					emit_expression(emitter, expr->else_if_branches->values[i]);
+
+					end_jumps[i] = emit_jump(emitter, OP_JUMP);
+				}
+			}
+
+			patch_jump(emitter, else_jump);
+
+			if (expr->else_branch != NULL) {
+				emit_expression(emitter, expr->else_branch);
+			}
+
+			if (expr->else_if_branches != NULL) {
+				for (int i = 0; i < expr->else_if_branches->count; i++) {
+					patch_jump(emitter, end_jumps[i]);
+				}
+			}
+
+			patch_jump(emitter, end_jump);
+			break;
+		}
 		default: {
 			printf("Unknown expression with id %i!\n", expression->type);
 			UNREACHABLE();
