@@ -833,25 +833,36 @@ static LitStatement* parse_declaration(LitLexer* lexer) {
 		}
 	}
 
-	// A bit of a mess, maybe there is a way to parse it easier?
+	// TODO: a lot of mess, maybe there is a way to parse it easier?
 	if (match(lexer, TOKEN_CLASS)) {
-		return parse_class_declaration(lexer, false, false, match(lexer, TOKEN_FINAL), true);
+		return parse_class_declaration(lexer, false, false, false, true);
 	}
 
 	if (match(lexer, TOKEN_ABSTRACT)) {
 		if (lexer->current.type == TOKEN_STATIC) {
 			error(lexer, &lexer->current, "Abstract class can not be declared static");
+		} else if (lexer->current.type == TOKEN_FINAL) {
+			error(lexer, &lexer->current, "Abstract class can not be declared final");
 		} else {
-			return parse_class_declaration(lexer, true, false, match(lexer, TOKEN_FINAL), false);
+			return parse_class_declaration(lexer, true, false, false, false);
 		}
-	}
-
-	if (match(lexer, TOKEN_STATIC)) {
+	} else if (match(lexer, TOKEN_STATIC)) {
 		if (lexer->current.type == TOKEN_ABSTRACT) {
 			error(lexer, &lexer->current, "Static class can not be declared abstract");
+		} else if (lexer->current.type == TOKEN_FINAL) {
+			error(lexer, &lexer->current, "Static class can not be inherited, so can it be final");
 		} else {
-			return parse_class_declaration(lexer, false, true, match(lexer, TOKEN_FINAL), false);
+			return parse_class_declaration(lexer, false, true, false, false);
 		}
+	} else if (match(lexer, TOKEN_FINAL)) {
+		if (lexer->current.type == TOKEN_ABSTRACT) {
+			error(lexer, &lexer->current, "Abstract class can not be declared abstract");
+		} else if (lexer->current.type == TOKEN_STATIC) {
+			error(lexer, &lexer->current, "Final class can not be declared static");
+		} else {
+			return parse_class_declaration(lexer, false, false, true, false);
+		}
+
 	}
 
 	return parse_statement(lexer);

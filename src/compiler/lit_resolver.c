@@ -468,6 +468,8 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 
 		if (super_class == NULL) {
 			error(resolver, "Can't inherit undefined class %s", statement->super->name);
+		} else if (super_class->final) {
+			error(resolver, "Can't inherit final class %s", statement->super->name);
 		} else {
 			super = super_class;
 		}

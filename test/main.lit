@@ -6,25 +6,14 @@ static class Math {
 	}
 }
 
-print(Math.sin(Math.PI + 3))
+print(Math.sin(Math.PI))
 
-/*
-Math.PI = 0
-print(Math.PI)
-*/
+//* todo list:
 
-
-//*
-todo list:
-
-* final classes
-* check if fun test(Test test) {} is valid (undefined type)
-* remove OP_CONSTANT [arg count] in function call (replace with READ_BYTE() arg), also limit arg count to 255
 * break/continue
 * fix stdout / stderr sync
 * static constructors
 * constructor args
-* native functions
 * foreign classes
 * foreign structs
 * enums

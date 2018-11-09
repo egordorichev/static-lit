@@ -145,7 +145,9 @@ typedef enum {
 	RETURN_STATEMENT,
 	METHOD_STATEMENT,
 	CLASS_STATEMENT,
-	FIELD_STATEMENT
+	FIELD_STATEMENT,
+	BREAK_STATEMENT,
+	CONTINUE_STATEMENT
 } LitStatementType;
 
 typedef struct {
@@ -290,6 +292,18 @@ typedef struct {
 } LitClassStatement;
 
 LitClassStatement* lit_make_class_statement(LitCompiler* compiler, const char* name, LitVarExpression* super, LitMethods* methods, LitStatements* fields, bool abstract, bool is_static, bool final);
+
+typedef struct {
+	LitStatement* expression;
+} LitBreakStatement;
+
+LitBreakStatement* lit_make_break_statement(LitCompiler* compiler);
+
+typedef struct {
+	LitStatement* expression;
+} LitContinueStatement;
+
+LitContinueStatement* lit_make_continue_statement(LitCompiler* compiler);
 
 void lit_free_statement(LitCompiler* compiler, LitStatement* statement);
 void lit_free_expression(LitCompiler* compiler, LitExpression* expression);
