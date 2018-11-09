@@ -200,7 +200,7 @@ static const char* resolve_var_statement(LitResolver* resolver, LitVarStatement*
 		error(resolver, "Final variable must be assigned a value in the declaration!");
 	}
 
-	if (strcmp(type, "void") == 0) {
+	if (type == NULL || strcmp(type, "void") == 0) {
 		error(resolver, "Can't set variable's %s type to void", statement->name);
 	} else {
 		resolve_type(resolver, type);

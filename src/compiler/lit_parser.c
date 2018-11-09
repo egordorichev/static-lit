@@ -653,13 +653,17 @@ static LitStatement* parse_var_declaration(LitLexer* lexer, bool final) {
 }
 
 static LitStatement* parse_extended_var_declaration(LitLexer* lexer, LitToken* type, LitToken* name, bool final) {
+	char* name_str = (char *) copy_string(lexer, name);
+	char* type_str = (char *) copy_string(lexer, type);
+
+	advance(lexer);
 	LitExpression* init = NULL;
 
 	if (match(lexer, TOKEN_EQUAL)) {
 		init = parse_expression(lexer);
 	}
 
-	return (LitStatement*) lit_make_var_statement(lexer->compiler, copy_string(lexer, name), init, copy_string(lexer, type), final);
+	return (LitStatement*) lit_make_var_statement(lexer->compiler, name_str, init, type_str, final);
 }
 
 static LitStatement* parse_field_declaration(LitLexer* lexer, bool final, bool abstract, bool override, bool is_static, LitAccessType access, LitToken* type, LitToken* var_name) {
@@ -840,9 +844,7 @@ static LitStatement* parse_declaration(LitLexer* lexer) {
 			lexer->current_code = token.start + token.length;
 			lexer->line = token.line;
 		} else {
-			LitToken type = lexer->previous;
-			// TODO: final int test = 10
-			return parse_extended_var_declaration(lexer, &type, &lexer->current, false);
+			return parse_extended_var_declaration(lexer, &lexer->previous, &lexer->current, false);
 		}
 	}
 
@@ -868,7 +870,17 @@ static LitStatement* parse_declaration(LitLexer* lexer) {
 			return parse_class_declaration(lexer, false, true, false, false);
 		}
 	} else if (match(lexer, TOKEN_FINAL)) {
-		if (match(lexer, TOKEN_VAR)) {
+		if (match(lexer, TOKEN_IDENTIFIER)) {
+			if (lexer->current.type != TOKEN_IDENTIFIER) {
+				LitToken token = lexer->previous;
+
+				lexer->current = token;
+				lexer->current_code = token.start + token.length;
+				lexer->line = token.line;
+			} else {
+				return parse_extended_var_declaration(lexer, &lexer->previous, &lexer->current, true);
+			}
+		} else if (match(lexer, TOKEN_VAR)) {
 			return parse_var_declaration(lexer, true);
 		} else if (match(lexer, TOKEN_VAL)) {
 			error(lexer, &lexer->previous, "Val can't be declared final, because it is already final by definition");

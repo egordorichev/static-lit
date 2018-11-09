@@ -1,14 +1,8 @@
-final var t = 10
-t = 32
-print(t)
-//final var test// = 10
-// test = 32
+print("Hello, World")
 
 //* todo list:
 
-* final var / val
 * += etc
-* final int test = 10
 * fix stdout / stderr sync
 * static constructors
 * constructor args
