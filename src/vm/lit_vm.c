@@ -70,6 +70,10 @@ static bool call(LitVm* vm, LitClosure* closure, int arg_count) {
 	frame->ip = closure->function->chunk.code;
 	frame->slots = vm->stack_top - arg_count;
 
+	if (DEBUG_TRACE_EXECUTION) {
+		printf("== %s ==\n", frame->closure->function->name == NULL ? "top-level" : frame->closure->function->name->chars);
+	}
+
 	// fixme: why should be local vars on stack already?
 	// they are often duplicated because of that:
 	// [<native fun>][<fun test>][<fun lambda>][10][32][10][32]
@@ -111,7 +115,7 @@ static bool invoke(LitVm* vm, int arg_count) {
 static bool last_native;
 static bool last_init;
 
-static bool call_value(LitVm* vm, LitValue callee, int arg_count) {
+static bool call_value(LitVm* vm, LitValue callee, int arg_count, bool static_init) {
 	last_native = false;
 
 	if (IS_OBJECT(callee)) {
@@ -153,8 +157,12 @@ static bool call_value(LitVm* vm, LitValue callee, int arg_count) {
 			}
 			case OBJECT_CLASS: {
 				LitClass* class = AS_CLASS(callee);
-				vm->stack_top[-arg_count - 1] = MAKE_OBJECT_VALUE(lit_new_instance(vm, class));
-				LitValue* initializer = lit_table_get(&class->methods, vm->init_string);
+
+				if (!static_init) {
+					vm->stack_top[-arg_count - 1] = MAKE_OBJECT_VALUE(lit_new_instance(vm, class));
+				}
+
+				LitValue* initializer = lit_table_get(static_init ? &class->static_methods : &class->methods, vm->init_string);
 
 				if (initializer != NULL) {
 					LitValue values[arg_count];
@@ -170,7 +178,6 @@ static bool call_value(LitVm* vm, LitValue callee, int arg_count) {
 					}
 
 					last_init = true;
-					trace_stack(vm);
 
 					return invoke_simple(vm, arg_count, lit_peek(vm, arg_count + 1), *initializer);
 				}
@@ -255,7 +262,7 @@ static bool interpret(LitVm* vm) {
 
 		functions[OP_RETURN] = &&op_return;
 		functions[OP_CONSTANT] = &&op_constant;
-		// functions[OP_PRINT] = &&op_print;
+		functions[OP_STATIC_INIT] = &&op_static_init;
 		functions[OP_NEGATE] = &&op_negate;
 		functions[OP_ADD] = &&op_add;
 		functions[OP_SUBTRACT] = &&op_subtract;
@@ -297,10 +304,6 @@ static bool interpret(LitVm* vm) {
 		functions[OP_DEFINE_STATIC_FIELD] = &&op_define_static_field;
 		functions[OP_DEFINE_STATIC_METHOD] = &&op_define_static_method;
 		functions[OP_DEFINE_STATIC_METHOD + 1] = &&op_unknown;
-	}
-
-	if (DEBUG_TRACE_EXECUTION) {
-		printf("== start vm ==\n");
 	}
 
 	// FIXME: optimize the dispatch
@@ -364,6 +367,19 @@ static bool interpret(LitVm* vm) {
 
 			frame = &vm->frames[vm->frame_count - 1];
 
+			if (DEBUG_TRACE_EXECUTION) {
+				printf("== %s ==\n", frame->closure->function->name == NULL ? "top-level" : frame->closure->function->name->chars);
+			}
+
+			continue;
+		};
+
+		op_static_init: {
+			if (!call_value(vm, PEEK(0), 0, true)) {
+				return false;
+			}
+
+			frame = &vm->frames[vm->frame_count - 1];
 			continue;
 		};
 
@@ -549,12 +565,16 @@ static bool interpret(LitVm* vm) {
 		op_call: {
 			int arg_count = READ_BYTE();
 
-			if (!call_value(vm, PEEK(arg_count), arg_count)) {
+			if (!call_value(vm, PEEK(arg_count), arg_count, false)) {
 				return false;
 			}
 
 			if (!last_native) {
 				frame = &vm->frames[vm->frame_count - 1];
+
+				if (DEBUG_TRACE_EXECUTION) {
+					printf("== %s ==\n", frame->closure->function->name == NULL ? "top-level" : frame->closure->function->name->chars);
+				}
 			}
 
 			continue;
@@ -776,7 +796,7 @@ void lit_free_vm(LitVm* vm) {
 
 bool lit_execute(LitVm* vm, LitFunction* function) {
 	if (!DEBUG_NO_EXECUTE) {
-		call_value(vm, MAKE_OBJECT_VALUE(lit_new_closure(vm, function)), 0);
+		call_value(vm, MAKE_OBJECT_VALUE(lit_new_closure(vm, function)), 0, false);
 		return interpret(vm);
 	}
 

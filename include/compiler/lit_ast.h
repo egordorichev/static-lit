@@ -109,6 +109,7 @@ typedef struct {
 	LitExpression* expression;
 
 	LitExpression* object;
+	bool emit_static_init;
 	const char* property;
 } LitGetExpression;
 
@@ -119,6 +120,7 @@ typedef struct {
 
 	LitExpression* object;
 	LitExpression* value;
+	bool emit_static_init;
 	const char* property;
 } LitSetExpression;
 

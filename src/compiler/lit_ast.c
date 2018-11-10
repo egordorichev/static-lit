@@ -109,6 +109,7 @@ LitGetExpression* lit_make_get_expression(LitCompiler* compiler, LitExpression* 
 
 	expression->object = object;
 	expression->property = property;
+	expression->emit_static_init = false;
 
 	return expression;
 }
@@ -119,6 +120,7 @@ LitSetExpression* lit_make_set_expression(LitCompiler* compiler, LitExpression* 
 	expression->object = object;
 	expression->value = value;
 	expression->property = property;
+	expression->emit_static_init = false;
 
 	return expression;
 }

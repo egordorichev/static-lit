@@ -365,6 +365,10 @@ static const char* access_to_string(LitAccessType type) {
 }
 
 static void resolve_method_statement(LitResolver* resolver, LitMethodStatement* statement, char* signature) {
+	if (statement->is_static && statement->parameters != NULL && statement->parameters->count != 0 && strcmp("init", statement->name) == 0) {
+		error(resolver, "Static constructors can not have parameters");
+	}
+
 	push_scope(resolver);
 	resolver->had_return = false;
 
@@ -488,6 +492,7 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 
 	LitType* class = (LitType*) reallocate(resolver->compiler, NULL, 0, sizeof(LitType));
 
+	class->inited = false;
 	class->super = super;
 	class->name = lit_copy_string(resolver->compiler, statement->name, len);
 	class->is_static = statement->is_static;
@@ -886,6 +891,9 @@ static const char* resolve_get_expression(LitResolver* resolver, LitGetExpressio
 	if (class == NULL) {
 		error(resolver, "Can't find class %s", type);
 		return "error";
+	} else if (should_be_static && !class->inited) {
+		class->inited = true;
+		expression->emit_static_init = true;
 	}
 
 	LitString* str = lit_copy_string(resolver->compiler, expression->property, strlen(expression->property));
@@ -936,6 +944,11 @@ static const char* resolve_set_expression(LitResolver* resolver, LitSetExpressio
 		if (class == NULL) {
 			error(resolver, "Undefined type %s", type);
 			return "error";
+		}
+
+		if (!class->inited) {
+			class->inited = true;
+			expression->emit_static_init = true;
 		}
 
 		LitResolverField *field = lit_resolver_fields_get(&class->static_fields, lit_copy_string(resolver->compiler, expression->property, strlen(expression->property)));

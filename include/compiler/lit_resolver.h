@@ -50,6 +50,7 @@ typedef struct sLitType {
 	bool is_static;
 	bool final;
 	bool abstract;
+	bool inited;
 	struct sLitType* super;
 	LitResolverMethods methods;
 	LitResolverMethods static_methods;

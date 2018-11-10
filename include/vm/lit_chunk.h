@@ -12,8 +12,7 @@ DECLARE_ARRAY(LitArray, LitValue, array)
 typedef enum {
 	OP_RETURN = 0,
 	OP_CONSTANT = 1,
-	// Old, will be replaced with another op
-	// OP_PRINT = 2,
+	OP_STATIC_INIT = 2,
 	OP_NEGATE = 3,
 	OP_ADD = 4,
 	OP_SUBTRACT = 5,

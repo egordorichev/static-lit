@@ -1,21 +1,21 @@
-class Test {
-	init(int a, int c) {
-		this.t = a + c
+static class Math {
+	init() {
+		print("Math.init()")
 	}
 
-	var t = 10
-
-	test(int a) {
-		print(a + this.t)
+	wakeUp() {
+		print("Wake up")
 	}
 }
 
-var m = Test(3, 3)
-m.test(6)
+Math.wakeUp()
+// Math.init() should not be valid! FIXME
 
 //* todo list:
 
 * if !(true) {}
+* OP_CONSTANT_LONG
+* Fix error cascades
 * true ? thing() : else()
 * fix stdout / stderr sync
 * static constructors

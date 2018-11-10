@@ -267,6 +267,10 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 		case GET_EXPRESSION: {
 			LitGetExpression* expr = (LitGetExpression*) expression;
 
+			if (expr->emit_static_init) {
+				emit_byte(emitter, OP_STATIC_INIT);
+			}
+
 			emit_expression(emitter, expr->object);
 			emit_bytes(emitter, OP_GET_FIELD, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, expr->property, strlen(expr->property)))));
 
@@ -276,6 +280,11 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 			LitSetExpression* expr = (LitSetExpression*) expression;
 
 			emit_expression(emitter, expr->object);
+
+			if (expr->emit_static_init) {
+				emit_byte(emitter, OP_STATIC_INIT);
+			}
+
 			emit_expression(emitter, expr->value);
 			emit_bytes(emitter, OP_SET_FIELD, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, expr->property, strlen(expr->property)))));
 
