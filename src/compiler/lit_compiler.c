@@ -108,6 +108,7 @@ void lit_compiler_define_native(LitCompiler* compiler, LitNativeRegistry* native
 	letal->type = tp;
 	letal->defined = true;
 	letal->nil = false;
+	letal->field = false;
 
 	lit_resolver_locals_set(compiler, &compiler->resolver.externals, str, letal);
 }

@@ -571,7 +571,6 @@ int lit_disassemble_instruction(LitMemManager* manager, LitChunk* chunk, int off
 		case OP_SUBTRACT: return simple_instruction("OP_SUBTRACT", offset);
 		case OP_MULTIPLY: return simple_instruction("OP_MULTIPLY", offset);
 		case OP_DIVIDE: return simple_instruction("OP_DIVIDE", offset);
-		case OP_PRINT: return simple_instruction("OP_PRINT", offset);
 		case OP_NEGATE: return simple_instruction("OP_NEGATE", offset);
 		case OP_NOT: return simple_instruction("OP_NOT", offset);
 		case OP_NIL: return simple_instruction("OP_NIL", offset);

@@ -88,7 +88,28 @@ static void trace_stack(LitVm* vm) {
 	}
 }
 
+static bool invoke_simple(LitVm* vm, int arg_count, LitValue receiver, LitValue method) {
+	if (!IS_INSTANCE(receiver) && !IS_CLASS(receiver)) {
+		runtime_error(vm, "Only instances and classes have methods");
+		return false;
+	}
+
+	bool value = call(vm, AS_CLOSURE(method), arg_count);
+
+	if (value) {
+		vm->frames[vm->frame_count - 1].slots = vm->stack_top - arg_count - 1;
+		vm->frames[vm->frame_count - 1].slots[0] = receiver; // this var
+	}
+
+	return value;
+}
+
+static bool invoke(LitVm* vm, int arg_count) {
+	return invoke_simple(vm, arg_count, lit_peek(vm, arg_count + 1), lit_peek(vm, arg_count));
+}
+
 static bool last_native;
+static bool last_init;
 
 static bool call_value(LitVm* vm, LitValue callee, int arg_count) {
 	last_native = false;
@@ -136,10 +157,22 @@ static bool call_value(LitVm* vm, LitValue callee, int arg_count) {
 				LitValue* initializer = lit_table_get(&class->methods, vm->init_string);
 
 				if (initializer != NULL) {
-					return call(vm, AS_CLOSURE(*initializer), arg_count);
-				} else if (arg_count != 0) {
-					runtime_error(vm, "Expected 0 arguments but got %d", arg_count);
-					return false;
+					LitValue values[arg_count];
+
+					for (int i = 0; i < arg_count; i++) {
+						values[i] = lit_pop(vm);
+					}
+
+					lit_push(vm, *initializer);
+
+					for (int i = 0; i < arg_count; i++) {
+						lit_push(vm, values[i]);
+					}
+
+					last_init = true;
+					trace_stack(vm);
+
+					return invoke_simple(vm, arg_count, lit_peek(vm, arg_count + 1), *initializer);
 				}
 
 				last_native = true;
@@ -212,24 +245,6 @@ static void define_method(LitVm* vm, LitString* name) {
 	lit_pop(vm);
 }
 
-static bool invoke(LitVm* vm, int arg_count) {
-	LitValue receiver = lit_peek(vm, arg_count + 1);
-
-	if (!IS_INSTANCE(receiver) && !IS_CLASS(receiver)) {
-		runtime_error(vm, "Only instances and classes have methods");
-		return false;
-	}
-
-	bool value = call(vm, AS_CLOSURE(lit_peek(vm, arg_count)), arg_count);
-
-	if (value) {
-		vm->frames[vm->frame_count - 1].slots = vm->stack_top - arg_count - 1;
-		vm->frames[vm->frame_count - 1].slots[0] = receiver;
-	}
-
-	return value;
-}
-
 static void *functions[OP_DEFINE_STATIC_METHOD + 2];
 static bool inited_functions;
 
@@ -240,7 +255,7 @@ static bool interpret(LitVm* vm) {
 
 		functions[OP_RETURN] = &&op_return;
 		functions[OP_CONSTANT] = &&op_constant;
-		functions[OP_PRINT] = &&op_print;
+		// functions[OP_PRINT] = &&op_print;
 		functions[OP_NEGATE] = &&op_negate;
 		functions[OP_ADD] = &&op_add;
 		functions[OP_SUBTRACT] = &&op_subtract;
@@ -323,23 +338,32 @@ static bool interpret(LitVm* vm) {
 		};
 
 		op_return: {
-			LitValue result = POP();
-			close_upvalues(vm, frame->slots);
+			if (last_init) {
+				last_init = false;
+				close_upvalues(vm, frame->slots);
+				vm->frame_count--;
 
-			vm->frame_count--;
+				if (vm->frame_count == 0) {
+					return false;
+				}
 
-			if (vm->frame_count == 0) {
-				return false;
+				vm->stack_top = frame->slots;
+			} else {
+				LitValue result = POP();
+				close_upvalues(vm, frame->slots);
+
+				vm->frame_count--;
+
+				if (vm->frame_count == 0) {
+					return false;
+				}
+
+				vm->stack_top = frame->slots - 1;
+				PUSH(result);
 			}
 
-			vm->stack_top = frame->slots - 1;
-			PUSH(result);
 			frame = &vm->frames[vm->frame_count - 1];
-			continue;
-		};
 
-		op_print: {
-			printf("%s\n", lit_to_string(vm, POP()));
 			continue;
 		};
 
@@ -598,7 +622,7 @@ static bool interpret(LitVm* vm) {
 					}
 				}
 			} else {
-				runtime_error(vm, "Only instances have properties");
+				runtime_error(vm, "Only instances and classes have properties");
 				return false;
 			}
 
@@ -729,7 +753,7 @@ void lit_init_vm(LitVm* vm) {
 	vm->gray_count = 0;
 	vm->gray_stack = NULL;
 
-	vm->init_string = lit_copy_string(vm, "init", 4);
+	// vm->init_string = lit_copy_string(vm, "init", 4);
 }
 
 void lit_free_vm(LitVm* vm) {
@@ -795,6 +819,7 @@ bool lit_eval(const char* source_code) {
 	LitVm vm;
 	lit_init_vm(&vm);
 	lit_table_add_all(&vm, &vm.mem_manager.strings, &compiler.mem_manager.strings);
+	vm.init_string = lit_copy_string(&vm, "init", 4);
 
 	lit_vm_define_natives(&vm, std);
 

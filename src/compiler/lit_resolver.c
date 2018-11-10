@@ -399,7 +399,6 @@ static void resolve_method_statement(LitResolver* resolver, LitMethodStatement* 
 	}
 
 	resolve_type(resolver, statement->return_type.type);
-
 	LitFunctionStatement* enclosing = resolver->function;
 
 	resolver->function = (LitFunctionStatement*) statement;
@@ -523,7 +522,26 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 			resolve_field_statement(resolver, var); // The var->type might be assigned here
 			field->type = var->type; // Thats why this must go here
 
-			lit_resolver_fields_set(resolver->compiler, field->is_static ? &class->static_fields : &class->fields, lit_copy_string(resolver->compiler, n, strlen(n)), field);
+			LitString* name = lit_copy_string(resolver->compiler, n, strlen(n));
+			LitResolverField* check_field =	lit_resolver_fields_get(field->is_static ? &class->fields : &class->static_fields, name);
+
+			if (check_field != NULL) {
+				error(resolver, "Field %s is already defined!", name->chars);
+			} else {
+				LitResolverMethod* check_method = lit_resolver_methods_get(&class->methods, name);
+
+				if (check_method != NULL) {
+					error(resolver, "Can't define field and method with the same name %s", name->chars);
+				} else {
+					check_method = lit_resolver_methods_get(&class->static_methods, name);
+
+					if (check_method != NULL) {
+						error(resolver, "Can't define field and method with the same name %s", name->chars);
+					}
+				}
+			}
+
+			lit_resolver_fields_set(resolver->compiler, field->is_static ? &class->static_fields : &class->fields, name, field);
 		}
 	}
 
@@ -540,6 +558,25 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 			m->is_static = method->is_static;
 			m->access = method->access;
 			m->is_overriden = method->overriden;
+
+			LitString* name = lit_copy_string(resolver->compiler, method->name, strlen(method->name));
+			LitResolverMethod* check_method = lit_resolver_methods_get(method->is_static ? &class->methods : &class->static_methods, name);
+
+			if (check_method != NULL) {
+				error(resolver, "Method %s is already defined!", name->chars);
+			} else {
+				LitResolverField* check_field = lit_resolver_fields_get(&class->fields, name);
+
+				if (check_field != NULL) {
+					error(resolver, "Can't define field and method with the same name %s", name->chars);
+				} else {
+					check_field = lit_resolver_fields_get(&class->static_fields, name);
+
+					if (check_field != NULL) {
+						error(resolver, "Can't define field and method with the same name %s", name->chars);
+					}
+				}
+			}
 
 			lit_resolver_methods_set(resolver->compiler, method->is_static ? &class->static_methods : &class->methods, lit_copy_string(resolver->compiler, method->name, strlen(method->name)), m);
 		}
@@ -852,13 +889,13 @@ static const char* resolve_get_expression(LitResolver* resolver, LitGetExpressio
 	}
 
 	LitString* str = lit_copy_string(resolver->compiler, expression->property, strlen(expression->property));
-	LitResolverField* field = lit_resolver_fields_get(&class->static_fields, str);
+	LitResolverField* field = lit_resolver_fields_get(should_be_static ? &class->static_fields : &class->fields, str);
 
 	if (field == NULL) {
 		LitResolverMethod* method = lit_resolver_methods_get(should_be_static ? &class->static_methods : &class->methods, str);
 
 		if (method == NULL) {
-			error(resolver, "%s%s has no static field or method %s", should_be_static ? "" : "Class ", type, expression->property);
+			error(resolver, "%s%s has no %sfield or method %s", should_be_static ? "" : "Class ", type, should_be_static ? "static " : "", expression->property);
 			return "error";
 		}
 

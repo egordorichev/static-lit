@@ -1,20 +1,28 @@
-fun test() > int {
-	return if (false) 20
-	       else if (true) 40
-				 else 30
+class Test {
+	init(int a, int c) {
+		this.t = a + c
+	}
+
+	var t = 10
+
+	test(int a) {
+		print(a + this.t)
+	}
 }
 
-print(test())
+var m = Test(3, 3)
+m.test(6)
 
 //* todo list:
 
+* if !(true) {}
+* true ? thing() : else()
 * fix stdout / stderr sync
 * static constructors
-* constructor args
+* growing stack
 * foreign classes
 * foreign structs
-* true ? thing() : else()
-* expression if / switch
+* switch expression
 * switch
 * enums
 * repl (expression -> print result, statement -> just run)
@@ -28,3 +36,6 @@ print(test())
 * Arrays
 * Ranges
 * Hashmaps (class)
+* vargs
+* abstract methods -> no body, must be implemented
+* abstract classes can not be called (instance created)

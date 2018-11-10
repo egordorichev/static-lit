@@ -640,7 +640,6 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 					function.function->arity = method->parameters == NULL ? 0 : method->parameters->count;
 
 					emitter->function = &function;
-
 					add_local(emitter, "this");
 
 					if (method->parameters != NULL) {
