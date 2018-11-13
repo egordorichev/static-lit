@@ -1,5 +1,51 @@
-fun test() {
-	error("NAAHHHH")
+var a = 32 ^ 3
+a #= 3
+print(a)
+
+//* todo list:
+
+* saving / loading bytecode
+* getters / setters
+* ^, ^=, same for sqrt()
+* int a should be assigned 0 and not nil
+* if !(true) {}
+* OP_CONSTANT_LONG
+* Fix error cascades
+* Error reporting: nicer stack traces
+* true ? thing() : else()
+* fix stdout / stderr sync
+* growing stack
+* foreign classes
+* nicer compile errors
+* foreign structs
+* switch expression
+* switch
+* enums
+* repl (expression -> print result, statement -> just run)
+* LitConfig?
+* Nillable types (Awesome?)
+* 10.imAMethod()
+* Fix incomparable pointers from LitMemManager to LitVm and LitCompiler
+* Exceptions
+* Bytecode line numbers
+* Division by zero handling
+* Arrays
+* Ranges
+* Hashmaps (class)
+* vargs
+* sugar for:
+
+var thing = getThing()
+
+if (thing.exists() && thing.something()) {
+
 }
 
-test()
+into something like??
+
+if (with var thing = getThing(); exists() && something())
+
+* fix this crash:
+
+abstract class Test { getThing() }
+class Amazing < Test {}

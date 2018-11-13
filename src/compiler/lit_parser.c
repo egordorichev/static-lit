@@ -253,8 +253,38 @@ static LitExpression* parse_call(LitLexer* lexer) {
 	return expression;
 }
 
-static LitExpression* parse_compound_multiplication(LitLexer* lexer) {
+static LitExpression* parse_compound_power(LitLexer* lexer) {
 	LitExpression* expression = parse_call(lexer);
+
+	if (match(lexer, TOKEN_CARET_EQUAL) || match(lexer, TOKEN_CELL_EQUAL)) {
+		/*
+		 * Desugar this:
+		 * a ^= 10
+		 * into this:
+		 * a = a ^ 10
+		 */
+
+		LitTokenType type = lexer->previous.type;
+		LitExpression* operator = NULL;
+
+		if (type == TOKEN_CARET_EQUAL) {
+			LitBinaryExpression* bin = lit_make_binary_expression(lexer->compiler, expression, parse_call(lexer), TOKEN_CARET);
+			bin->ignore_left = true; // Because its already freed from another expression
+			operator = (LitExpression *) bin;
+		} else if (type == TOKEN_CELL_EQUAL) {
+			LitBinaryExpression* bin = lit_make_binary_expression(lexer->compiler, expression, parse_call(lexer), TOKEN_CELL);
+			bin->ignore_left = true; // Because its already freed from another expression
+			operator = (LitExpression *) bin;
+		}
+
+		return (LitExpression *) lit_make_assign_expression(lexer->compiler, expression, operator);
+	}
+
+	return expression;
+}
+
+static LitExpression* parse_compound_multiplication(LitLexer* lexer) {
+	LitExpression* expression = parse_compound_power(lexer);
 
 	if (match(lexer, TOKEN_STAR_EQUAL) || match(lexer, TOKEN_SLASH_EQUAL)) {
 		/*
@@ -265,15 +295,14 @@ static LitExpression* parse_compound_multiplication(LitLexer* lexer) {
 		 */
 
 		LitTokenType type = lexer->previous.type;
-		LitExpression* right = parse_call(lexer);
 		LitExpression* operator = NULL;
 
 		if (type == TOKEN_STAR_EQUAL) {
-			LitBinaryExpression* bin = lit_make_binary_expression(lexer->compiler, expression, right, TOKEN_STAR);
+			LitBinaryExpression* bin = lit_make_binary_expression(lexer->compiler, expression, parse_compound_power(lexer), TOKEN_STAR);
 			bin->ignore_left = true; // Because its already freed from another expression
 			operator = (LitExpression *) bin;
 		} else {
-			LitBinaryExpression* bin = lit_make_binary_expression(lexer->compiler, expression, right, TOKEN_SLASH);
+			LitBinaryExpression* bin = lit_make_binary_expression(lexer->compiler, expression, parse_compound_power(lexer), TOKEN_SLASH);
 			bin->ignore_left = true; // Because its already freed from another expression
 			operator = (LitExpression *) bin;
 		}
@@ -287,24 +316,31 @@ static LitExpression* parse_compound_multiplication(LitLexer* lexer) {
 static LitExpression* parse_compound_addition(LitLexer* lexer) {
 	LitExpression* expression = parse_compound_multiplication(lexer);
 
-	if (match(lexer, TOKEN_PLUS_EQUAL) || match(lexer, TOKEN_MINUS_EQUAL)) {
+	if (match(lexer, TOKEN_PLUS_EQUAL) || match(lexer, TOKEN_MINUS_EQUAL) || match(lexer, TOKEN_PLUS_PLUS) || match(lexer, TOKEN_MINUS_MINUS)) {
 		/*
 		 * Desugar this:
-		 * a += 10
+		 * a += 10 or a++
 		 * into this:
-		 * a = a + 10
+		 * a = a + 10 or a = a + 1
 		 */
 
 		LitTokenType type = lexer->previous.type;
-		LitExpression* right = parse_compound_multiplication(lexer);
 		LitExpression* operator = NULL;
 
 		if (type == TOKEN_PLUS_EQUAL) {
-			LitBinaryExpression* bin = lit_make_binary_expression(lexer->compiler, expression, right, TOKEN_PLUS);
+			LitBinaryExpression* bin = lit_make_binary_expression(lexer->compiler, expression, parse_compound_multiplication(lexer), TOKEN_PLUS);
+			bin->ignore_left = true; // Because its already freed from another expression
+			operator = (LitExpression *) bin;
+		} else if (type == TOKEN_MINUS_EQUAL) {
+			LitBinaryExpression* bin = lit_make_binary_expression(lexer->compiler, expression, parse_compound_multiplication(lexer), TOKEN_MINUS);
+			bin->ignore_left = true; // Because its already freed from another expression
+			operator = (LitExpression *) bin;
+		} else if (type == TOKEN_PLUS_PLUS) {
+			LitBinaryExpression* bin = lit_make_binary_expression(lexer->compiler, expression, (LitExpression *) lit_make_literal_expression(lexer->compiler, MAKE_NUMBER_VALUE(1)), TOKEN_PLUS);
 			bin->ignore_left = true; // Because its already freed from another expression
 			operator = (LitExpression *) bin;
 		} else {
-			LitBinaryExpression* bin = lit_make_binary_expression(lexer->compiler, expression, right, TOKEN_MINUS);
+			LitBinaryExpression* bin = lit_make_binary_expression(lexer->compiler, expression, (LitExpression *) lit_make_literal_expression(lexer->compiler, MAKE_NUMBER_VALUE(1)), TOKEN_MINUS);
 			bin->ignore_left = true; // Because its already freed from another expression
 			operator = (LitExpression *) bin;
 		}
@@ -316,7 +352,7 @@ static LitExpression* parse_compound_addition(LitLexer* lexer) {
 }
 
 static LitExpression* parse_unary(LitLexer* lexer) {
-	if (match(lexer, TOKEN_BANG) || match(lexer, TOKEN_MINUS)) {
+	if (match(lexer, TOKEN_BANG) || match(lexer, TOKEN_MINUS) || match(lexer, TOKEN_CELL)) {
 		LitTokenType operator = lexer->previous.type;
 		LitExpression* right = parse_unary(lexer);
 		return (LitExpression*) lit_make_unary_expression(lexer->compiler, right, operator);
@@ -325,14 +361,23 @@ static LitExpression* parse_unary(LitLexer* lexer) {
 	return parse_compound_addition(lexer);
 }
 
-static LitExpression* parse_multiplication(LitLexer* lexer) {
+static LitExpression* parse_power(LitLexer* lexer) {
 	LitExpression* expression = parse_unary(lexer);
+
+	while (match(lexer, TOKEN_CARET) || match(lexer, TOKEN_CELL)) {
+		LitTokenType operator = lexer->previous.type;
+		expression = (LitExpression*) lit_make_binary_expression(lexer->compiler, expression, parse_unary(lexer), operator);
+	}
+
+	return expression;
+}
+
+static LitExpression* parse_multiplication(LitLexer* lexer) {
+	LitExpression* expression = parse_power(lexer);
 
 	while (match(lexer, TOKEN_STAR) || match(lexer, TOKEN_SLASH)) {
 		LitTokenType operator = lexer->previous.type;
-		LitExpression* right = parse_unary(lexer);
-
-		expression = (LitExpression*) lit_make_binary_expression(lexer->compiler, expression, right, operator);
+		expression = (LitExpression*) lit_make_binary_expression(lexer->compiler, expression, parse_power(lexer), operator);
 	}
 
 	return expression;
@@ -343,9 +388,7 @@ static LitExpression* parse_addition(LitLexer* lexer) {
 
 	while (match(lexer, TOKEN_PLUS) || match(lexer, TOKEN_MINUS)) {
 		LitTokenType operator = lexer->previous.type;
-		LitExpression* right = parse_multiplication(lexer);
-
-		expression = (LitExpression*) lit_make_binary_expression(lexer->compiler, expression, right, operator);
+		expression = (LitExpression*) lit_make_binary_expression(lexer->compiler, expression, parse_multiplication(lexer), operator);
 	}
 
 	return expression;
@@ -356,9 +399,7 @@ static LitExpression* parse_comprasion(LitLexer *lexer) {
 
 	while (match(lexer, TOKEN_LESS) || match(lexer, TOKEN_LESS_EQUAL) || match(lexer, TOKEN_GREATER) || match(lexer, TOKEN_GREATER_EQUAL)) {
 		LitTokenType operator = lexer->previous.type;
-		LitExpression* right = parse_addition(lexer);
-
-		expression = (LitExpression*) lit_make_binary_expression(lexer->compiler, expression, right, operator);
+		expression = (LitExpression*) lit_make_binary_expression(lexer->compiler, expression, parse_addition(lexer), operator);
 	}
 
 	return expression;
@@ -369,9 +410,7 @@ static LitExpression* parse_equality(LitLexer* lexer) {
 
 	while (match(lexer, TOKEN_BANG_EQUAL) || match(lexer, TOKEN_EQUAL_EQUAL)) {
 		LitTokenType operator = lexer->previous.type;
-		LitExpression* right = parse_comprasion(lexer);
-
-		expression = (LitExpression*) lit_make_binary_expression(lexer->compiler, expression, right, operator);
+		expression = (LitExpression*) lit_make_binary_expression(lexer->compiler, expression, parse_comprasion(lexer), operator);
 	}
 
 	return expression;
@@ -382,9 +421,7 @@ static LitExpression* parse_and(LitLexer* lexer) {
 
 	while (match(lexer, TOKEN_AND)) {
 		LitTokenType operator = lexer->previous.type;
-		LitExpression* right = parse_equality(lexer);
-
-		expression = (LitExpression*) lit_make_logical_expression(lexer->compiler, operator, expression, right);
+		expression = (LitExpression*) lit_make_logical_expression(lexer->compiler, operator, expression, parse_equality(lexer));
 	}
 
 	return expression;
@@ -395,9 +432,7 @@ static LitExpression* parse_or(LitLexer* lexer) {
 
 	while (match(lexer, TOKEN_OR)) {
 		LitTokenType operator = lexer->previous.type;
-		LitExpression* right = parse_and(lexer);
-
-		expression = (LitExpression*) lit_make_logical_expression(lexer->compiler, operator, expression, right);
+		expression = (LitExpression*) lit_make_logical_expression(lexer->compiler, operator, expression, parse_and(lexer));
 	}
 
 	return expression;
@@ -414,7 +449,7 @@ static LitExpression* parse_assigment(LitLexer* lexer) {
 			return (LitExpression*) lit_make_assign_expression(lexer->compiler, expression, value);
 		}
 
-		error(lexer, &equal, "Invalid assigment target");
+		error(lexer, &equal, "Invalid assignment target");
 	}
 
 	return expression;

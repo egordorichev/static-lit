@@ -54,7 +54,12 @@ typedef enum {
 	OP_DEFINE_METHOD = 39,
 	OP_SUPER = 40,
 	OP_DEFINE_STATIC_FIELD = 41,
-	OP_DEFINE_STATIC_METHOD = 42
+	OP_DEFINE_STATIC_METHOD = 42,
+	OP_POWER = 43,
+	OP_SQUARE = 44,
+	OP_ROOT = 45,
+
+	OP_TOTAL = 46
 } LitOpCode;
 
 typedef struct {

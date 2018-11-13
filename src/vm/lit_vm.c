@@ -3,6 +3,7 @@
 #include <string.h>
 #include <time.h>
 #include <stdlib.h>
+#include <math.h>
 
 #include <vm/lit_vm.h>
 #include <vm/lit_memory.h>
@@ -248,7 +249,7 @@ static void define_method(LitVm* vm, LitString* name) {
 	lit_pop(vm);
 }
 
-static void *functions[OP_DEFINE_STATIC_METHOD + 2];
+static void *functions[OP_TOTAL + 1]; // 1 for unknown
 static bool inited_functions;
 
 static bool interpret(LitVm* vm) {
@@ -299,7 +300,10 @@ static bool interpret(LitVm* vm) {
 		functions[OP_SUPER] = &&op_super;
 		functions[OP_DEFINE_STATIC_FIELD] = &&op_define_static_field;
 		functions[OP_DEFINE_STATIC_METHOD] = &&op_define_static_method;
-		functions[OP_DEFINE_STATIC_METHOD + 1] = &&op_unknown;
+		functions[OP_POWER] = &&op_power;
+		functions[OP_SQUARE] = &&op_square;
+		functions[OP_ROOT] = &&op_root;
+		functions[OP_TOTAL] = &&op_unknown;
 	}
 
 	// FIXME: optimize the dispatch
@@ -407,6 +411,21 @@ static bool interpret(LitVm* vm) {
 			LitValue b = POP();
 			PUSH(MAKE_NUMBER_VALUE(AS_NUMBER(POP()) / AS_NUMBER(b)));
 
+			continue;
+		};
+
+		op_power: {
+			PUSH(MAKE_NUMBER_VALUE(pow(AS_NUMBER(POP()), AS_NUMBER(POP()))));
+			continue;
+		};
+
+		op_root: {
+			PUSH(MAKE_NUMBER_VALUE(pow(AS_NUMBER(POP()), 1.0 / AS_NUMBER(POP()))));
+			continue;
+		};
+
+		op_square: {
+			PUSH(MAKE_NUMBER_VALUE(sqrt(AS_NUMBER(POP()))));
 			continue;
 		};
 

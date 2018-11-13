@@ -260,9 +260,11 @@ LitToken lit_lexer_next_token(LitLexer* lexer) {
 		case '}': return make_token(lexer, TOKEN_RIGHT_BRACE);
 		case ';': return make_token(lexer, TOKEN_SEMICOLON);
 		case ',': return make_token(lexer, TOKEN_COMMA);
+		case '^': return make_token(lexer, match(lexer, '=') ? TOKEN_CARET_EQUAL : TOKEN_CARET);
+		case '#': return make_token(lexer, match(lexer, '=') ? TOKEN_CELL_EQUAL : TOKEN_CELL);
 		case '.': return make_token(lexer, match(lexer, '.') ? TOKEN_RANGE : TOKEN_DOT);
-		case '-': return make_token(lexer, match(lexer, '=') ? TOKEN_MINUS_EQUAL : TOKEN_MINUS);
-		case '+': return make_token(lexer, match(lexer, '=') ? TOKEN_PLUS_EQUAL : TOKEN_PLUS);
+		case '-': return make_token(lexer, match(lexer, '=') ? TOKEN_MINUS_EQUAL : (match(lexer, '-') ? TOKEN_MINUS_MINUS : TOKEN_MINUS));
+		case '+': return make_token(lexer, match(lexer, '=') ? TOKEN_PLUS_EQUAL : (match(lexer, '+') ? TOKEN_PLUS_PLUS : TOKEN_PLUS));
 		case '/': return make_token(lexer, match(lexer, '=') ? TOKEN_SLASH_EQUAL : TOKEN_SLASH);
 		case '*': return make_token(lexer, match(lexer, '=') ? TOKEN_STAR_EQUAL : TOKEN_STAR);
 		case ':': return make_token(lexer, TOKEN_COLLUMN);

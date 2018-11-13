@@ -132,8 +132,6 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 			emit_expression(emitter, expr->left);
 			emit_expression(emitter, expr->right);
 
-			printf("Binary line %ld\n", expression->line);
-
 			switch (expr->operator) {
 				case TOKEN_BANG_EQUAL: emit_byte(emitter, OP_NOT_EQUAL, expression->line); break;
 				case TOKEN_EQUAL_EQUAL: emit_byte(emitter, OP_EQUAL, expression->line); break;
@@ -145,6 +143,8 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 				case TOKEN_MINUS: emit_byte(emitter, OP_SUBTRACT, expression->line); break;
 				case TOKEN_STAR: emit_byte(emitter, OP_MULTIPLY, expression->line); break;
 				case TOKEN_SLASH: emit_byte(emitter, OP_DIVIDE, expression->line); break;
+				case TOKEN_CARET: emit_byte(emitter, OP_POWER, expression->line); break;
+				case TOKEN_CELL: emit_byte(emitter, OP_ROOT, expression->line); break;
 			}
 
 			break;
@@ -160,6 +160,7 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 			switch (expr->operator) {
 				case TOKEN_BANG: emit_byte(emitter, OP_NOT, expression->line); break;
 				case TOKEN_MINUS: emit_byte(emitter, OP_NEGATE, expression->line); break;
+				case TOKEN_CELL: emit_byte(emitter, OP_SQUARE, expression->line); break;
 			}
 
 			break;
