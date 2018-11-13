@@ -58,9 +58,12 @@ typedef enum {
 } LitOpCode;
 
 typedef struct {
-	int count;
-	int capacity;
+	uint64_t count;
+	uint64_t capacity;
 	uint8_t* code;
+	uint64_t* lines;
+	uint64_t line_count;
+	uint64_t line_capacity;
 
 	LitArray constants;
 } LitChunk;
@@ -68,7 +71,8 @@ typedef struct {
 void lit_init_chunk(LitChunk* chunk);
 void lit_free_chunk(LitMemManager* manager, LitChunk* chunk);
 
-void lit_chunk_write(LitMemManager* manager, LitChunk* chunk, uint8_t byte);
+void lit_chunk_write(LitMemManager* manager, LitChunk* chunk, uint8_t byte, uint64_t line);
 int lit_chunk_add_constant(LitMemManager* manager, LitChunk* chunk, LitValue constant);
+uint64_t lit_chunk_get_line(LitChunk* chunk, uint64_t offset);
 
 #endif

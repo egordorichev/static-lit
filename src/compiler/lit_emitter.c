@@ -10,13 +10,13 @@
 
 DEFINE_ARRAY(LitInts, int, ints)
 
-static void emit_byte(LitEmitter* emitter, uint8_t byte) {
-	lit_chunk_write(emitter->compiler, &emitter->function->function->chunk, byte);
+static void emit_byte(LitEmitter* emitter, uint8_t byte, uint64_t line) {
+	lit_chunk_write(emitter->compiler, &emitter->function->function->chunk, byte, line);
 }
 
-static void emit_bytes(LitEmitter* emitter, uint8_t a, uint8_t b) {
-	lit_chunk_write(emitter->compiler, &emitter->function->function->chunk, a);
-	lit_chunk_write(emitter->compiler, &emitter->function->function->chunk, b);
+static void emit_bytes(LitEmitter* emitter, uint8_t a, uint8_t b, uint64_t line) {
+	lit_chunk_write(emitter->compiler, &emitter->function->function->chunk, a, line);
+	lit_chunk_write(emitter->compiler, &emitter->function->function->chunk, b, line);
 }
 
 static void error(LitEmitter* emitter, const char* format, ...) {
@@ -44,29 +44,30 @@ static uint8_t make_constant(LitEmitter* emitter, LitValue value) {
 	return (uint8_t) constant;
 }
 
-static void emit_constant(LitEmitter* emitter, LitValue constant) {
-	emit_bytes(emitter, OP_CONSTANT, make_constant(emitter, constant));
+static void emit_constant(LitEmitter* emitter, LitValue constant, uint64_t line) {
+	emit_bytes(emitter, OP_CONSTANT, make_constant(emitter, constant), line);
 }
 
-static int emit_jump(LitEmitter* emitter, uint8_t instruction) {
-	emit_byte(emitter, instruction);
-	emit_bytes(emitter, 0xff, 0xff);
+static uint64_t emit_jump(LitEmitter* emitter, uint8_t instruction, uint64_t line) {
+	emit_byte(emitter, instruction, line);
+	emit_bytes(emitter, 0xff, 0xff, line);
 
 	return emitter->function->function->chunk.count - 2;
 }
 
-static int emit_jump_instant(LitEmitter* emitter, uint8_t instruction, int jump) {
-	emit_byte(emitter, instruction);
-	emit_bytes(emitter, (uint8_t) ((jump >> 8) & 0xff), (uint8_t) (jump & 0xff));
+static uint64_t emit_jump_instant(LitEmitter* emitter, uint8_t instruction, uint64_t jump, uint64_t line) {
+	emit_byte(emitter, instruction, line);
+	emit_bytes(emitter, (uint8_t) ((jump >> 8) & 0xff), (uint8_t) (jump & 0xff), line);
 
 	return emitter->function->function->chunk.count - 2;
 }
 
-static void patch_jump(LitEmitter* emitter, int offset) {
+static void patch_jump(LitEmitter* emitter, uint64_t offset) {
 	LitChunk* chunk = &emitter->function->function->chunk;
-	int jump = chunk->count - offset - 2;
+	uint64_t jump = chunk->count - offset - 2;
 
 	if (jump > UINT16_MAX) {
+		// FIXME: introduce OP_LONG_JUMP
 		error(emitter, "Too much code to jump over");
 	}
 
@@ -74,15 +75,15 @@ static void patch_jump(LitEmitter* emitter, int offset) {
 	chunk->code[offset + 1] = (uint8_t) (jump & 0xff);
 }
 
-static void emit_loop(LitEmitter* emitter, int loop_start) {
-	emit_byte(emitter, OP_LOOP);
-	int offset = emitter->function->function->chunk.count - loop_start + 2;
+static void emit_loop(LitEmitter* emitter, uint64_t loop_start, uint64_t line) {
+	emit_byte(emitter, OP_LOOP, line);
+	uint64_t offset = emitter->function->function->chunk.count - loop_start + 2;
 
 	if (offset > UINT16_MAX) {
 		error(emitter, "Loop body too large");
 	}
 
-	emit_bytes(emitter, (uint8_t) ((offset >> 8) & 0xff), (uint8_t) (offset & 0xff));
+	emit_bytes(emitter, (uint8_t) ((offset >> 8) & 0xff), (uint8_t) (offset & 0xff), line);
 }
 
 static int resolve_local(LitEmitterFunction* function, const char* name) {
@@ -131,23 +132,25 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 			emit_expression(emitter, expr->left);
 			emit_expression(emitter, expr->right);
 
+			printf("Binary line %ld\n", expression->line);
+
 			switch (expr->operator) {
-				case TOKEN_BANG_EQUAL: emit_byte(emitter, OP_NOT_EQUAL); break;
-				case TOKEN_EQUAL_EQUAL: emit_byte(emitter,OP_EQUAL); break;
-				case TOKEN_GREATER: emit_byte(emitter, OP_GREATER); break;
-				case TOKEN_GREATER_EQUAL: emit_byte(emitter, OP_GREATER_EQUAL); break;
-				case TOKEN_LESS: emit_byte(emitter, OP_LESS); break;
-				case TOKEN_LESS_EQUAL: emit_byte(emitter, OP_LESS_EQUAL); break;
-				case TOKEN_PLUS: emit_byte(emitter, OP_ADD); break;
-				case TOKEN_MINUS: emit_byte(emitter, OP_SUBTRACT); break;
-				case TOKEN_STAR: emit_byte(emitter, OP_MULTIPLY); break;
-				case TOKEN_SLASH: emit_byte(emitter, OP_DIVIDE); break;
+				case TOKEN_BANG_EQUAL: emit_byte(emitter, OP_NOT_EQUAL, expression->line); break;
+				case TOKEN_EQUAL_EQUAL: emit_byte(emitter, OP_EQUAL, expression->line); break;
+				case TOKEN_GREATER: emit_byte(emitter, OP_GREATER, expression->line); break;
+				case TOKEN_GREATER_EQUAL: emit_byte(emitter, OP_GREATER_EQUAL, expression->line); break;
+				case TOKEN_LESS: emit_byte(emitter, OP_LESS, expression->line); break;
+				case TOKEN_LESS_EQUAL: emit_byte(emitter, OP_LESS_EQUAL, expression->line); break;
+				case TOKEN_PLUS: emit_byte(emitter, OP_ADD, expression->line); break;
+				case TOKEN_MINUS: emit_byte(emitter, OP_SUBTRACT, expression->line); break;
+				case TOKEN_STAR: emit_byte(emitter, OP_MULTIPLY, expression->line); break;
+				case TOKEN_SLASH: emit_byte(emitter, OP_DIVIDE, expression->line); break;
 			}
 
 			break;
 		}
 		case LITERAL_EXPRESSION: {
-			emit_constant(emitter, ((LitLiteralExpression*) expression)->value);
+			emit_constant(emitter, ((LitLiteralExpression*) expression)->value, expression->line);
 			break;
 		}
 		case UNARY_EXPRESSION: {
@@ -155,8 +158,8 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 			emit_expression(emitter, expr->right);
 
 			switch (expr->operator) {
-				case TOKEN_BANG: emit_byte(emitter, OP_NOT); break;
-				case TOKEN_MINUS: emit_byte(emitter, OP_NEGATE); break;
+				case TOKEN_BANG: emit_byte(emitter, OP_NOT, expression->line); break;
+				case TOKEN_MINUS: emit_byte(emitter, OP_NEGATE, expression->line); break;
 			}
 
 			break;
@@ -170,14 +173,14 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 			int local = resolve_local(emitter->function, expr->name);
 
 			if (local != -1) {
-				emit_bytes(emitter, OP_GET_LOCAL, (uint8_t) local);
+				emit_bytes(emitter, OP_GET_LOCAL, (uint8_t) local, expression->line);
 			} else {
 				int upvalue = resolve_upvalue(emitter, emitter->function, (char*) expr->name);
 
 				if (upvalue != -1) {
-					emit_bytes(emitter, OP_GET_UPVALUE, (uint8_t) upvalue);
+					emit_bytes(emitter, OP_GET_UPVALUE, (uint8_t) upvalue, expression->line);
 				} else {
-					emit_bytes(emitter, OP_GET_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, expr->name, strlen(expr->name)))));
+					emit_bytes(emitter, OP_GET_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, expr->name, strlen(expr->name)))), expression->line);
 				}
 			}
 
@@ -191,14 +194,14 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 			int local = resolve_local(emitter->function, e->name);
 
 			if (local != -1) {
-				emit_bytes(emitter, OP_SET_LOCAL, (uint8_t) local);
+				emit_bytes(emitter, OP_SET_LOCAL, (uint8_t) local, expression->line);
 			} else {
 				int upvalue = resolve_upvalue(emitter, emitter->function, (char*) e->name);
 
 				if (upvalue != -1) {
-					emit_bytes(emitter, OP_SET_UPVALUE, (uint8_t) upvalue);
+					emit_bytes(emitter, OP_SET_UPVALUE, (uint8_t) upvalue, expression->line);
 				} else {
-					emit_bytes(emitter, OP_SET_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, e->name, strlen(e->name)))));
+					emit_bytes(emitter, OP_SET_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, e->name, strlen(e->name)))), expression->line);
 				}
 			}
 
@@ -211,11 +214,11 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 				case TOKEN_OR: {
 					emit_expression(emitter, expr->left);
 
-					int else_jump = emit_jump(emitter, OP_JUMP_IF_FALSE);
-					int end_jump = emit_jump(emitter, OP_JUMP);
+					uint64_t else_jump = emit_jump(emitter, OP_JUMP_IF_FALSE, expression->line);
+					uint64_t end_jump = emit_jump(emitter, OP_JUMP, expression->line);
 
 					patch_jump(emitter, else_jump);
-					emit_byte(emitter, OP_POP);
+					emit_byte(emitter, OP_POP, expression->line);
 					emit_expression(emitter, expr->right);
 					patch_jump(emitter, end_jump);
 
@@ -223,9 +226,9 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 				}
 				case TOKEN_AND: {
 					emit_expression(emitter, expr->left);
-					int endJump = emit_jump(emitter, OP_JUMP_IF_FALSE);
+					uint64_t endJump = emit_jump(emitter, OP_JUMP_IF_FALSE, expression->line);
 
-					emit_byte(emitter, OP_POP);
+					emit_byte(emitter, OP_POP, expression->line);
 					emit_expression(emitter, expr->right);
 					patch_jump(emitter, endJump);
 
@@ -251,15 +254,15 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 			}
 
 			if (expr->callee->type == GET_EXPRESSION) {
-				emit_byte(emitter, OP_INVOKE);
+				emit_byte(emitter, OP_INVOKE, expression->line);
 			} else {
-				emit_byte(emitter, OP_CALL);
+				emit_byte(emitter, OP_CALL, expression->line);
 			}
 
 			if (expr->args != NULL) {
-				emit_byte(emitter, (uint8_t) expr->args->count);
+				emit_byte(emitter, (uint8_t) expr->args->count, expression->line);
 			} else {
-				emit_byte(emitter, 0);
+				emit_byte(emitter, 0, expression->line);
 			}
 
 			break;
@@ -268,11 +271,11 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 			LitGetExpression* expr = (LitGetExpression*) expression;
 
 			if (expr->emit_static_init) {
-				emit_byte(emitter, OP_STATIC_INIT);
+				emit_byte(emitter, OP_STATIC_INIT, expression->line);
 			}
 
 			emit_expression(emitter, expr->object);
-			emit_bytes(emitter, OP_GET_FIELD, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, expr->property, strlen(expr->property)))));
+			emit_bytes(emitter, OP_GET_FIELD, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, expr->property, strlen(expr->property)))), expression->line);
 
 			break;
 		}
@@ -282,11 +285,11 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 			emit_expression(emitter, expr->object);
 
 			if (expr->emit_static_init) {
-				emit_byte(emitter, OP_STATIC_INIT);
+				emit_byte(emitter, OP_STATIC_INIT, expression->line);
 			}
 
 			emit_expression(emitter, expr->value);
-			emit_bytes(emitter, OP_SET_FIELD, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, expr->property, strlen(expr->property)))));
+			emit_bytes(emitter, OP_SET_FIELD, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, expr->property, strlen(expr->property)))), expression->line);
 
 			break;
 		}
@@ -319,22 +322,22 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 			}
 
 			emitter->function = function.enclosing;
-			emit_bytes(emitter, OP_CLOSURE, make_constant(emitter, MAKE_OBJECT_VALUE(function.function)));
+			emit_bytes(emitter, OP_CLOSURE, make_constant(emitter, MAKE_OBJECT_VALUE(function.function)), expression->line);
 
 			for (int i = 0; i < function.function->upvalue_count; i++) {
-				emit_byte(emitter, (uint8_t) (function.upvalues[i].local ? 1 : 0));
-				emit_byte(emitter, function.upvalues[i].index);
+				emit_byte(emitter, (uint8_t) (function.upvalues[i].local ? 1 : 0), expression->line);
+				emit_byte(emitter, function.upvalues[i].index, expression->line);
 			}
 
 			break;
 		}
 		case THIS_EXPRESSION: {
-			emit_bytes(emitter, OP_GET_LOCAL, 0);
+			emit_bytes(emitter, OP_GET_LOCAL, 0, expression->line);
 			break;
 		}
 		case SUPER_EXPRESSION: {
 			LitSuperExpression* expr = (LitSuperExpression*) expression;
-			emit_bytes(emitter, OP_SUPER, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, expr->method, strlen(expr->method)))));
+			emit_bytes(emitter, OP_SUPER, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, expr->method, strlen(expr->method)))), expression->line);
 
 			break;
 		}
@@ -342,20 +345,20 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 			LitIfExpression* expr = (LitIfExpression*) expression;
 			emit_expression(emitter, expr->condition);
 
-			int else_jump = emit_jump(emitter, OP_JUMP_IF_FALSE);
+			int else_jump = emit_jump(emitter, OP_JUMP_IF_FALSE, expression->line);
 			emit_expression(emitter, expr->if_branch);
 
-			int end_jump = emit_jump(emitter, OP_JUMP);
+			int end_jump = emit_jump(emitter, OP_JUMP, expression->line);
 			int end_jumps[expr->else_if_branches == NULL ? 0 : expr->else_if_branches->count];
 
 			if (expr->else_if_branches != NULL) {
 				for (int i = 0; i < expr->else_if_branches->count; i++) {
 					patch_jump(emitter, else_jump);
 					emit_expression(emitter, expr->else_if_conditions->values[i]);
-					else_jump = emit_jump(emitter, OP_JUMP_IF_FALSE);
+					else_jump = emit_jump(emitter, OP_JUMP_IF_FALSE, expression->line);
 					emit_expression(emitter, expr->else_if_branches->values[i]);
 
-					end_jumps[i] = emit_jump(emitter, OP_JUMP);
+					end_jumps[i] = emit_jump(emitter, OP_JUMP, expression->line);
 				}
 			}
 
@@ -446,14 +449,14 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 			if (stmt->init != NULL) {
 				emit_expression(emitter, stmt->init);
 			} else {
-				emit_byte(emitter, OP_NIL); // TODO: default type! (like bool is false)
+				emit_byte(emitter, OP_NIL, statement->line); // TODO: default type! (like bool is false)
 			}
 
 			if (emitter->function->depth == 0) {
 				int str = make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, stmt->name, strlen(stmt->name))));
-				emit_bytes(emitter, OP_DEFINE_GLOBAL, (uint8_t) str);
+				emit_bytes(emitter, OP_DEFINE_GLOBAL, (uint8_t) str, statement->line);
 			} else {
-				emit_bytes(emitter, OP_SET_LOCAL, (uint8_t) add_local(emitter, stmt->name));
+				emit_bytes(emitter, OP_SET_LOCAL, (uint8_t) add_local(emitter, stmt->name), statement->line);
 			}
 
 			break;
@@ -462,7 +465,7 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 			emit_expression(emitter, ((LitExpressionStatement*) statement)->expr);
 
 			if (!no_pop) {
-				emit_byte(emitter, OP_POP);
+				emit_byte(emitter, OP_POP, statement->line);
 			} else {
 				no_pop = false;
 			}
@@ -472,20 +475,20 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 			LitIfStatement* stmt = (LitIfStatement*) statement;
 			emit_expression(emitter, stmt->condition);
 
-			int else_jump = emit_jump(emitter, OP_JUMP_IF_FALSE);
+			uint64_t else_jump = emit_jump(emitter, OP_JUMP_IF_FALSE, statement->line);
 			emit_statement(emitter, stmt->if_branch);
 
-			int end_jump = emit_jump(emitter, OP_JUMP);
-			int end_jumps[stmt->else_if_branches == NULL ? 0 : stmt->else_if_branches->count];
+			uint64_t end_jump = emit_jump(emitter, OP_JUMP, statement->line);
+			uint64_t end_jumps[stmt->else_if_branches == NULL ? 0 : stmt->else_if_branches->count];
 
 			if (stmt->else_if_branches != NULL) {
 				for (int i = 0; i < stmt->else_if_branches->count; i++) {
 					patch_jump(emitter, else_jump);
 					emit_expression(emitter, stmt->else_if_conditions->values[i]);
-					else_jump = emit_jump(emitter, OP_JUMP_IF_FALSE);
+					else_jump = emit_jump(emitter, OP_JUMP_IF_FALSE, statement->line);
 					emit_statement(emitter, stmt->else_if_branches->values[i]);
 
-					end_jumps[i] = emit_jump(emitter, OP_JUMP);
+					end_jumps[i] = emit_jump(emitter, OP_JUMP, statement->line);
 				}
 			}
 
@@ -509,7 +512,7 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 
 			if (stmt->statements != NULL) {
 				emit_statements(emitter, stmt->statements);
-				emit_byte(emitter, OP_POP);
+				emit_byte(emitter, OP_POP, statement->line);
 			}
 
 			break;
@@ -517,16 +520,16 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 		case WHILE_STATEMENT: {
 			LitWhileStatement* stmt = (LitWhileStatement*) statement;
 
-			int loop_start = emitter->function->function->chunk.count;
+			uint64_t loop_start = emitter->function->function->chunk.count;
 			emitter->loop_start = loop_start; // Save for continue statements
 
 			no_pop = true;
 			emit_expression(emitter, stmt->condition);
-			int exit_jump = emit_jump(emitter, OP_JUMP_IF_FALSE);
-			emit_byte(emitter, OP_POP);
+			uint64_t exit_jump = emit_jump(emitter, OP_JUMP_IF_FALSE, statement->line);
+			emit_byte(emitter, OP_POP, statement->line);
 
 			emit_statement(emitter, stmt->body);
-			emit_loop(emitter, loop_start);
+			emit_loop(emitter, loop_start, statement->line);
 			patch_jump(emitter, exit_jump);
 
 			// Patch breaks
@@ -565,17 +568,17 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 			}
 
 			emitter->function = function.enclosing;
-			emit_bytes(emitter, OP_CLOSURE, make_constant(emitter, MAKE_OBJECT_VALUE(function.function)));
+			emit_bytes(emitter, OP_CLOSURE, make_constant(emitter, MAKE_OBJECT_VALUE(function.function)), statement->line);
 
 			for (int i = 0; i < function.function->upvalue_count; i++) {
-				emit_byte(emitter, (uint8_t) (function.upvalues[i].local ? 1 : 0));
-				emit_byte(emitter, function.upvalues[i].index);
+				emit_byte(emitter, (uint8_t) (function.upvalues[i].local ? 1 : 0), statement->line);
+				emit_byte(emitter, function.upvalues[i].index, statement->line);
 			}
 
 			if (emitter->function->depth == 0) {
-				emit_bytes(emitter, OP_DEFINE_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, stmt->name, strlen(stmt->name)))));
+				emit_bytes(emitter, OP_DEFINE_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, stmt->name, strlen(stmt->name)))), statement->line);
 			} else {
-				emit_bytes(emitter, OP_SET_LOCAL, (uint8_t) add_local(emitter, stmt->name));
+				emit_bytes(emitter, OP_SET_LOCAL, (uint8_t) add_local(emitter, stmt->name), statement->line);
 			}
 
 			break;
@@ -590,7 +593,7 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 				emit_expression(emitter, stmt->value);
 			}
 
-			emit_byte(emitter, OP_RETURN);
+			emit_byte(emitter, OP_RETURN, statement->line);
 			break;
 		}
 		case CLASS_STATEMENT: {
@@ -598,9 +601,9 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 
 			if (stmt->super != NULL) {
 				emit_expression(emitter, (LitExpression*) stmt->super);
-				emit_bytes(emitter, OP_SUBCLASS, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, stmt->name, strlen(stmt->name)))));
+				emit_bytes(emitter, OP_SUBCLASS, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, stmt->name, strlen(stmt->name)))), statement->line);
 			} else {
-				emit_bytes(emitter, OP_CLASS, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, stmt->name, strlen(stmt->name)))));
+				emit_bytes(emitter, OP_CLASS, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, stmt->name, strlen(stmt->name)))), statement->line);
 			}
 
 			if (stmt->fields != NULL) {
@@ -611,17 +614,17 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 						emit_expression(emitter, field->init);
 					} else {
 						if (strcmp(field->type, "bool") == 0) {
-							emit_byte(emitter, OP_FALSE);
+							emit_byte(emitter, OP_FALSE, statement->line);
 						} else if (strcmp(field->type, "int") == 0 || strcmp(field->type, "double") == 0) {
-							emit_constant(emitter, MAKE_NUMBER_VALUE(0));
+							emit_constant(emitter, MAKE_NUMBER_VALUE(0), statement->line);
 						} else if (strcmp(field->type, "char") == 0) {
-							emit_constant(emitter, MAKE_CHAR_VALUE('\0'));
+							emit_constant(emitter, MAKE_CHAR_VALUE('\0'), statement->line);
 						} else {
-							emit_byte(emitter, OP_NIL);
+							emit_byte(emitter, OP_NIL, statement->line);
 						}
 					}
 
-					emit_bytes(emitter, field->is_static ? OP_DEFINE_STATIC_FIELD : OP_DEFINE_FIELD, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, field->name, strlen(field->name)))));
+					emit_bytes(emitter, field->is_static ? OP_DEFINE_STATIC_FIELD : OP_DEFINE_FIELD, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, field->name, strlen(field->name)))), statement->line);
 				}
 			}
 
@@ -657,25 +660,27 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 						}
 					}
 
-					emit_statement(emitter, method->body);
+					if (method->body != NULL) {
+						emit_statement(emitter, method->body);
+					}
 
 					if (DEBUG_TRACE_CODE) {
 						lit_trace_chunk(emitter->compiler, &function.function->chunk, method->name);
 					}
 
 					emitter->function = function.enclosing;
-					emit_bytes(emitter, OP_CLOSURE, make_constant(emitter, MAKE_OBJECT_VALUE(function.function)));
+					emit_bytes(emitter, OP_CLOSURE, make_constant(emitter, MAKE_OBJECT_VALUE(function.function)), statement->line);
 
 					for (int i = 0; i < function.function->upvalue_count; i++) {
-						emit_byte(emitter, (uint8_t) (function.upvalues[i].local ? 1 : 0));
-						emit_byte(emitter, function.upvalues[i].index);
+						emit_byte(emitter, (uint8_t) (function.upvalues[i].local ? 1 : 0), statement->line);
+						emit_byte(emitter, function.upvalues[i].index, statement->line);
 					}
 
-					emit_bytes(emitter, method->is_static ? OP_DEFINE_STATIC_METHOD : OP_DEFINE_METHOD, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, method->name, strlen(method->name)))));
+					emit_bytes(emitter, method->is_static ? OP_DEFINE_STATIC_METHOD : OP_DEFINE_METHOD, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, method->name, strlen(method->name)))), statement->line);
 				}
 			}
 
-			emit_bytes(emitter, OP_DEFINE_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, stmt->name, strlen(stmt->name)))));
+			emit_bytes(emitter, OP_DEFINE_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(emitter->compiler, stmt->name, strlen(stmt->name)))), statement->line);
 			break;
 		}
 		case METHOD_STATEMENT: {
@@ -683,11 +688,11 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 			UNREACHABLE();
 		}
 		case BREAK_STATEMENT: {
-			int jump = emit_jump(emitter, OP_JUMP);
+			int jump = emit_jump(emitter, OP_JUMP, statement->line);
 			break;
 		}
 		case CONTINUE_STATEMENT: {
-			emit_jump_instant(emitter, OP_JUMP, emitter->loop_start);
+			emit_jump_instant(emitter, OP_JUMP, emitter->loop_start, statement->line);
 			break;
 		}
 		default: {
@@ -719,7 +724,6 @@ LitFunction* lit_emit(LitEmitter* emitter, LitStatements* statements) {
 	emitter->had_error = false;
 
 	LitEmitterFunction function;
-	LitMemManager* manager = (LitMemManager*) emitter->compiler;
 	LitFunction* fn = lit_new_function(emitter->compiler);
 
 	fn->name = lit_copy_string(emitter->compiler, "$main", 5);
@@ -732,8 +736,8 @@ LitFunction* lit_emit(LitEmitter* emitter, LitStatements* statements) {
 	emitter->function = &function;
 
 	emit_statements(emitter, statements);
-	emit_byte(emitter, OP_NIL);
-	emit_byte(emitter, OP_RETURN);
+	emit_byte(emitter, OP_NIL, 0);
+	emit_byte(emitter, OP_RETURN, 0);
 
 	return emitter->had_error ? NULL : function.function;
 }

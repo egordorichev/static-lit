@@ -402,17 +402,24 @@ static void resolve_method_statement(LitResolver* resolver, LitMethodStatement* 
 		}
 	}
 
-	resolve_type(resolver, statement->return_type.type);
-	LitFunctionStatement* enclosing = resolver->function;
+	if (strcmp(statement->name, "init") == 0 && strcmp(statement->return_type.type, "void") != 0) {
+		error(resolver, "Constructor must have void return type");
+	}
 
-	resolver->function = (LitFunctionStatement*) statement;
-	resolve_statement(resolver, statement->body);
-	resolver->function = enclosing;
+	resolve_type(resolver, statement->return_type.type);
+
+	if (statement->body != NULL) {
+		LitFunctionStatement *enclosing = resolver->function;
+
+		resolver->function = (LitFunctionStatement *) statement;
+		resolve_statement(resolver, statement->body);
+		resolver->function = enclosing;
+	}
 
 	if (!resolver->had_return) {
 		if (strcmp(statement->return_type.type, "void") != 0) {
 			error(resolver, "Missing return statement in method %s", statement->name);
-		} else {
+		} else if (statement->body != NULL) {
 			LitBlockStatement* block = (LitBlockStatement*) statement->body;
 
 			if (block->statements == NULL) {
@@ -562,6 +569,7 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 			m->signature = signature;
 			m->is_static = method->is_static;
 			m->access = method->access;
+			m->abstract = method->abstract;
 			m->is_overriden = method->overriden;
 
 			LitString* name = lit_copy_string(resolver->compiler, method->name, strlen(method->name));
@@ -590,6 +598,20 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 	pop_scope(resolver);
 	resolver->class = NULL;
 	lit_strings_write(resolver->compiler, &resolver->allocated_strings, type);
+
+	if (super != NULL) {
+		for (int i = 0; i <= super->methods.capacity_mask; i++) {
+			LitResolverMethod* method = super->methods.entries[i].value;
+
+			if (method != NULL && !lit_resolver_methods_get(&class->methods, super->methods.entries[i].key)->is_overriden) {
+				if (method->abstract) {
+					error(resolver, "Abstract method %s must be implemented in child class %s", super->methods.entries[i].key->chars, class->name->chars);
+				}
+
+				error(resolver, "Must use override keyword to override a method");
+			}
+		}
+	}
 }
 
 static void resolve_break_statement(LitResolver* resolver, LitBreakStatement* statement) {
@@ -809,6 +831,8 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 
 			if (cl->is_static) {
 				error(resolver, "Can not create an instance of a static class %s", cl->name->chars);
+			} else if (cl->abstract) {
+				error(resolver, "Can not create an instance of an abstract class %s", cl->name->chars);
 			}
 		} else if (strcmp_ignoring(type, "Function<") != 0) {
 			error(resolver, "Can't call non-function variable %s with type %s", name, type);
@@ -897,6 +921,11 @@ static const char* resolve_get_expression(LitResolver* resolver, LitGetExpressio
 	}
 
 	LitString* str = lit_copy_string(resolver->compiler, expression->property, strlen(expression->property));
+
+	if (str == resolver->compiler->init_string) {
+		error(resolver, "Can't call class constructor directly");
+	}
+
 	LitResolverField* field = lit_resolver_fields_get(should_be_static ? &class->static_fields : &class->fields, str);
 
 	if (field == NULL) {

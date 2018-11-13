@@ -40,22 +40,18 @@ static void runtime_error(LitVm* vm, const char* format, ...) {
 	va_start(args, format);
 	fprintf(stderr, "Runtime error: ");
 	vfprintf(stderr, format, args);
-	fprintf(stderr, ", ");
+	fprintf(stderr, "\n");
 	va_end(args);
 
 	for (int i = vm->frame_count - 1; i >= 0; i--) {
 		LitFrame* frame = &vm->frames[i];
 		LitFunction* function = frame->closure->function;
-
-		if (function->name == NULL) {
-			fprintf(stderr, "in script\n");
-		} else {
-			fprintf(stderr, "in %s()\n", function->name->chars);
-		}
+		fprintf(stderr, "%s():%ld\n", function->name->chars, lit_chunk_get_line(&function->chunk, frame->ip - function->chunk.code - 2));
 	}
 
 	vm->abort = true;
-	reset_stack(vm);
+	// Causes issues with error() function
+	// reset_stack(vm);
 }
 
 static bool call(LitVm* vm, LitClosure* closure, int arg_count) {
@@ -571,10 +567,6 @@ static bool interpret(LitVm* vm) {
 
 			if (!last_native) {
 				frame = &vm->frames[vm->frame_count - 1];
-
-				if (DEBUG_TRACE_EXECUTION) {
-					printf("== %s ==\n", frame->closure->function->name == NULL ? "top-level" : frame->closure->function->name->chars);
-				}
 			}
 
 			continue;
@@ -809,16 +801,19 @@ static int time_function(LitVm* vm, LitValue* args, int count) {
 }
 
 static int print_function(LitVm* vm, LitValue* args, int count) {
-	for (int i = 1; i <= count; i++) {
-		printf("%s\n", lit_to_string(vm, args[i]));
-	}
+	printf("%s\n", lit_to_string(vm, args[1]));
+	return 0;
+}
 
+static int error_function(LitVm* vm, LitValue* args, int count) {
+	runtime_error(vm, lit_to_string(vm, args[1]));
 	return 0;
 }
 
 static LitNativeRegistry std[] = {
 	{ time_function, "time", "Function<double>" },
 	{ print_function, "print", "Function<any, void>" },
+	{ error_function, "error", "Function<String, void>" },
 	{ NULL, NULL, NULL } // Null terminator
 };
 

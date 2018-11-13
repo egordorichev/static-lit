@@ -1,41 +1,5 @@
-static class Math {
-	init() {
-		print("Math.init()")
-	}
-
-	wakeUp() {
-		print("Wake up")
-	}
+fun test() {
+	error("NAAHHHH")
 }
 
-Math.wakeUp()
-// Math.init() should not be valid! FIXME
-
-//* todo list:
-
-* if !(true) {}
-* OP_CONSTANT_LONG
-* Fix error cascades
-* true ? thing() : else()
-* fix stdout / stderr sync
-* static constructors
-* growing stack
-* foreign classes
-* foreign structs
-* switch expression
-* switch
-* enums
-* repl (expression -> print result, statement -> just run)
-* LitConfig?
-* Nillable types (Awesome?)
-* 10.imAMethod()
-* Fix incomparable pointers from LitMemManager to LitVm and LitCompiler
-* Exceptions
-* Bytecode line numbers
-* Division by zero handling
-* Arrays
-* Ranges
-* Hashmaps (class)
-* vargs
-* abstract methods -> no body, must be implemented
-* abstract classes can not be called (instance created)
+test()

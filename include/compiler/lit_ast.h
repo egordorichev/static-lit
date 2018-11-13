@@ -33,12 +33,13 @@ typedef enum {
 
 typedef struct LitExpression {
 	LitExpresionType type;
+	uint64_t line;
 } LitExpression;
 
 DECLARE_ARRAY(LitExpressions, LitExpression*, expressions)
 
 typedef struct {
-	LitExpression *expression;
+	LitExpression expression;
 
 	LitExpression* left;
 	LitExpression* right;
@@ -50,14 +51,14 @@ typedef struct {
 LitBinaryExpression* lit_make_binary_expression(LitCompiler* compiler, LitExpression* left, LitExpression* right, LitTokenType operator);
 
 typedef struct {
-	LitExpression *expression;
+	LitExpression expression;
 	LitValue value;
 } LitLiteralExpression;
 
 LitLiteralExpression* lit_make_literal_expression(LitCompiler* compiler, LitValue value);
 
 typedef struct {
-	LitExpression *expression;
+	LitExpression expression;
 
 	LitTokenType operator;
 	LitExpression* right;
@@ -66,21 +67,21 @@ typedef struct {
 LitUnaryExpression* lit_make_unary_expression(LitCompiler* compiler, LitExpression* right, LitTokenType type);
 
 typedef struct {
-	LitExpression* expression;
+	LitExpression expression;
 	LitExpression* expr;
 } LitGroupingExpression;
 
 LitGroupingExpression* lit_make_grouping_expression(LitCompiler* compiler, LitExpression* expr);
 
 typedef struct {
-	LitExpression* expression;
+	LitExpression expression;
 	const char* name;
 } LitVarExpression;
 
 LitVarExpression* lit_make_var_expression(LitCompiler* compiler, const char* name);
 
 typedef struct {
-	LitExpression* expression;
+	LitExpression expression;
 	LitExpression* to;
 	LitExpression* value;
 } LitAssignExpression;
@@ -88,7 +89,7 @@ typedef struct {
 LitAssignExpression* lit_make_assign_expression(LitCompiler* compiler, LitExpression* to, LitExpression* value);
 
 typedef struct {
-	LitExpression* expression;
+	LitExpression expression;
 	LitTokenType operator;
 	LitExpression* left;
 	LitExpression* right;
@@ -97,7 +98,7 @@ typedef struct {
 LitLogicalExpression* lit_make_logical_expression(LitCompiler* compiler, LitTokenType operator, LitExpression* left, LitExpression* right);
 
 typedef struct {
-	LitExpression* expression;
+	LitExpression expression;
 
 	LitExpression* callee;
 	LitExpressions* args;
@@ -106,7 +107,7 @@ typedef struct {
 LitCallExpression* lit_make_call_expression(LitCompiler* compiler, LitExpression* callee, LitExpressions* args);
 
 typedef struct {
-	LitExpression* expression;
+	LitExpression expression;
 
 	LitExpression* object;
 	bool emit_static_init;
@@ -116,7 +117,7 @@ typedef struct {
 LitGetExpression* lit_make_get_expression(LitCompiler* compiler, LitExpression* object, const char* property);
 
 typedef struct {
-	LitExpression* expression;
+	LitExpression expression;
 
 	LitExpression* object;
 	LitExpression* value;
@@ -127,20 +128,20 @@ typedef struct {
 LitSetExpression* lit_make_set_expression(LitCompiler* compiler, LitExpression* object, LitExpression* value, const char* property);
 
 typedef struct {
-	LitExpression* expression;
+	LitExpression expression;
 } LitThisExpression;
 
 LitThisExpression* lit_make_this_expression(LitCompiler* compiler);
 
 typedef struct {
-	LitExpression* expression;
+	LitExpression expression;
 	const char* method;
 } LitSuperExpression;
 
 LitSuperExpression* lit_make_super_expression(LitCompiler* compiler, const char* method);
 
 typedef struct {
-	LitExpression* expression;
+	LitExpression expression;
 
 	LitExpression* condition;
 	LitExpression* if_branch;
@@ -168,12 +169,13 @@ typedef enum {
 
 typedef struct {
 	LitStatementType type;
+	uint64_t line;
 }	LitStatement;
 
 DECLARE_ARRAY(LitStatements, LitStatement*, statements)
 
 typedef struct {
-	LitExpression* expression;
+	LitExpression expression;
 
 	LitParameters* parameters;
 	LitStatement* body;
@@ -183,7 +185,7 @@ typedef struct {
 LitLambdaExpression* lit_make_lambda_expression(LitCompiler* compiler, LitParameters* parameters, LitStatement* body, LitParameter return_type);
 
 typedef struct {
-	LitStatement* statement;
+	LitStatement statement;
 
 	LitExpression* init;
 	const char* name;
@@ -194,14 +196,14 @@ typedef struct {
 LitVarStatement* lit_make_var_statement(LitCompiler* compiler, const char* name, LitExpression* init, const char* type, bool final);
 
 typedef struct {
-	LitStatement* expression;
+	LitStatement statement;
 	LitExpression* expr;
 } LitExpressionStatement;
 
 LitExpressionStatement* lit_make_expression_statement(LitCompiler* compiler, LitExpression* expr);
 
 typedef struct {
-	LitStatement* expression;
+	LitStatement statement;
 
 	LitExpression* condition;
 	LitStatement* if_branch;
@@ -213,14 +215,14 @@ typedef struct {
 LitIfStatement* lit_make_if_statement(LitCompiler* compiler, LitExpression* condition, LitStatement* if_branch, LitStatement* else_branch, LitStatements* else_if_branches, LitExpressions* else_if_conditions);
 
 typedef struct {
-	LitStatement* expression;
+	LitStatement statement;
 	LitStatements* statements;
 } LitBlockStatement;
 
 LitBlockStatement* lit_make_block_statement(LitCompiler* compiler, LitStatements* statements);
 
 typedef struct {
-	LitStatement* expression;
+	LitStatement statement;
 
 	LitExpression* condition;
 	LitStatement* body;
@@ -229,7 +231,7 @@ typedef struct {
 LitWhileStatement* lit_make_while_statement(LitCompiler* compiler, LitExpression* condition, LitStatement* body);
 
 typedef struct {
-	LitStatement* expression;
+	LitStatement statement;
 
 	LitParameters* parameters;
 	LitStatement* body;
@@ -241,7 +243,7 @@ LitFunctionStatement* lit_make_function_statement(LitCompiler* compiler, const c
 DECLARE_ARRAY(LitFunctions, LitFunctionStatement*, functions)
 
 typedef struct {
-	LitStatement* expression;
+	LitStatement statement;
 	LitExpression* value;
 } LitReturnStatement;
 
@@ -263,7 +265,7 @@ typedef enum LitAccessType {
 } LitAccessType;
 
 typedef struct {
-	LitStatement* expression;
+	LitStatement statement;
 
 	LitExpression* init;
 	LitStatement* getter;
@@ -279,7 +281,7 @@ LitFieldStatement* lit_make_field_statement(LitCompiler* compiler, const char* n
 	LitStatement* getter, LitStatement* setter, LitAccessType access, bool is_static, bool final);
 
 typedef struct {
-	LitStatement* expression;
+	LitStatement statement;
 
 	LitParameters* parameters;
 	LitStatement* body;
@@ -297,7 +299,7 @@ LitMethodStatement* lit_make_method_statement(LitCompiler* compiler, const char*
 DECLARE_ARRAY(LitMethods, LitMethodStatement*, methods)
 
 typedef struct {
-	LitStatement* expression;
+	LitStatement statement;
 
 	LitVarExpression* super;
 	LitMethods* methods;
@@ -311,13 +313,13 @@ typedef struct {
 LitClassStatement* lit_make_class_statement(LitCompiler* compiler, const char* name, LitVarExpression* super, LitMethods* methods, LitStatements* fields, bool abstract, bool is_static, bool final);
 
 typedef struct {
-	LitStatement* expression;
+	LitStatement statement;
 } LitBreakStatement;
 
 LitBreakStatement* lit_make_break_statement(LitCompiler* compiler);
 
 typedef struct {
-	LitStatement* expression;
+	LitStatement statement;
 } LitContinueStatement;
 
 LitContinueStatement* lit_make_continue_statement(LitCompiler* compiler);

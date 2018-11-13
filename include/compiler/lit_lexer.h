@@ -36,14 +36,14 @@ typedef enum {
 typedef struct {
 	LitTokenType type;
 	const char* start;
-	int length;
-	int line;
+	uint64_t length;
+	uint64_t line;
 } LitToken;
 
 typedef struct {
 	const char* start;
 	const char* current_code;
-	int line;
+	uint64_t line;
 
 	LitCompiler* compiler;
 

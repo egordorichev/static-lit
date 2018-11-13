@@ -21,7 +21,7 @@ static LitToken make_token(LitLexer* lexer, LitTokenType type) {
 
 	token.type = type;
 	token.start = lexer->start;
-	token.length = (int) (lexer->current_code - lexer->start);
+	token.length = lexer->current_code - lexer->start;
 	token.line = lexer->line;
 
 	return token;

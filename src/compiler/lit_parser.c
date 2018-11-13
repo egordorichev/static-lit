@@ -678,7 +678,7 @@ static LitStatement* parse_method_statement(LitLexer* lexer, bool final, bool ab
 
 	consume(lexer, TOKEN_RIGHT_PAREN, "Expected ')' after parameters");
 
-	LitParameter return_type = (LitParameter) {NULL, "void"};
+	LitParameter return_type = (LitParameter) { NULL, "void" };
 
 	if (match(lexer, TOKEN_GREATER)) {
 		LitToken type = consume(lexer, TOKEN_IDENTIFIER, "Expected return type");
@@ -707,6 +707,8 @@ static LitStatement* parse_method_statement(LitLexer* lexer, bool final, bool ab
 
 			body = lit_make_block_statement(lexer->compiler, statements);
 		}
+	} else if (!abstract) {
+		error(lexer, &lexer->previous, "Only abstract methods can have no body");
 	}
 
 	return (LitStatement*) lit_make_method_statement(lexer->compiler, name, parameters, (LitStatement*) body, (LitParameter) {NULL, return_type.type}, override, is_static, abstract, access);

@@ -19,7 +19,10 @@ DEFINE_TABLE(LitFields, LitField, fields, LitField*, (LitField) {}, &entry->valu
 
 static LitExpression* allocate_expression(LitCompiler* compiler, size_t size, LitExpresionType type) {
 	LitExpression* object = (LitExpression*) reallocate(compiler, NULL, 0, size);
+
 	object->type = type;
+	object->line = compiler->lexer.line;
+
 	return object;
 }
 
@@ -28,7 +31,10 @@ static LitExpression* allocate_expression(LitCompiler* compiler, size_t size, Li
 
 static LitStatement* allocate_statement(LitCompiler* compiler, size_t size, LitStatementType type) {
 	LitStatement* object = (LitStatement*) reallocate(compiler, NULL, 0, size);
+
 	object->type = type;
+	object->line = compiler->lexer.line;
+
 	return object;
 }
 
@@ -414,7 +420,9 @@ void lit_free_statement(LitCompiler* compiler, LitStatement* statement) {
 				reallocate(compiler, (void*) stmt->return_type.type, strlen(stmt->return_type.type) + 1, 0);
 			}
 
-			lit_free_statement(compiler, stmt->body);
+			if (stmt->body != NULL) {
+				lit_free_statement(compiler, stmt->body);
+			}
 
 			if (stmt->parameters != NULL) {
 				for (int i = 0; i  < stmt->parameters->count; i++) {

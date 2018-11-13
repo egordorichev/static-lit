@@ -37,6 +37,7 @@ DECLARE_TABLE(LitResolverFields, LitResolverField*, resolver_fields, LitResolver
 typedef struct LitResolverMethod {
 	bool is_static;
 	bool is_overriden;
+	bool abstract;
 	LitAccessType access;
 	char* signature;
 } LitResolverMethod;

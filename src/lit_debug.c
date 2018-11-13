@@ -8,6 +8,8 @@
 void lit_trace_statement(LitMemManager* manager, LitStatement* statement, int depth) {
 	printf("{\n");
 
+	printf("\"line\" : \"%ld\",\n", statement->line);
+
 	if (statement != NULL) {
 		switch (statement->type) {
 			case EXPRESSION_STATEMENT: {
@@ -324,6 +326,8 @@ void lit_trace_statement(LitMemManager* manager, LitStatement* statement, int de
 
 void lit_trace_expression(LitMemManager* manager, LitExpression* expression, int depth) {
 	printf("{\n");
+
+	printf("\"line\" : \"%ld\",\n", expression->line);
 
 	if (expression != NULL) {
 		switch (expression->type) {

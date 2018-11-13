@@ -17,6 +17,7 @@ struct sLitCompiler {
 	LitResolver resolver;
 	LitLexer lexer;
 	LitEmitter emitter;
+	LitString* init_string;
 } sLitCompiler;
 
 void lit_init_compiler(LitCompiler* compiler);

@@ -14,6 +14,7 @@ void lit_init_compiler(LitCompiler* compiler) {
 
 	lit_init_table(&manager->strings);
 
+	compiler->init_string = lit_copy_string(manager, "init", 4);
 	compiler->resolver.compiler = compiler;
 	lit_init_resolver(&compiler->resolver);
 	lit_init_resolver_locals(&compiler->resolver.externals);
@@ -86,7 +87,7 @@ LitFunction* lit_compile(LitCompiler* compiler, const char* source_code) {
 	LitFunction* function = lit_emit(&compiler->emitter, &statements);
 
 	if (DEBUG_TRACE_CODE) {
-		lit_trace_chunk(compiler, &function->chunk, "top-level");
+		lit_trace_chunk(compiler, &function->chunk, "$main");
 	}
 
 	for (int i = 0; i < statements.count; i++) {
