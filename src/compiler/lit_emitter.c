@@ -145,6 +145,7 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 				case TOKEN_SLASH: emit_byte(emitter, OP_DIVIDE, expression->line); break;
 				case TOKEN_CARET: emit_byte(emitter, OP_POWER, expression->line); break;
 				case TOKEN_CELL: emit_byte(emitter, OP_ROOT, expression->line); break;
+				case TOKEN_IS: emit_byte(emitter, OP_IS, expression->line); break;
 			}
 
 			break;

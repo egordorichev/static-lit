@@ -144,7 +144,14 @@ static LitTokenType find_identifier_type(LitLexer* lexer) {
 			break;
 		}
 		case 'e': return check_keyword(lexer, 1, 3, "lse", TOKEN_ELSE);
-		case 'i': return check_keyword(lexer, 1, 1, "f", TOKEN_IF);
+		case 'i': {
+			if (lexer->current_code - lexer->start > 1) {
+				switch (lexer->start[1]) {
+					case 'f': return check_keyword(lexer, 2, 0, "", TOKEN_IF);
+					case 's': return check_keyword(lexer, 2, 0, "", TOKEN_IS);
+				}
+			}
+		}
 		case 'n': return check_keyword(lexer, 1, 2, "il", TOKEN_NIL);
 		case 'r': return check_keyword(lexer, 1, 5, "eturn", TOKEN_RETURN);
 		case 's': {

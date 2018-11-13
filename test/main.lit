@@ -1,12 +1,19 @@
-var a = 32 ^ 3
-a #= 3
-print(a)
+class Awesome {
+
+}
+
+class Test {
+
+}
+
+var m = Test()
+print(m is Test)
+print(m is Awesome)
 
 //* todo list:
 
 * saving / loading bytecode
 * getters / setters
-* ^, ^=, same for sqrt()
 * int a should be assigned 0 and not nil
 * if !(true) {}
 * OP_CONSTANT_LONG
@@ -27,7 +34,6 @@ print(a)
 * 10.imAMethod()
 * Fix incomparable pointers from LitMemManager to LitVm and LitCompiler
 * Exceptions
-* Bytecode line numbers
 * Division by zero handling
 * Arrays
 * Ranges

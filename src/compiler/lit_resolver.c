@@ -656,15 +656,43 @@ static void resolve_statements(LitResolver* resolver, LitStatements* statements)
 	}
 }
 
-static const char* resolve_binary_expression(LitResolver* resolver, LitBinaryExpression* expression) {
-	const char* a = resolve_expression(resolver, expression->left);
-	const char* b = resolve_expression(resolver, expression->right);
-
-	if (!((strcmp(a, "int") == 0 || strcmp(a, "double") == 0) && (strcmp(b, "int") == 0 || strcmp(b, "double") == 0))) {
-		error(resolver, "Can't perform binary operation on %s and %s", a, b);
+int strcmp_ignoring(const char* s1, const char* s2) {
+	while(*s1 && *s1 != '<' && *s2 != '<' && *s1 == *s2) {
+		s1++;
+		s2++;
 	}
 
-	return a;
+	return *s1 > *s2 ? 1 : (*s1 == *s2 ? 0 : -1);
+}
+
+static const char* resolve_binary_expression(LitResolver* resolver, LitBinaryExpression* expression) {
+	const char* a = resolve_expression(resolver, expression->left);
+	char* b = (char*) resolve_expression(resolver, expression->right);
+
+	if (expression->operator == TOKEN_IS) {
+		LitType* class = NULL;
+
+		if (strcmp_ignoring(b, "Class<") == 0) {
+			int len = (int) strlen(b);
+
+			// Hack that allows us not to reallocate another string
+			b[len - 1] = '\0';
+			class = lit_classes_get(&resolver->classes, lit_copy_string(resolver->compiler, &b[6], (size_t) (len - 7)));
+			b[len - 1] = '>';
+		}
+
+		if (class == NULL) {
+			error(resolver, "%s is not defined", b);
+		}
+
+		return "bool";
+	} else {
+		if (!((strcmp(a, "int") == 0 || strcmp(a, "double") == 0) && (strcmp(b, "int") == 0 || strcmp(b, "double") == 0))) {
+			error(resolver, "Can't perform binary operation on %s and %s", a, b);
+		}
+
+		return a;
+	}
 }
 
 static const char* resolve_literal_expression(LitLiteralExpression* expression) {
@@ -785,15 +813,6 @@ static char* tok(char* string) {
 	last_string = start + 1;
 
 	return where_started;
-}
-
-int strcmp_ignoring(const char* s1, const char* s2) {
-	while(*s1 && *s1 != '<' && *s2 != '<' && *s1 == *s2) {
-		s1++;
-		s2++;
-	}
-
-	return *s1 > *s2 ? 1 : (*s1 == *s2 ? 0 : -1);
 }
 
 static const char* extract_callee_name(LitExpression* expression) {

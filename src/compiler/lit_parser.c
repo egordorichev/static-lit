@@ -351,14 +351,24 @@ static LitExpression* parse_compound_addition(LitLexer* lexer) {
 	return expression;
 }
 
+static LitExpression* parse_is(LitLexer* lexer) {
+	LitExpression *expression = parse_compound_addition(lexer);
+
+	if (match(lexer, TOKEN_IS)) {
+		LitTokenType operator = lexer->previous.type;
+		expression = (LitExpression*) lit_make_binary_expression(lexer->compiler, expression, parse_compound_addition(lexer), operator);
+	}
+
+	return expression;
+}
+
 static LitExpression* parse_unary(LitLexer* lexer) {
 	if (match(lexer, TOKEN_BANG) || match(lexer, TOKEN_MINUS) || match(lexer, TOKEN_CELL)) {
 		LitTokenType operator = lexer->previous.type;
-		LitExpression* right = parse_unary(lexer);
-		return (LitExpression*) lit_make_unary_expression(lexer->compiler, right, operator);
+		return (LitExpression*) lit_make_unary_expression(lexer->compiler, parse_unary(lexer), operator);
 	}
 
-	return parse_compound_addition(lexer);
+	return parse_is(lexer);
 }
 
 static LitExpression* parse_power(LitLexer* lexer) {

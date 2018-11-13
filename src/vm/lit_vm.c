@@ -303,6 +303,7 @@ static bool interpret(LitVm* vm) {
 		functions[OP_POWER] = &&op_power;
 		functions[OP_SQUARE] = &&op_square;
 		functions[OP_ROOT] = &&op_root;
+		functions[OP_IS] = &&op_is;
 		functions[OP_TOTAL] = &&op_unknown;
 	}
 
@@ -751,6 +752,29 @@ static bool interpret(LitVm* vm) {
 			LitClass* class = AS_CLASS(PEEK(0));
 
 			lit_table_set(vm, &class->static_methods, name, method);
+			continue;
+		};
+
+		op_is: {
+			LitClass* class = AS_CLASS(POP());
+			LitInstance* instance = AS_INSTANCE(POP());
+			LitClass* type = instance->type;
+			bool found = false;
+
+			while (type != NULL) {
+				if (type == class) {
+					PUSH(TRUE_VALUE);
+					found = true;
+					break;
+				}
+
+				type = type->super;
+			}
+
+			if (!found) {
+				PUSH(FALSE_VALUE);
+			}
+
 			continue;
 		};
 	}
