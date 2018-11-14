@@ -12,6 +12,7 @@ print(m is Awesome)
 
 //* todo list:
 
+* predefine methods/functions, then resolve them (main() function?)
 * saving / loading bytecode
 * getters / setters
 * int a should be assigned 0 and not nil
@@ -55,3 +56,8 @@ if (with var thing = getThing(); exists() && something())
 
 abstract class Test { getThing() }
 class Amazing < Test {}
+
+* detect npe:
+
+var null = nil
+null() // Should throw NPE

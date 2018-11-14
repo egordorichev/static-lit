@@ -7,14 +7,6 @@ class Base {
 }
 
 class Test < Base {
-	public init() {
-		this.sayTest()
-	}
-
-	public sayTest() {
-		super.sayTest()
-		print(this.testStr)
-	}
 }
 
 var test = Test() // Expected: Oops

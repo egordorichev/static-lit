@@ -603,12 +603,16 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 		for (int i = 0; i <= super->methods.capacity_mask; i++) {
 			LitResolverMethod* method = super->methods.entries[i].value;
 
-			if (method != NULL && !lit_resolver_methods_get(&class->methods, super->methods.entries[i].key)->is_overriden) {
-				if (method->abstract) {
-					error(resolver, "Abstract method %s must be implemented in child class %s", super->methods.entries[i].key->chars, class->name->chars);
-				}
+			if (method != NULL) {
+				LitResolverMethod* child = lit_resolver_methods_get(&class->methods, super->methods.entries[i].key);
 
-				error(resolver, "Must use override keyword to override a method");
+				if (method != child && !child->is_overriden) {
+					if (method->abstract) {
+						error(resolver, "Abstract method %s must be implemented in child class %s", super->methods.entries[i].key->chars, class->name->chars);
+					}
+
+					error(resolver, "Must use override keyword to override a method");
+				}
 			}
 		}
 	}
@@ -1170,7 +1174,7 @@ void lit_init_resolver(LitResolver* resolver) {
 	define_type(resolver, "any");
 	define_type(resolver, "double");
 	define_type(resolver, "char");
-	define_type(resolver, "function");
+	define_type(resolver, "Function");
 	define_type(resolver, "Class");
 	define_type(resolver, "String");
 }

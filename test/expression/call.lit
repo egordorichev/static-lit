@@ -7,5 +7,6 @@ test() // Expected: test
 var fn = test
 fn() // Expected: test
 
+//* not implemented
 var null = nil
-null() // Expected: NilPointerException
+null() // Should throw NPE

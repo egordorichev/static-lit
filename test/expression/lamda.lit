@@ -1,4 +1,4 @@
-fun call(Function<int, int, int> add, int a, b) > int {
+fun call(Function<int, int, int> add, int a, int b) > int {
 	return add(a, b)
 }
 

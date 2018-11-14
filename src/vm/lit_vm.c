@@ -451,7 +451,9 @@ static bool interpret(LitVm* vm) {
 		};
 
 		op_equal: {
-			vm->stack_top[-1] = MAKE_BOOL_VALUE(POP() == vm->stack_top[-2]);
+			LitValue a = POP();
+			vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) == AS_NUMBER(vm->stack_top[-1]));
+
 			continue;
 		};
 
@@ -484,7 +486,9 @@ static bool interpret(LitVm* vm) {
 		};
 
 		op_not_equal: {
-			vm->stack_top[-2] = MAKE_BOOL_VALUE(POP() != vm->stack_top[-2]);
+			LitValue a = POP();
+			vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) != AS_NUMBER(vm->stack_top[-1]));
+
 			continue;
 		};
 
@@ -679,6 +683,7 @@ static bool interpret(LitVm* vm) {
 				POP();
 				PUSH(value);
 			} else {
+				printf("%s\n", "test");
 				runtime_error(vm, "Only instances and classes have fields");
 				return false;
 			}

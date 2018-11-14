@@ -9,4 +9,4 @@ print(!nil) // Expected: true
 
 print(-10) // Expected: -10
 print(-0) // Expected: -0
-print(-(-10)) // Expected: -10
+print(-(-10)) // Expected: 10

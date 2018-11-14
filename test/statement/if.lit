@@ -1,0 +1,23 @@
+if (true) {
+	print("Ok") // Expected: Ok
+}
+
+if (false) {
+
+} else {
+	print("Ok") // Expected: Ok
+}
+
+if (false) {
+
+} else {
+	print("Ok") // Expected: Ok
+}
+
+if (false) {
+
+} else if (true) {
+	print("Ok") // Expected: Ok
+} else {
+
+}
