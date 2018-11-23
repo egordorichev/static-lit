@@ -1,5 +1,12 @@
-#include <string.h>
+/*
+ * lit_core.c --- ADD short description
+ * 
+ *
+ * Copyright 2018 by Egor Dorichev. 
+ * This file may be redistributed under the GNU Public License v2.
+ */
 
+#include <string.h>
 #include <cli/lit_core.h>
 
 void lit_init_core(LitVm* vm) {

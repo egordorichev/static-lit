@@ -11,5 +11,5 @@ There are also a few files in this directory:
 
  + `lit.h` the must-include header to work with lit
  + `lit_common.h` some useful includes like bools and int types
- + `lit_debug.h` provides some pretty ast and bytecode outputs
+ + `lit_debug.h` provides some pretty abstract syntax tree (AST) and bytecode outputs
  + `lit_mem_manager.h` provides a simple interface for controlling memory allocation (and leaks)
