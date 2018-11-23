@@ -224,8 +224,8 @@ static LitTokenType find_identifier_type(LitLexer* lexer) {
 }
 
 LitToken lit_lexer_next_token(LitLexer* lexer) {
+	lexer->last_line = lexer->line;
 	skip_whitespace(lexer);
-
 	lexer->start = lexer->current_code;
 
 	if (is_at_end(lexer)) {
@@ -317,6 +317,7 @@ void lit_init_lexer(LitCompiler* compiler, LitLexer* lexer, const char* code) {
 	lexer->start = code;
 	lexer->current_code = code;
 	lexer->line = 1;
+	lexer->last_line = 1;
 	lexer->had_error = false;
 	lexer->panic_mode = false;
 	lexer->compiler = compiler;

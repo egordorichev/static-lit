@@ -18,8 +18,8 @@ typedef enum {
 	TOKEN_PLUS_EQUAL, TOKEN_MINUS_EQUAL,
 	TOKEN_STAR_EQUAL, TOKEN_SLASH_EQUAL,
 	TOKEN_PLUS_PLUS, TOKEN_MINUS_MINUS,
-	TOKEN_CARET, TOKEN_CARET_EQUAL, // Fixme, ^ symbol, should have a proper name
-	TOKEN_CELL, TOKEN_CELL_EQUAL, // Same, look up the name
+	TOKEN_CARET, TOKEN_CARET_EQUAL,
+	TOKEN_CELL, TOKEN_CELL_EQUAL,
 
 	TOKEN_IDENTIFIER, TOKEN_STRING, TOKEN_NUMBER, TOKEN_CHAR,
 
@@ -47,6 +47,7 @@ typedef struct {
 	const char* start;
 	const char* current_code;
 	uint64_t line;
+	uint64_t last_line;
 
 	LitCompiler* compiler;
 

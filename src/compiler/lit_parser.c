@@ -86,12 +86,12 @@ static void error(LitLexer* lexer, LitToken *token, const char* message) {
 	lexer->had_error = true;
 
 	fflush(stdout);
-	fprintf(stderr, "[line %d] Error", token->line);
+	fprintf(stderr, "[line %lu] Error", token->line);
 
 	if (token->type == TOKEN_EOF) {
 		fprintf(stderr, " at end");
 	} else if (token->type != TOKEN_ERROR) {
-		fprintf(stderr, " at '%.*s'", token->length, token->start);
+		fprintf(stderr, " at '%.*s'", (int) token->length, token->start);
 	}
 
 	fprintf(stderr, ": %s\n", message);
@@ -111,6 +111,8 @@ static LitExpression* parse_if_expression(LitLexer* lexer, bool shrt) {
 	if (shrt) {
 		return NULL; // TODO
 	} else {
+		uint64_t line = lexer->last_line;
+
 		consume(lexer, TOKEN_LEFT_PAREN, "Expected '(' after if");
 		LitExpression* condition = parse_expression(lexer);
 		consume(lexer, TOKEN_RIGHT_PAREN, "Expected ')' after if condition");
@@ -148,7 +150,7 @@ static LitExpression* parse_if_expression(LitLexer* lexer, bool shrt) {
 			error(lexer, &lexer->previous, "If expression must have else branch");
 		}
 
-		return (LitExpression*) lit_make_if_expression(lexer->compiler, condition, if_branch, else_branch, else_if_branches, else_if_conditions);
+		return (LitExpression*) lit_make_if_expression(lexer->compiler, line, condition, if_branch, else_branch, else_if_branches, else_if_conditions);
 	}
 }
 
@@ -160,49 +162,54 @@ static LitExpression* parse_primary(LitLexer* lexer) {
 	}
 
 	if (match(lexer, TOKEN_THIS)) {
-		return (LitExpression*) lit_make_this_expression(lexer->compiler);
+		return (LitExpression*) lit_make_this_expression(lexer->compiler, lexer->last_line);
 	}
 
 	if (match(lexer, TOKEN_SUPER)) {
+		uint64_t line = lexer->last_line;
+
 		consume(lexer, TOKEN_DOT, "Expected '.' after super");
 		LitToken token = consume(lexer, TOKEN_IDENTIFIER, "Expected method name after dot");
 
-		return (LitExpression*) lit_make_super_expression(lexer->compiler, copy_string(lexer, &token));
+		return (LitExpression*) lit_make_super_expression(lexer->compiler, line, copy_string(lexer, &token));
 	}
 
 	if (match(lexer, TOKEN_IDENTIFIER)) {
-		return (LitExpression*) lit_make_var_expression(lexer->compiler, copy_string(lexer, &lexer->previous));
+		return (LitExpression*) lit_make_var_expression(lexer->compiler, lexer->last_line, copy_string(lexer, &lexer->previous));
 	}
 
 	if (match(lexer, TOKEN_TRUE)) {
-		return (LitExpression*) lit_make_literal_expression(lexer->compiler, TRUE_VALUE);
+		return (LitExpression*) lit_make_literal_expression(lexer->compiler, lexer->last_line, TRUE_VALUE);
 	}
 
 	if (match(lexer, TOKEN_FALSE)) {
-		return (LitExpression*) lit_make_literal_expression(lexer->compiler, FALSE_VALUE);
+		return (LitExpression*) lit_make_literal_expression(lexer->compiler, lexer->last_line, FALSE_VALUE);
 	}
 
 	if (match(lexer, TOKEN_NIL)) {
-		return (LitExpression*) lit_make_literal_expression(lexer->compiler, NIL_VALUE);
+		return (LitExpression*) lit_make_literal_expression(lexer->compiler, lexer->last_line, NIL_VALUE);
 	}
 
 	if (match(lexer, TOKEN_NUMBER)) {
-		return (LitExpression*) lit_make_literal_expression(lexer->compiler, MAKE_NUMBER_VALUE(strtod(lexer->previous.start, NULL)));
+		return (LitExpression*) lit_make_literal_expression(lexer->compiler, lexer->last_line, MAKE_NUMBER_VALUE(strtod(lexer->previous.start, NULL)));
 	}
 
 	if (match(lexer, TOKEN_STRING)) {
-		return (LitExpression*) lit_make_literal_expression(lexer->compiler,
+		return (LitExpression*) lit_make_literal_expression(lexer->compiler, lexer->last_line,
 			MAKE_OBJECT_VALUE(lit_copy_string(lexer->compiler, lexer->previous.start + 1, lexer->previous.length - 2)));
 	}
 
 	if (match(lexer, TOKEN_CHAR)) {
-		return (LitExpression*) lit_make_literal_expression(lexer->compiler, MAKE_CHAR_VALUE(lexer->previous.start[1]));
+		return (LitExpression*) lit_make_literal_expression(lexer->compiler, lexer->last_line, MAKE_CHAR_VALUE(lexer->previous.start[1]));
 	}
 
 	if (match(lexer, TOKEN_LEFT_PAREN)) {
+		uint64_t line = lexer->last_line;
+
 		LitExpression* expression = parse_expression(lexer);
 		consume(lexer, TOKEN_RIGHT_PAREN, "Expected ')' after expression");
-		return (LitExpression*) lit_make_grouping_expression(lexer->compiler, expression);
+
+		return (LitExpression*) lit_make_grouping_expression(lexer->compiler, line, expression);
 	}
 
 	if (match(lexer, TOKEN_IF)) {
@@ -216,6 +223,7 @@ static LitExpression* parse_primary(LitLexer* lexer) {
 }
 
 static LitExpression* finish_call(LitLexer* lexer, LitExpression* callee) {
+	uint64_t line = lexer->last_line;
 	LitExpressions* args = (LitExpressions*) reallocate(lexer->compiler, NULL, 0, sizeof(LitExpressions));
 	lit_init_expressions(args);
 
@@ -226,7 +234,7 @@ static LitExpression* finish_call(LitLexer* lexer, LitExpression* callee) {
 	}
 
 	consume(lexer, TOKEN_RIGHT_PAREN, "Expected ')' after arguments");
-	return (LitExpression*) lit_make_call_expression(lexer->compiler, callee, args);
+	return (LitExpression*) lit_make_call_expression(lexer->compiler, line, callee, args);
 }
 
 static LitExpression* parse_equality(LitLexer* lexer);
@@ -238,12 +246,13 @@ static LitExpression* parse_call(LitLexer* lexer) {
 		if (match(lexer, TOKEN_LEFT_PAREN)) {
 			expression = finish_call(lexer, expression);
 		} else if (match(lexer, TOKEN_DOT)) {
+			uint64_t line = lexer->last_line;
 			LitToken token = consume(lexer, TOKEN_IDENTIFIER, "Expected property name after '.'");
 
 			if (match(lexer, TOKEN_EQUAL)) {
-				expression = (LitExpression*) lit_make_set_expression(lexer->compiler, expression, parse_equality(lexer), copy_string(lexer, &token));
+				expression = (LitExpression*) lit_make_set_expression(lexer->compiler, line, expression, parse_equality(lexer), copy_string(lexer, &token));
 			} else {
-				expression = (LitExpression*) lit_make_get_expression(lexer->compiler, expression, copy_string(lexer, &token));
+				expression = (LitExpression*) lit_make_get_expression(lexer->compiler, line, expression, copy_string(lexer, &token));
 			}
 		} else {
 			break;
@@ -264,20 +273,21 @@ static LitExpression* parse_compound_power(LitLexer* lexer) {
 		 * a = a ^ 10
 		 */
 
+		uint64_t line = lexer->last_line;
 		LitTokenType type = lexer->previous.type;
 		LitExpression* operator = NULL;
 
 		if (type == TOKEN_CARET_EQUAL) {
-			LitBinaryExpression* bin = lit_make_binary_expression(lexer->compiler, expression, parse_call(lexer), TOKEN_CARET);
+			LitBinaryExpression* bin = lit_make_binary_expression(lexer->compiler, line, expression, parse_call(lexer), TOKEN_CARET);
 			bin->ignore_left = true; // Because its already freed from another expression
 			operator = (LitExpression *) bin;
 		} else if (type == TOKEN_CELL_EQUAL) {
-			LitBinaryExpression* bin = lit_make_binary_expression(lexer->compiler, expression, parse_call(lexer), TOKEN_CELL);
+			LitBinaryExpression* bin = lit_make_binary_expression(lexer->compiler, line, expression, parse_call(lexer), TOKEN_CELL);
 			bin->ignore_left = true; // Because its already freed from another expression
 			operator = (LitExpression *) bin;
 		}
 
-		return (LitExpression *) lit_make_assign_expression(lexer->compiler, expression, operator);
+		return (LitExpression *) lit_make_assign_expression(lexer->compiler, line, expression, operator);
 	}
 
 	return expression;
@@ -294,20 +304,21 @@ static LitExpression* parse_compound_multiplication(LitLexer* lexer) {
 		 * a = a * 10
 		 */
 
+		uint64_t line = lexer->last_line;
 		LitTokenType type = lexer->previous.type;
 		LitExpression* operator = NULL;
 
 		if (type == TOKEN_STAR_EQUAL) {
-			LitBinaryExpression* bin = lit_make_binary_expression(lexer->compiler, expression, parse_compound_power(lexer), TOKEN_STAR);
+			LitBinaryExpression* bin = lit_make_binary_expression(lexer->compiler, line, expression, parse_compound_power(lexer), TOKEN_STAR);
 			bin->ignore_left = true; // Because its already freed from another expression
 			operator = (LitExpression *) bin;
 		} else {
-			LitBinaryExpression* bin = lit_make_binary_expression(lexer->compiler, expression, parse_compound_power(lexer), TOKEN_SLASH);
+			LitBinaryExpression* bin = lit_make_binary_expression(lexer->compiler, line, expression, parse_compound_power(lexer), TOKEN_SLASH);
 			bin->ignore_left = true; // Because its already freed from another expression
 			operator = (LitExpression *) bin;
 		}
 
-		return (LitExpression *) lit_make_assign_expression(lexer->compiler, expression, operator);
+		return (LitExpression *) lit_make_assign_expression(lexer->compiler, line, expression, operator);
 	}
 
 	return expression;
@@ -324,28 +335,29 @@ static LitExpression* parse_compound_addition(LitLexer* lexer) {
 		 * a = a + 10 or a = a + 1
 		 */
 
+		uint64_t line = lexer->last_line;
 		LitTokenType type = lexer->previous.type;
 		LitExpression* operator = NULL;
 
 		if (type == TOKEN_PLUS_EQUAL) {
-			LitBinaryExpression* bin = lit_make_binary_expression(lexer->compiler, expression, parse_compound_multiplication(lexer), TOKEN_PLUS);
+			LitBinaryExpression* bin = lit_make_binary_expression(lexer->compiler, line, expression, parse_compound_multiplication(lexer), TOKEN_PLUS);
 			bin->ignore_left = true; // Because its already freed from another expression
 			operator = (LitExpression *) bin;
 		} else if (type == TOKEN_MINUS_EQUAL) {
-			LitBinaryExpression* bin = lit_make_binary_expression(lexer->compiler, expression, parse_compound_multiplication(lexer), TOKEN_MINUS);
+			LitBinaryExpression* bin = lit_make_binary_expression(lexer->compiler, line, expression, parse_compound_multiplication(lexer), TOKEN_MINUS);
 			bin->ignore_left = true; // Because its already freed from another expression
 			operator = (LitExpression *) bin;
 		} else if (type == TOKEN_PLUS_PLUS) {
-			LitBinaryExpression* bin = lit_make_binary_expression(lexer->compiler, expression, (LitExpression *) lit_make_literal_expression(lexer->compiler, MAKE_NUMBER_VALUE(1)), TOKEN_PLUS);
+			LitBinaryExpression* bin = lit_make_binary_expression(lexer->compiler, line, expression, (LitExpression *) lit_make_literal_expression(lexer->compiler, line, MAKE_NUMBER_VALUE(1)), TOKEN_PLUS);
 			bin->ignore_left = true; // Because its already freed from another expression
 			operator = (LitExpression *) bin;
 		} else {
-			LitBinaryExpression* bin = lit_make_binary_expression(lexer->compiler, expression, (LitExpression *) lit_make_literal_expression(lexer->compiler, MAKE_NUMBER_VALUE(1)), TOKEN_MINUS);
+			LitBinaryExpression* bin = lit_make_binary_expression(lexer->compiler, line, expression, (LitExpression *) lit_make_literal_expression(lexer->compiler, line, MAKE_NUMBER_VALUE(1)), TOKEN_MINUS);
 			bin->ignore_left = true; // Because its already freed from another expression
 			operator = (LitExpression *) bin;
 		}
 
-		return (LitExpression *) lit_make_assign_expression(lexer->compiler, expression, operator);
+		return (LitExpression *) lit_make_assign_expression(lexer->compiler, line, expression, operator);
 	}
 
 	return expression;
@@ -355,8 +367,9 @@ static LitExpression* parse_is(LitLexer* lexer) {
 	LitExpression *expression = parse_compound_addition(lexer);
 
 	if (match(lexer, TOKEN_IS)) {
+		uint64_t line = lexer->last_line;
 		LitTokenType operator = lexer->previous.type;
-		expression = (LitExpression*) lit_make_binary_expression(lexer->compiler, expression, parse_compound_addition(lexer), operator);
+		expression = (LitExpression*) lit_make_binary_expression(lexer->compiler, line, expression, parse_compound_addition(lexer), operator);
 	}
 
 	return expression;
@@ -364,8 +377,9 @@ static LitExpression* parse_is(LitLexer* lexer) {
 
 static LitExpression* parse_unary(LitLexer* lexer) {
 	if (match(lexer, TOKEN_BANG) || match(lexer, TOKEN_MINUS) || match(lexer, TOKEN_CELL)) {
+		uint64_t line = lexer->last_line;
 		LitTokenType operator = lexer->previous.type;
-		return (LitExpression*) lit_make_unary_expression(lexer->compiler, parse_unary(lexer), operator);
+		return (LitExpression*) lit_make_unary_expression(lexer->compiler, line, parse_unary(lexer), operator);
 	}
 
 	return parse_is(lexer);
@@ -375,8 +389,9 @@ static LitExpression* parse_power(LitLexer* lexer) {
 	LitExpression* expression = parse_unary(lexer);
 
 	while (match(lexer, TOKEN_CARET) || match(lexer, TOKEN_CELL)) {
+		uint64_t line = lexer->last_line;
 		LitTokenType operator = lexer->previous.type;
-		expression = (LitExpression*) lit_make_binary_expression(lexer->compiler, expression, parse_unary(lexer), operator);
+		expression = (LitExpression*) lit_make_binary_expression(lexer->compiler, line, expression, parse_unary(lexer), operator);
 	}
 
 	return expression;
@@ -386,8 +401,9 @@ static LitExpression* parse_multiplication(LitLexer* lexer) {
 	LitExpression* expression = parse_power(lexer);
 
 	while (match(lexer, TOKEN_STAR) || match(lexer, TOKEN_SLASH)) {
+		uint64_t line = lexer->last_line;
 		LitTokenType operator = lexer->previous.type;
-		expression = (LitExpression*) lit_make_binary_expression(lexer->compiler, expression, parse_power(lexer), operator);
+		expression = (LitExpression*) lit_make_binary_expression(lexer->compiler, line, expression, parse_power(lexer), operator);
 	}
 
 	return expression;
@@ -397,8 +413,9 @@ static LitExpression* parse_addition(LitLexer* lexer) {
 	LitExpression* expression = parse_multiplication(lexer);
 
 	while (match(lexer, TOKEN_PLUS) || match(lexer, TOKEN_MINUS)) {
+		uint64_t line = lexer->last_line;
 		LitTokenType operator = lexer->previous.type;
-		expression = (LitExpression*) lit_make_binary_expression(lexer->compiler, expression, parse_multiplication(lexer), operator);
+		expression = (LitExpression*) lit_make_binary_expression(lexer->compiler, line, expression, parse_multiplication(lexer), operator);
 	}
 
 	return expression;
@@ -408,8 +425,9 @@ static LitExpression* parse_comprasion(LitLexer *lexer) {
 	LitExpression* expression = parse_addition(lexer);
 
 	while (match(lexer, TOKEN_LESS) || match(lexer, TOKEN_LESS_EQUAL) || match(lexer, TOKEN_GREATER) || match(lexer, TOKEN_GREATER_EQUAL)) {
+		uint64_t line = lexer->last_line;
 		LitTokenType operator = lexer->previous.type;
-		expression = (LitExpression*) lit_make_binary_expression(lexer->compiler, expression, parse_addition(lexer), operator);
+		expression = (LitExpression*) lit_make_binary_expression(lexer->compiler, line, expression, parse_addition(lexer), operator);
 	}
 
 	return expression;
@@ -419,8 +437,9 @@ static LitExpression* parse_equality(LitLexer* lexer) {
 	LitExpression* expression = parse_comprasion(lexer);
 
 	while (match(lexer, TOKEN_BANG_EQUAL) || match(lexer, TOKEN_EQUAL_EQUAL)) {
+		uint64_t line = lexer->last_line;
 		LitTokenType operator = lexer->previous.type;
-		expression = (LitExpression*) lit_make_binary_expression(lexer->compiler, expression, parse_comprasion(lexer), operator);
+		expression = (LitExpression*) lit_make_binary_expression(lexer->compiler, line, expression, parse_comprasion(lexer), operator);
 	}
 
 	return expression;
@@ -430,8 +449,9 @@ static LitExpression* parse_and(LitLexer* lexer) {
 	LitExpression* expression = parse_equality(lexer);
 
 	while (match(lexer, TOKEN_AND)) {
+		uint64_t line = lexer->last_line;
 		LitTokenType operator = lexer->previous.type;
-		expression = (LitExpression*) lit_make_logical_expression(lexer->compiler, operator, expression, parse_equality(lexer));
+		expression = (LitExpression*) lit_make_logical_expression(lexer->compiler, line, operator, expression, parse_equality(lexer));
 	}
 
 	return expression;
@@ -441,8 +461,9 @@ static LitExpression* parse_or(LitLexer* lexer) {
 	LitExpression* expression = parse_and(lexer);
 
 	while (match(lexer, TOKEN_OR)) {
+		uint64_t line = lexer->last_line;
 		LitTokenType operator = lexer->previous.type;
-		expression = (LitExpression*) lit_make_logical_expression(lexer->compiler, operator, expression, parse_and(lexer));
+		expression = (LitExpression*) lit_make_logical_expression(lexer->compiler, line, operator, expression, parse_and(lexer));
 	}
 
 	return expression;
@@ -452,11 +473,12 @@ static LitExpression* parse_assigment(LitLexer* lexer) {
 	LitExpression* expression = parse_or(lexer);
 
 	if (match(lexer, TOKEN_EQUAL)) {
+		uint64_t line = lexer->last_line;
 		LitToken equal = lexer->previous;
 		LitExpression* value = parse_assigment(lexer);
 
 		if (expression->type == VAR_EXPRESSION) {
-			return (LitExpression*) lit_make_assign_expression(lexer->compiler, expression, value);
+			return (LitExpression*) lit_make_assign_expression(lexer->compiler, line, expression, value);
 		}
 
 		error(lexer, &equal, "Invalid assignment target");
@@ -470,10 +492,13 @@ static LitExpression* parse_expression(LitLexer* lexer) {
 }
 
 static LitStatement* parse_expression_statement(LitLexer* lexer) {
-	return (LitStatement*) lit_make_expression_statement(lexer->compiler, parse_expression(lexer));
+	uint64_t line = lexer->last_line;
+	return (LitStatement*) lit_make_expression_statement(lexer->compiler, line, parse_expression(lexer));
 }
 
 static LitStatement* parse_if_statement(LitLexer* lexer) {
+	uint64_t line = lexer->last_line;
+
 	consume(lexer, TOKEN_LEFT_PAREN, "Expected '(' after if");
 	LitExpression* condition = parse_expression(lexer);
 	consume(lexer, TOKEN_RIGHT_PAREN, "Expected ')' after if condition");
@@ -501,26 +526,28 @@ static LitStatement* parse_if_statement(LitLexer* lexer) {
 			lit_expressions_write(lexer->compiler, else_if_conditions, parse_expression(lexer));
 			consume(lexer, TOKEN_RIGHT_PAREN, "Expected ')' after else if condition");
 
-				lit_statements_write(lexer->compiler, else_if_branches, parse_statement(lexer));
+			lit_statements_write(lexer->compiler, else_if_branches, parse_statement(lexer));
 		} else {
 			else_branch = parse_statement(lexer);
 		}
 	}
 
-	return (LitStatement*) lit_make_if_statement(lexer->compiler, condition, if_branch, else_branch, else_if_branches, else_if_conditions);
+	return (LitStatement*) lit_make_if_statement(lexer->compiler, line, condition, if_branch, else_branch, else_if_branches, else_if_conditions);
 }
 
 static LitStatement* parse_while(LitLexer* lexer) {
+	uint64_t line = lexer->last_line;
+
 	consume(lexer, TOKEN_LEFT_PAREN, "Expected '(' after while");
 	LitExpression* condition = parse_expression(lexer);
 	consume(lexer, TOKEN_RIGHT_PAREN, "Expected ')' after while condition");
 
-	return (LitStatement*) lit_make_while_statement(lexer->compiler, condition, parse_statement(lexer));
+	return (LitStatement*) lit_make_while_statement(lexer->compiler, line, condition, parse_statement(lexer));
 }
 
 static LitStatement* parse_for(LitLexer* lexer) {
+	uint64_t line = lexer->last_line;
 	consume(lexer, TOKEN_LEFT_PAREN, "Expected '(' after while");
-
 	LitStatement* init = NULL;
 
 	if (match(lexer, TOKEN_VAR)) {
@@ -546,7 +573,6 @@ static LitStatement* parse_for(LitLexer* lexer) {
 	}
 
 	consume(lexer, TOKEN_RIGHT_PAREN, "Expected ')' after for");
-
 	LitStatement* body = parse_statement(lexer);
 
 	if (increment != NULL) {
@@ -554,16 +580,16 @@ static LitStatement* parse_for(LitLexer* lexer) {
 		lit_init_statements(statements);
 
 		lit_statements_write(lexer->compiler, statements, body);
-		lit_statements_write(lexer->compiler, statements, (LitStatement*) lit_make_expression_statement(lexer->compiler, increment));
+		lit_statements_write(lexer->compiler, statements, (LitStatement*) lit_make_expression_statement(lexer->compiler, line, increment));
 
-		body = (LitStatement*) lit_make_block_statement(lexer->compiler, statements);
+		body = (LitStatement*) lit_make_block_statement(lexer->compiler, line, statements);
 	}
 
 	if (condition == NULL) {
-		condition = (LitExpression*) lit_make_literal_expression(lexer->compiler, TRUE_VALUE);
+		condition = (LitExpression*) lit_make_literal_expression(lexer->compiler, line, TRUE_VALUE);
 	}
 
-	body = (LitStatement*) lit_make_while_statement(lexer->compiler, condition, body);
+	body = (LitStatement*) lit_make_while_statement(lexer->compiler, line, condition, body);
 
 	if (init != NULL) {
 		LitStatements* statements = (LitStatements*) reallocate(lexer->compiler, NULL, 0, sizeof(LitStatements));
@@ -572,7 +598,7 @@ static LitStatement* parse_for(LitLexer* lexer) {
 		lit_statements_write(lexer->compiler, statements, init);
 		lit_statements_write(lexer->compiler, statements, body);
 
-		body = (LitStatement*) lit_make_block_statement(lexer->compiler, statements);
+		body = (LitStatement*) lit_make_block_statement(lexer->compiler, line, statements);
 	}
 
 	return body;
@@ -580,8 +606,10 @@ static LitStatement* parse_for(LitLexer* lexer) {
 
 static LitStatement* parse_block_statement(LitLexer* lexer) {
 	LitStatements* statements = NULL;
+	uint64_t line = lexer->last_line;
 
 	while (!match(lexer, TOKEN_RIGHT_BRACE)) {
+
 		if (statements == NULL) {
 			statements = (LitStatements*) reallocate(lexer->compiler, NULL, 0, sizeof(LitStatements));
 			lit_init_statements(statements);
@@ -595,7 +623,7 @@ static LitStatement* parse_block_statement(LitLexer* lexer) {
 		lit_statements_write(lexer->compiler, statements, parse_declaration(lexer));
 	}
 
-	return (LitStatement*) lit_make_block_statement(lexer->compiler, statements);
+	return (LitStatement*) lit_make_block_statement(lexer->compiler, line, statements);
 }
 
 static char* parse_argument_type(LitLexer* lexer) {
@@ -618,8 +646,8 @@ static char* parse_argument_type(LitLexer* lexer) {
 }
 
 static LitExpression* parse_lambda(LitLexer* lexer) {
+	uint64_t line = lexer->last_line;
 	consume(lexer, TOKEN_LEFT_PAREN, "Expected '(' after 'fun'");
-
 	LitParameters* parameters = NULL;
 
 	if (lexer->current.type != TOKEN_RIGHT_PAREN) {
@@ -645,10 +673,11 @@ static LitExpression* parse_lambda(LitLexer* lexer) {
 	}
 
 	consume(lexer, TOKEN_LEFT_BRACE, "Expected '{' before lambda body");
-	return (LitExpression*) lit_make_lambda_expression(lexer->compiler, parameters, parse_block_statement(lexer), (LitParameter) {NULL, return_type.type});
+	return (LitExpression*) lit_make_lambda_expression(lexer->compiler, line, parameters, parse_block_statement(lexer), (LitParameter) {NULL, return_type.type});
 }
 
 static LitStatement* parse_function_statement(LitLexer* lexer) {
+	uint64_t line = lexer->last_line;
 	LitToken function_name = consume(lexer, TOKEN_IDENTIFIER, "Expected function name");
 	consume(lexer, TOKEN_LEFT_PAREN, "Expected '(' after function name");
 
@@ -679,23 +708,25 @@ static LitStatement* parse_function_statement(LitLexer* lexer) {
 	LitBlockStatement* body;
 
 	if (match(lexer, TOKEN_EQUAL)) {
+		uint64_t line = lexer->last_line;
 		consume(lexer, TOKEN_GREATER, "Expected '>' after '='");
 		LitStatements* statements = (LitStatements*) reallocate(lexer->compiler, NULL, 0, sizeof(LitStatements));
 
 		lit_init_statements(statements);
 		lit_statements_write(lexer->compiler, statements, parse_statement(lexer));
 
-		body = lit_make_block_statement(lexer->compiler, statements);
+		body = lit_make_block_statement(lexer->compiler, line, statements);
 	} else {
 		consume(lexer, TOKEN_LEFT_BRACE, "Expected '{' before function body");
 		body = (LitBlockStatement*) parse_block_statement(lexer);
 	}
 
-	return (LitStatement*) lit_make_function_statement(lexer->compiler, copy_string(lexer, &function_name), parameters, (LitStatement*) body, (LitParameter) {NULL, return_type.type});
+	return (LitStatement*) lit_make_function_statement(lexer->compiler, line, copy_string(lexer, &function_name), parameters, (LitStatement*) body, (LitParameter) {NULL, return_type.type});
 }
 
 static LitStatement* parse_method_statement(LitLexer* lexer, bool final, bool abstract, bool override, bool is_static, LitAccessType access, LitToken* method_name) {
 	const char* name = copy_string(lexer, method_name);
+	uint64_t line = lexer->last_line;
 
 	if (final) {
 		error(lexer, &lexer->previous, "Can't declare a final method");
@@ -740,6 +771,7 @@ static LitStatement* parse_method_statement(LitLexer* lexer, bool final, bool ab
 			body = (LitBlockStatement*) parse_block_statement(lexer);
 		}
 	} else if (match(lexer, TOKEN_EQUAL)) {
+		uint64_t line = lexer->last_line;
 		consume(lexer, TOKEN_GREATER, "Expected '>' after '='");
 
 		if (abstract) {
@@ -748,19 +780,20 @@ static LitStatement* parse_method_statement(LitLexer* lexer, bool final, bool ab
 			LitStatements* statements = (LitStatements*) reallocate(lexer->compiler, NULL, 0, sizeof(LitStatements));
 
 			lit_init_statements(statements);
-			lit_statements_write(lexer->compiler, statements, (LitStatement*) lit_make_return_statement(lexer->compiler, parse_expression(lexer)));
+			lit_statements_write(lexer->compiler, statements, (LitStatement*) lit_make_return_statement(lexer->compiler, line, parse_expression(lexer)));
 
-			body = lit_make_block_statement(lexer->compiler, statements);
+			body = lit_make_block_statement(lexer->compiler, line, statements);
 		}
 	} else if (!abstract) {
 		error(lexer, &lexer->previous, "Only abstract methods can have no body");
 	}
 
-	return (LitStatement*) lit_make_method_statement(lexer->compiler, name, parameters, (LitStatement*) body, (LitParameter) {NULL, return_type.type}, override, is_static, abstract, access);
+	return (LitStatement*) lit_make_method_statement(lexer->compiler, line, name, parameters, (LitStatement*) body, (LitParameter) {NULL, return_type.type}, override, is_static, abstract, access);
 }
 
 static LitStatement* parse_return_statement(LitLexer* lexer) {
-	return (LitStatement*) lit_make_return_statement(lexer->compiler, (lexer->current.type != TOKEN_RIGHT_BRACE && lexer->current.type != TOKEN_EOF) ? parse_expression(lexer) : NULL);
+	uint64_t line = lexer->last_line;
+	return (LitStatement*) lit_make_return_statement(lexer->compiler, line, (lexer->current.type != TOKEN_RIGHT_BRACE && lexer->current.type != TOKEN_EOF) ? parse_expression(lexer) : NULL);
 }
 
 static LitStatement* parse_statement(LitLexer* lexer) {
@@ -789,17 +822,18 @@ static LitStatement* parse_statement(LitLexer* lexer) {
 	}
 
 	if (match(lexer, TOKEN_BREAK)) {
-		return (LitStatement *) lit_make_break_statement(lexer->compiler);
+		return (LitStatement *) lit_make_break_statement(lexer->compiler, lexer->last_line);
 	}
 
 	if (match(lexer, TOKEN_CONTINUE)) {
-		return (LitStatement *) lit_make_continue_statement(lexer->compiler);
+		return (LitStatement *) lit_make_continue_statement(lexer->compiler, lexer->last_line);
 	}
 
 	return parse_expression_statement(lexer);
 }
 
 static LitStatement* parse_var_declaration(LitLexer* lexer, bool final) {
+	uint64_t line = lexer->last_line;
 	LitToken name = consume(lexer, TOKEN_IDENTIFIER, "Expected variable name");
 	LitExpression* init = NULL;
 
@@ -807,10 +841,11 @@ static LitStatement* parse_var_declaration(LitLexer* lexer, bool final) {
 		init = parse_expression(lexer);
 	}
 
-	return (LitStatement*) lit_make_var_statement(lexer->compiler, copy_string(lexer, &name), init, NULL, final);
+	return (LitStatement*) lit_make_var_statement(lexer->compiler, line, copy_string(lexer, &name), init, NULL, final);
 }
 
 static LitStatement* parse_extended_var_declaration(LitLexer* lexer, LitToken* type, LitToken* name, bool final) {
+	uint64_t line = lexer->last_line;
 	char* name_str = (char *) copy_string(lexer, name);
 	char* type_str = (char *) copy_string(lexer, type);
 
@@ -821,11 +856,12 @@ static LitStatement* parse_extended_var_declaration(LitLexer* lexer, LitToken* t
 		init = parse_expression(lexer);
 	}
 
-	return (LitStatement*) lit_make_var_statement(lexer->compiler, name_str, init, type_str, final);
+	return (LitStatement*) lit_make_var_statement(lexer->compiler, line, name_str, init, type_str, final);
 }
 
 static LitStatement* parse_field_declaration(LitLexer* lexer, bool final, bool abstract, bool override, bool is_static, LitAccessType access, LitToken* type, LitToken* var_name) {
 	LitExpression* init = NULL;
+	uint64_t line = lexer->last_line;
 	const char* name = copy_string(lexer, var_name);
 
 	if (abstract) {
@@ -848,10 +884,12 @@ static LitStatement* parse_field_declaration(LitLexer* lexer, bool final, bool a
 		error(lexer, &lexer->previous, "Can't declare a field without type");
 	}
 
-	return (LitStatement*) lit_make_field_statement(lexer->compiler, name, init, type == NULL ? NULL : copy_string(lexer, type), NULL, NULL, access, is_static, final);
+	return (LitStatement*) lit_make_field_statement(lexer->compiler, line, name, init, type == NULL ? NULL : copy_string(lexer, type), NULL, NULL, access, is_static, final);
 }
 
 static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, bool is_static, bool final, bool had_class_token) {
+	uint64_t line = lexer->last_line;
+
 	if (!had_class_token) {
 		consume(lexer, TOKEN_CLASS, "Expected 'class'");
 	}
@@ -865,7 +903,7 @@ static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, boo
 		}
 
 		consume(lexer, TOKEN_IDENTIFIER, "Expected superclass name");
-		super = lit_make_var_expression(lexer->compiler, copy_string(lexer, &lexer->previous));
+		super = lit_make_var_expression(lexer->compiler, line, copy_string(lexer, &lexer->previous));
 	}
 
 	LitMethods* methods = NULL;
@@ -982,7 +1020,7 @@ static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, boo
 		consume(lexer, TOKEN_RIGHT_BRACE, "Expect '}' after class body");
 	}
 
-	return (LitStatement*) lit_make_class_statement(lexer->compiler, copy_string(lexer, &name), super, methods, fields, abstract, is_static, final);
+	return (LitStatement*) lit_make_class_statement(lexer->compiler, line, copy_string(lexer, &name), super, methods, fields, abstract, is_static, final);
 }
 
 static LitStatement* parse_declaration(LitLexer* lexer) {
@@ -1000,7 +1038,7 @@ static LitStatement* parse_declaration(LitLexer* lexer) {
 
 			lexer->current = token;
 			lexer->current_code = token.start + token.length;
-			lexer->line = token.line;
+			lexer->last_line = token.line;
 		} else {
 			return parse_extended_var_declaration(lexer, &lexer->previous, &lexer->current, false);
 		}
@@ -1034,7 +1072,7 @@ static LitStatement* parse_declaration(LitLexer* lexer) {
 
 				lexer->current = token;
 				lexer->current_code = token.start + token.length;
-				lexer->line = token.line;
+				lexer->last_line = token.line;
 			} else {
 				return parse_extended_var_declaration(lexer, &lexer->previous, &lexer->current, true);
 			}

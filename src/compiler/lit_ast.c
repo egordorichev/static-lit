@@ -15,30 +15,30 @@ DEFINE_ARRAY(LitMethods, LitMethodStatement*, methods)
 DEFINE_TABLE(LitFields, LitField, fields, LitField*, (LitField) {}, &entry->value);
 
 #define ALLOCATE_EXPRESSION(compiler, type, object_type) \
-    (type*) allocate_expression(compiler, sizeof(type), object_type)
+    (type*) allocate_expression(compiler, line, sizeof(type), object_type)
 
-static LitExpression* allocate_expression(LitCompiler* compiler, size_t size, LitExpresionType type) {
+static LitExpression* allocate_expression(LitCompiler* compiler, uint64_t line, size_t size, LitExpresionType type) {
 	LitExpression* object = (LitExpression*) reallocate(compiler, NULL, 0, size);
 
 	object->type = type;
-	object->line = compiler->lexer.line;
+	object->line = line;
 
 	return object;
 }
 
 #define ALLOCATE_STATEMENT(compiler, type, object_type) \
-    (type*) allocate_statement(compiler, sizeof(type), object_type)
+    (type*) allocate_statement(compiler, line, sizeof(type), object_type)
 
-static LitStatement* allocate_statement(LitCompiler* compiler, size_t size, LitStatementType type) {
+static LitStatement* allocate_statement(LitCompiler* compiler, uint64_t line, size_t size, LitStatementType type) {
 	LitStatement* object = (LitStatement*) reallocate(compiler, NULL, 0, size);
 
 	object->type = type;
-	object->line = compiler->lexer.line;
+	object->line = line;
 
 	return object;
 }
 
-LitBinaryExpression* lit_make_binary_expression(LitCompiler* compiler, LitExpression* left, LitExpression* right, LitTokenType operator) {
+LitBinaryExpression* lit_make_binary_expression(LitCompiler* compiler, uint64_t line, LitExpression* left, LitExpression* right, LitTokenType operator) {
 	LitBinaryExpression* expression = ALLOCATE_EXPRESSION(compiler, LitBinaryExpression, BINARY_EXPRESSION);
 
 	expression->left = left;
@@ -49,7 +49,7 @@ LitBinaryExpression* lit_make_binary_expression(LitCompiler* compiler, LitExpres
 	return expression;
 }
 
-LitLiteralExpression* lit_make_literal_expression(LitCompiler* compiler, LitValue value) {
+LitLiteralExpression* lit_make_literal_expression(LitCompiler* compiler, uint64_t line, LitValue value) {
 	LitLiteralExpression* expression = ALLOCATE_EXPRESSION(compiler, LitLiteralExpression, LITERAL_EXPRESSION);
 
 	expression->value = value;
@@ -57,7 +57,7 @@ LitLiteralExpression* lit_make_literal_expression(LitCompiler* compiler, LitValu
 	return expression;
 }
 
-LitUnaryExpression* lit_make_unary_expression(LitCompiler* compiler, LitExpression* right, LitTokenType type) {
+LitUnaryExpression* lit_make_unary_expression(LitCompiler* compiler, uint64_t line, LitExpression* right, LitTokenType type) {
 	LitUnaryExpression* expression = ALLOCATE_EXPRESSION(compiler, LitUnaryExpression, UNARY_EXPRESSION);
 
 	expression->right = right;
@@ -66,7 +66,7 @@ LitUnaryExpression* lit_make_unary_expression(LitCompiler* compiler, LitExpressi
 	return expression;
 }
 
-LitGroupingExpression* lit_make_grouping_expression(LitCompiler* compiler, LitExpression* expr) {
+LitGroupingExpression* lit_make_grouping_expression(LitCompiler* compiler, uint64_t line, LitExpression* expr) {
 	LitGroupingExpression* expression = ALLOCATE_EXPRESSION(compiler, LitGroupingExpression, GROUPING_EXPRESSION);
 
 	expression->expr = expr;
@@ -74,7 +74,7 @@ LitGroupingExpression* lit_make_grouping_expression(LitCompiler* compiler, LitEx
 	return expression;
 }
 
-LitVarExpression* lit_make_var_expression(LitCompiler* compiler, const char* name) {
+LitVarExpression* lit_make_var_expression(LitCompiler* compiler, uint64_t line, const char* name) {
 	LitVarExpression* expression = ALLOCATE_EXPRESSION(compiler, LitVarExpression, VAR_EXPRESSION);
 
 	expression->name = name;
@@ -82,7 +82,7 @@ LitVarExpression* lit_make_var_expression(LitCompiler* compiler, const char* nam
 	return expression;
 }
 
-LitAssignExpression* lit_make_assign_expression(LitCompiler* compiler, LitExpression* to, LitExpression* value) {
+LitAssignExpression* lit_make_assign_expression(LitCompiler* compiler, uint64_t line, LitExpression* to, LitExpression* value) {
 	LitAssignExpression* expression = ALLOCATE_EXPRESSION(compiler, LitAssignExpression, ASSIGN_EXPRESSION);
 
 	expression->to = to;
@@ -91,7 +91,7 @@ LitAssignExpression* lit_make_assign_expression(LitCompiler* compiler, LitExpres
 	return expression;
 }
 
-LitLogicalExpression* lit_make_logical_expression(LitCompiler* compiler, LitTokenType operator, LitExpression* left, LitExpression* right) {
+LitLogicalExpression* lit_make_logical_expression(LitCompiler* compiler, uint64_t line, LitTokenType operator, LitExpression* left, LitExpression* right) {
 	LitLogicalExpression* expression = ALLOCATE_EXPRESSION(compiler, LitLogicalExpression, LOGICAL_EXPRESSION);
 
 	expression->operator = operator;
@@ -101,7 +101,7 @@ LitLogicalExpression* lit_make_logical_expression(LitCompiler* compiler, LitToke
 	return expression;
 }
 
-LitCallExpression* lit_make_call_expression(LitCompiler* compiler, LitExpression* callee, LitExpressions* args) {
+LitCallExpression* lit_make_call_expression(LitCompiler* compiler, uint64_t line, LitExpression* callee, LitExpressions* args) {
 	LitCallExpression* expression = ALLOCATE_EXPRESSION(compiler, LitCallExpression, CALL_EXPRESSION);
 
 	expression->callee = callee;
@@ -110,7 +110,7 @@ LitCallExpression* lit_make_call_expression(LitCompiler* compiler, LitExpression
 	return expression;
 }
 
-LitGetExpression* lit_make_get_expression(LitCompiler* compiler, LitExpression* object, const char* property) {
+LitGetExpression* lit_make_get_expression(LitCompiler* compiler, uint64_t line, LitExpression* object, const char* property) {
 	LitGetExpression* expression = ALLOCATE_EXPRESSION(compiler, LitGetExpression, GET_EXPRESSION);
 
 	expression->object = object;
@@ -120,7 +120,7 @@ LitGetExpression* lit_make_get_expression(LitCompiler* compiler, LitExpression* 
 	return expression;
 }
 
-LitSetExpression* lit_make_set_expression(LitCompiler* compiler, LitExpression* object, LitExpression* value, const char* property) {
+LitSetExpression* lit_make_set_expression(LitCompiler* compiler, uint64_t line, LitExpression* object, LitExpression* value, const char* property) {
 	LitSetExpression* expression = ALLOCATE_EXPRESSION(compiler, LitSetExpression, SET_EXPRESSION);
 
 	expression->object = object;
@@ -131,11 +131,11 @@ LitSetExpression* lit_make_set_expression(LitCompiler* compiler, LitExpression* 
 	return expression;
 }
 
-LitThisExpression* lit_make_this_expression(LitCompiler* compiler) {
+LitThisExpression* lit_make_this_expression(LitCompiler* compiler, uint64_t line) {
 	return ALLOCATE_EXPRESSION(compiler, LitThisExpression, THIS_EXPRESSION);
 }
 
-LitSuperExpression* lit_make_super_expression(LitCompiler* compiler, const char* method) {
+LitSuperExpression* lit_make_super_expression(LitCompiler* compiler, uint64_t line, const char* method) {
 	LitSuperExpression* expression = ALLOCATE_EXPRESSION(compiler, LitSuperExpression, SUPER_EXPRESSION);
 
 	expression->method = method;
@@ -143,7 +143,7 @@ LitSuperExpression* lit_make_super_expression(LitCompiler* compiler, const char*
 	return expression;
 }
 
-LitIfExpression* lit_make_if_expression(LitCompiler* compiler, LitExpression* condition, LitExpression* if_branch, LitExpression* else_branch, LitExpressions* else_if_branches, LitExpressions* else_if_conditions) {
+LitIfExpression* lit_make_if_expression(LitCompiler* compiler, uint64_t line, LitExpression* condition, LitExpression* if_branch, LitExpression* else_branch, LitExpressions* else_if_branches, LitExpressions* else_if_conditions) {
 	LitIfExpression* expression = ALLOCATE_EXPRESSION(compiler, LitIfExpression, IF_EXPRESSION);
 
 	expression->condition = condition;
@@ -155,7 +155,7 @@ LitIfExpression* lit_make_if_expression(LitCompiler* compiler, LitExpression* co
 	return expression;
 }
 
-LitLambdaExpression* lit_make_lambda_expression(LitCompiler* compiler, LitParameters* parameters, LitStatement* body, LitParameter return_type) {
+LitLambdaExpression* lit_make_lambda_expression(LitCompiler* compiler, uint64_t line, LitParameters* parameters, LitStatement* body, LitParameter return_type) {
 	LitLambdaExpression* expression = ALLOCATE_EXPRESSION(compiler, LitLambdaExpression, LAMBDA_EXPRESSION);
 
 	expression->parameters = parameters;
@@ -165,7 +165,7 @@ LitLambdaExpression* lit_make_lambda_expression(LitCompiler* compiler, LitParame
 	return expression;
 }
 
-LitVarStatement* lit_make_var_statement(LitCompiler* compiler, const char* name, LitExpression* init, const char* type, bool final) {
+LitVarStatement* lit_make_var_statement(LitCompiler* compiler, uint64_t line, const char* name, LitExpression* init, const char* type, bool final) {
 	LitVarStatement* statement = ALLOCATE_STATEMENT(compiler, LitVarStatement, VAR_STATEMENT);
 
 	statement->name = name;
@@ -176,7 +176,7 @@ LitVarStatement* lit_make_var_statement(LitCompiler* compiler, const char* name,
 	return statement;
 }
 
-LitExpressionStatement* lit_make_expression_statement(LitCompiler* compiler, LitExpression* expr) {
+LitExpressionStatement* lit_make_expression_statement(LitCompiler* compiler, uint64_t line, LitExpression* expr) {
 	LitExpressionStatement* statement = ALLOCATE_STATEMENT(compiler, LitExpressionStatement, EXPRESSION_STATEMENT);
 
 	statement->expr = expr;
@@ -184,7 +184,7 @@ LitExpressionStatement* lit_make_expression_statement(LitCompiler* compiler, Lit
 	return statement;
 }
 
-LitIfStatement* lit_make_if_statement(LitCompiler* compiler, LitExpression* condition, LitStatement* if_branch, LitStatement* else_branch, LitStatements* else_if_branches, LitExpressions* else_if_conditions) {
+LitIfStatement* lit_make_if_statement(LitCompiler* compiler, uint64_t line, LitExpression* condition, LitStatement* if_branch, LitStatement* else_branch, LitStatements* else_if_branches, LitExpressions* else_if_conditions) {
 	LitIfStatement* statement = ALLOCATE_STATEMENT(compiler, LitIfStatement, IF_STATEMENT);
 
 	statement->condition = condition;
@@ -196,7 +196,7 @@ LitIfStatement* lit_make_if_statement(LitCompiler* compiler, LitExpression* cond
 	return statement;
 }
 
-LitBlockStatement* lit_make_block_statement(LitCompiler* compiler, LitStatements* statements) {
+LitBlockStatement* lit_make_block_statement(LitCompiler* compiler, uint64_t line, LitStatements* statements) {
 	LitBlockStatement* statement = ALLOCATE_STATEMENT(compiler, LitBlockStatement, BLOCK_STATEMENT);
 
 	statement->statements = statements;
@@ -204,7 +204,7 @@ LitBlockStatement* lit_make_block_statement(LitCompiler* compiler, LitStatements
 	return statement;
 }
 
-LitWhileStatement* lit_make_while_statement(LitCompiler* compiler, LitExpression* condition, LitStatement* body) {
+LitWhileStatement* lit_make_while_statement(LitCompiler* compiler, uint64_t line, LitExpression* condition, LitStatement* body) {
 	LitWhileStatement* statement = ALLOCATE_STATEMENT(compiler, LitWhileStatement, WHILE_STATEMENT);
 
 	statement->condition = condition;
@@ -213,7 +213,7 @@ LitWhileStatement* lit_make_while_statement(LitCompiler* compiler, LitExpression
 	return statement;
 }
 
-LitFunctionStatement* lit_make_function_statement(LitCompiler* compiler, const char* name, LitParameters* parameters, LitStatement* body, LitParameter return_type) {
+LitFunctionStatement* lit_make_function_statement(LitCompiler* compiler, uint64_t line, const char* name, LitParameters* parameters, LitStatement* body, LitParameter return_type) {
 	LitFunctionStatement* statement = ALLOCATE_STATEMENT(compiler, LitFunctionStatement, FUNCTION_STATEMENT);
 
 	statement->name = name;
@@ -224,7 +224,7 @@ LitFunctionStatement* lit_make_function_statement(LitCompiler* compiler, const c
 	return statement;
 }
 
-LitReturnStatement* lit_make_return_statement(LitCompiler* compiler, LitExpression* value) {
+LitReturnStatement* lit_make_return_statement(LitCompiler* compiler, uint64_t line, LitExpression* value) {
 	LitReturnStatement* statement = ALLOCATE_STATEMENT(compiler, LitReturnStatement, RETURN_STATEMENT);
 
 	statement->value = value;
@@ -232,7 +232,7 @@ LitReturnStatement* lit_make_return_statement(LitCompiler* compiler, LitExpressi
 	return statement;
 }
 
-LitFieldStatement* lit_make_field_statement(LitCompiler* compiler, const char* name, LitExpression* init, const char* type,
+LitFieldStatement* lit_make_field_statement(LitCompiler* compiler, uint64_t line, const char* name, LitExpression* init, const char* type,
 	LitStatement* getter, LitStatement* setter, LitAccessType access, bool is_static, bool final) {
 
 	LitFieldStatement* statement = ALLOCATE_STATEMENT(compiler, LitFieldStatement, FIELD_STATEMENT);
@@ -249,7 +249,7 @@ LitFieldStatement* lit_make_field_statement(LitCompiler* compiler, const char* n
 	return statement;
 }
 
-LitMethodStatement* lit_make_method_statement(LitCompiler* compiler, const char* name, LitParameters* parameters, LitStatement* body,
+LitMethodStatement* lit_make_method_statement(LitCompiler* compiler, uint64_t line, const char* name, LitParameters* parameters, LitStatement* body,
 	LitParameter return_type, bool overriden, bool is_static, bool abstract, LitAccessType access) {
 
 	LitMethodStatement* statement = ALLOCATE_STATEMENT(compiler, LitMethodStatement, METHOD_STATEMENT);
@@ -266,7 +266,7 @@ LitMethodStatement* lit_make_method_statement(LitCompiler* compiler, const char*
 	return statement;
 }
 
-LitClassStatement* lit_make_class_statement(LitCompiler* compiler, const char* name, LitVarExpression* super, LitMethods* methods,
+LitClassStatement* lit_make_class_statement(LitCompiler* compiler, uint64_t line, const char* name, LitVarExpression* super, LitMethods* methods,
 		LitStatements* fields, bool abstract, bool is_static, bool final) {
 
 	LitClassStatement* statement = ALLOCATE_STATEMENT(compiler, LitClassStatement, CLASS_STATEMENT);
@@ -282,11 +282,11 @@ LitClassStatement* lit_make_class_statement(LitCompiler* compiler, const char* n
 	return statement;
 }
 
-LitBreakStatement* lit_make_break_statement(LitCompiler* compiler) {
+LitBreakStatement* lit_make_break_statement(LitCompiler* compiler, uint64_t line) {
 	return ALLOCATE_STATEMENT(compiler, LitBreakStatement, BREAK_STATEMENT);
 }
 
-LitContinueStatement* lit_make_continue_statement(LitCompiler* compiler) {
+LitContinueStatement* lit_make_continue_statement(LitCompiler* compiler, uint64_t line) {
 	return ALLOCATE_STATEMENT(compiler, LitContinueStatement, CONTINUE_STATEMENT);
 }
 

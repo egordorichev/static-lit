@@ -47,7 +47,7 @@ static void runtime_error(LitVm* vm, const char* format, ...) {
 	for (int i = vm->frame_count - 1; i >= 0; i--) {
 		LitFrame* frame = &vm->frames[i];
 		LitFunction* function = frame->closure->function;
-		fprintf(stderr, "%s():%ld\n", function->name->chars, lit_chunk_get_line(&function->chunk, frame->ip - function->chunk.code - 2));
+		fprintf(stderr, "%s():%ld\n", function->name->chars, lit_chunk_get_line(&function->chunk, frame->ip - function->chunk.code - 1));
 	}
 
 	vm->abort = true;
@@ -307,7 +307,9 @@ static bool interpret(LitVm* vm) {
 		functions[OP_TOTAL] = &&op_unknown;
 	}
 
-	// FIXME: optimize the dispatch
+	vm->abort = false;
+
+	// TODO: optimize the dispatch
 	register LitFrame* frame = &vm->frames[vm->frame_count - 1];
 	register LitValue* stack = vm->stack;
 
