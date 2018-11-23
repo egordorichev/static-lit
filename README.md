@@ -1,6 +1,6 @@
 ### lit
 
-lit is a tiny and fast language, designed to be embeddable and used as a scripting language. It takes inspiration from JavaScript, Java, C# and Lua, and combines them all into a staticly-typed stack-vm based beast.
+lit is a tiny and fast language, designed to be embeddable and used as a scripting language. It takes inspiration from JavaScript, Java, C# and Lua, and combines them all into a staticly-typed stack-vm based language.
 
 Here is how it looks:
 
