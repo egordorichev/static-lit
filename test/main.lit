@@ -1,9 +1,15 @@
-print(true ? "awesome" : "meh")
+void function(String a) {
+	print("hi")
+	print(a)
+}
+
+function("world")
 
 //* todo list:
 
 * fix chars
 * gc
+* new lambda syntax
 * for var i in 10 .. 32
 * and, or, xor, etc (word equalient of operators)
 * predefine methods/functions, then resolve them (main() function?)
