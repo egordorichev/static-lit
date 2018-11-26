@@ -25,10 +25,10 @@ var a = Awesome()
 a.doStuff() // -> Awesome
 
 if true { 
-    // You can ignore () if you want, but you sill can
-    // do this: if (true) { ... }
-    // or this: if !(true && false) { .. }
-    print("Truth is right!") 
+	// You can ignore () if you want, but you sill can
+	// do this: if (true) { ... }
+	// or this: if !(true && false) { .. }
+	print("Truth is right!") 
 }
 ```
 
