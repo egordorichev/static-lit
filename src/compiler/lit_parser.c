@@ -474,9 +474,7 @@ static LitStatement* parse_expression_statement(LitLexer* lexer) {
 }
 
 static LitStatement* parse_if_statement(LitLexer* lexer) {
-	consume(lexer, TOKEN_LEFT_PAREN, "Expected '(' after if");
 	LitExpression* condition = parse_expression(lexer);
-	consume(lexer, TOKEN_RIGHT_PAREN, "Expected ')' after if condition");
 
 	LitStatement* if_branch = parse_statement(lexer);
 	LitStatement* else_branch = NULL;
@@ -497,11 +495,8 @@ static LitStatement* parse_if_statement(LitLexer* lexer) {
 				lit_init_statements(else_if_branches);
 			}
 
-			consume(lexer, TOKEN_LEFT_PAREN, "Expected '(' after else if");
 			lit_expressions_write(lexer->compiler, else_if_conditions, parse_expression(lexer));
-			consume(lexer, TOKEN_RIGHT_PAREN, "Expected ')' after else if condition");
-
-				lit_statements_write(lexer->compiler, else_if_branches, parse_statement(lexer));
+			lit_statements_write(lexer->compiler, else_if_branches, parse_statement(lexer));
 		} else {
 			else_branch = parse_statement(lexer);
 		}
@@ -511,16 +506,12 @@ static LitStatement* parse_if_statement(LitLexer* lexer) {
 }
 
 static LitStatement* parse_while(LitLexer* lexer) {
-	consume(lexer, TOKEN_LEFT_PAREN, "Expected '(' after while");
 	LitExpression* condition = parse_expression(lexer);
-	consume(lexer, TOKEN_RIGHT_PAREN, "Expected ')' after while condition");
-
 	return (LitStatement*) lit_make_while_statement(lexer->compiler, condition, parse_statement(lexer));
 }
 
 static LitStatement* parse_for(LitLexer* lexer) {
-	consume(lexer, TOKEN_LEFT_PAREN, "Expected '(' after while");
-
+	bool had_paren = match(lexer, TOKEN_LEFT_PAREN);
 	LitStatement* init = NULL;
 
 	if (match(lexer, TOKEN_VAR)) {
@@ -538,14 +529,15 @@ static LitStatement* parse_for(LitLexer* lexer) {
 	}
 
 	consume(lexer, TOKEN_SEMICOLON, "Expected ; after for condition");
-
 	LitExpression* increment = NULL;
 
 	if (lexer->current.type != TOKEN_SEMICOLON) {
 		increment = parse_expression(lexer);
 	}
 
-	consume(lexer, TOKEN_RIGHT_PAREN, "Expected ')' after for");
+	if (had_paren) {
+		consume(lexer, TOKEN_RIGHT_PAREN, "Expected ')' after for");
+	}
 
 	LitStatement* body = parse_statement(lexer);
 

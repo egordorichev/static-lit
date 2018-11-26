@@ -1,0 +1,19 @@
+fun test(double a, double b) > double {
+	print(a)
+	print(b)
+
+	return a + b
+}
+
+var result = test(10, 20)
+// Expected: 10
+// Expected: 20
+
+print(result) // Expected: 30
+
+var t = test
+result = t(3, 4)
+// Expected: 3
+// Expected: 4
+
+print(result) // Expected: 7

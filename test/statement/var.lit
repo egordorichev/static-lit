@@ -1,0 +1,18 @@
+var t = 10
+print(t) // Expected: 10
+
+int b = 20
+print(b) // Expected: 20
+
+String m = "test"
+print(m) // Expected: test
+
+// Not working FIXME
+// val k = 'c'
+// print(k)
+
+final var q = -32
+print(q) // Expected: -32
+
+final String w = "w"
+print(w) // Expected: w

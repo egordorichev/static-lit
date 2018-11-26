@@ -19,7 +19,7 @@ void show_repl() {
 
 		if (!fgets(line, sizeof(line), stdin)) {
 			printf("\n");
-			break;
+			break.lit;
 		}
 
 		lit_execute(&vm, line);

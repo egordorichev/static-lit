@@ -303,7 +303,7 @@ void lit_trace_statement(LitMemManager* manager, LitStatement* statement, int de
 				break;
 			}
 			case BREAK_STATEMENT: {
-				printf("\"type\" : \"break\"\n");
+				printf("\"type\" : \"break.lit\"\n");
 				break;
 			}
 			case CONTINUE_STATEMENT: {

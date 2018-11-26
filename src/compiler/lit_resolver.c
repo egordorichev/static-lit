@@ -620,7 +620,7 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 
 static void resolve_break_statement(LitResolver* resolver, LitBreakStatement* statement) {
 	if (resolver->loop == NULL) {
-		error(resolver, "Can't use 'break' outside of a loop");
+		error(resolver, "Can't use 'break.lit' outside of a loop");
 	}
 }
 

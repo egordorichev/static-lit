@@ -1,0 +1,10 @@
+var a = 10
+
+print(a += 2) // Expected: 12
+print(a -= 14) // Expected: -2
+print(a *= 2) // Expected: -4
+print(a /= 2) // Expected: -2
+print(a ^= 5) // Expected: -32
+
+a = 2 ^ 4
+print(a #= 4) // Expected: 2

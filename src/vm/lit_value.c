@@ -11,20 +11,24 @@ static char output[21];
 static DoubleUnion data;
 
 char *lit_to_string(LitVm* vm, LitValue value) {
-	if (IS_BOOL(value)) {
-		return AS_BOOL(value) ? "true" : "false";
-	} else if (IS_NUMBER(value)) {
-		snprintf(output, 21, "%g", AS_NUMBER(value));
-		output[20] = '\0';
+	int tag = GET_TAG(value);
 
-		return output;
-	} else if (IS_NIL(value)) {
-		return "nil";
-	} else if (IS_CHAR(value)) {
+	if (tag == TAG_FALSE) {
+		return "false";
+	} else if (tag == TAG_TRUE) {
+		return "true";
+	} else if (tag == TAG_CHAR) {
 		data.bits64 = value;
 
 		snprintf(output, 2, "%c", data.bits16[0]);
 		output[2] = '\0';
+
+		return output;
+	} else if (tag == TAG_NIL) {
+		return "nil";
+	} else if (IS_NUMBER(value)) {
+		snprintf(output, 21, "%g", AS_NUMBER(value));
+		output[20] = '\0';
 
 		return output;
 	} else if (IS_OBJECT(value)) {

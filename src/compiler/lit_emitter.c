@@ -8,7 +8,7 @@
 #include <compiler/lit_emitter.h>
 #include <vm/lit_memory.h>
 
-DEFINE_ARRAY(LitInts, int, ints)
+DEFINE_ARRAY(LitInts, uint64_t, ints)
 
 static void emit_byte(LitEmitter* emitter, uint8_t byte, uint64_t line) {
 	lit_chunk_write(emitter->compiler, &emitter->function->function->chunk, byte, line);
@@ -101,7 +101,6 @@ static int resolve_local(LitEmitterFunction* function, const char* name) {
 static int add_upvalue(LitEmitter* emitter, LitEmitterFunction* function, uint8_t index, bool is_local);
 static int add_local(LitEmitter* emitter, const char* name);
 static void emit_statement(LitEmitter* emitter, LitStatement* statement);
-static bool no_pop;
 
 static int resolve_upvalue(LitEmitter* emitter, LitEmitterFunction* function, char* name) {
 	if (function->enclosing == NULL) {
@@ -347,11 +346,11 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 			LitIfExpression* expr = (LitIfExpression*) expression;
 			emit_expression(emitter, expr->condition);
 
-			int else_jump = emit_jump(emitter, OP_JUMP_IF_FALSE, expression->line);
+			uint64_t else_jump = emit_jump(emitter, OP_JUMP_IF_FALSE, expression->line);
 			emit_expression(emitter, expr->if_branch);
 
-			int end_jump = emit_jump(emitter, OP_JUMP, expression->line);
-			int end_jumps[expr->else_if_branches == NULL ? 0 : expr->else_if_branches->count];
+			uint64_t end_jump = emit_jump(emitter, OP_JUMP, expression->line);
+			uint64_t end_jumps[expr->else_if_branches == NULL ? 0 : expr->else_if_branches->count];
 
 			if (expr->else_if_branches != NULL) {
 				for (int i = 0; i < expr->else_if_branches->count; i++) {
@@ -465,12 +464,7 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 		}
 		case EXPRESSION_STATEMENT:
 			emit_expression(emitter, ((LitExpressionStatement*) statement)->expr);
-
-			if (!no_pop) {
-				emit_byte(emitter, OP_POP, statement->line);
-			} else {
-				no_pop = false;
-			}
+			emit_byte(emitter, OP_POP, statement->line);
 
 			break;
 		case IF_STATEMENT: {
@@ -514,7 +508,6 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 
 			if (stmt->statements != NULL) {
 				emit_statements(emitter, stmt->statements);
-				emit_byte(emitter, OP_POP, statement->line);
 			}
 
 			break;
@@ -525,7 +518,6 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 			uint64_t loop_start = emitter->function->function->chunk.count;
 			emitter->loop_start = loop_start; // Save for continue statements
 
-			no_pop = true;
 			emit_expression(emitter, stmt->condition);
 			uint64_t exit_jump = emit_jump(emitter, OP_JUMP_IF_FALSE, statement->line);
 			emit_byte(emitter, OP_POP, statement->line);
@@ -533,6 +525,7 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 			emit_statement(emitter, stmt->body);
 			emit_loop(emitter, loop_start, statement->line);
 			patch_jump(emitter, exit_jump);
+			emit_byte(emitter, OP_POP, statement->line);
 
 			// Patch breaks
 			for (int i = 0; i < emitter->breaks.count; i++) {
@@ -690,7 +683,7 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 			UNREACHABLE();
 		}
 		case BREAK_STATEMENT: {
-			int jump = emit_jump(emitter, OP_JUMP, statement->line);
+			lit_ints_write(emitter->compiler, &emitter->breaks, emit_jump(emitter, OP_JUMP, statement->line));
 			break;
 		}
 		case CONTINUE_STATEMENT: {

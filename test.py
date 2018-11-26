@@ -70,7 +70,7 @@ class Test:
     subpath = ""
     state = None
 
-    # Figure out the state of the test. We don't break out of this loop because
+    # Figure out the state of the test. We don't break.lit out of this loop because
     # we want lines for more specific paths to override more general ones.
     for part in parts:
       if subpath: subpath += '/'
