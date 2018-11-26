@@ -1,9 +1,16 @@
-void function(String a) {
-	print("hi")
-	print(a)
+class Test {
+	String test = "hi"
+	var another = ":p"
+
+	void function(String a) {
+		print(this.test)
+		print(this.another)
+		print(a)
+	}
 }
 
-function("world")
+var t = Test()
+t.function("world")
 
 //* todo list:
 

@@ -21,7 +21,6 @@ void* reallocate(LitMemManager* manager, void* previous, size_t old_size, size_t
 
 	if (new_size == 0) {
 		free(previous);
-
 		return NULL;
 	}
 

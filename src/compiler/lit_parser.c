@@ -684,9 +684,7 @@ static LitStatement* parse_function_statement(LitLexer* lexer, char* return_type
 	return (LitStatement*) lit_make_function_statement(lexer->compiler, name, parameters, (LitStatement*) body, (LitParameter) {NULL, return_type});
 }
 
-static LitStatement* parse_method_statement(LitLexer* lexer, bool final, bool abstract, bool override, bool is_static, LitAccessType access, LitToken* method_name) {
-	const char* name = copy_string(lexer, method_name);
-
+static LitStatement* parse_method_statement(LitLexer* lexer, bool final, bool abstract, bool override, bool is_static, LitAccessType access, char* return_type, char* name) {
 	if (final) {
 		error(lexer, &lexer->previous, "Can't declare a final method");
 	}
@@ -713,14 +711,6 @@ static LitStatement* parse_method_statement(LitLexer* lexer, bool final, bool ab
 
 	consume(lexer, TOKEN_RIGHT_PAREN, "Expected ')' after parameters");
 
-	LitParameter return_type = (LitParameter) { NULL, "void" };
-
-	if (match(lexer, TOKEN_GREATER)) {
-		LitToken type = consume(lexer, TOKEN_IDENTIFIER, "Expected return type");
-
-		return_type.type = copy_string(lexer, &type);
-	}
-
 	LitBlockStatement* body = NULL;
 
 	if (match(lexer, TOKEN_LEFT_BRACE)) {
@@ -746,7 +736,7 @@ static LitStatement* parse_method_statement(LitLexer* lexer, bool final, bool ab
 		error(lexer, &lexer->previous, "Only abstract methods can have no body");
 	}
 
-	return (LitStatement*) lit_make_method_statement(lexer->compiler, name, parameters, (LitStatement*) body, (LitParameter) {NULL, return_type.type}, override, is_static, abstract, access);
+	return (LitStatement*) lit_make_method_statement(lexer->compiler, name, parameters, (LitStatement*) body, (LitParameter) {NULL, return_type}, override, is_static, abstract, access);
 }
 
 static LitStatement* parse_return_statement(LitLexer* lexer) {
@@ -810,16 +800,15 @@ static LitStatement* parse_extended_var_declaration(LitLexer* lexer, LitToken* t
 	return (LitStatement*) lit_make_var_statement(lexer->compiler, name_str, init, type_str, final);
 }
 
-static LitStatement* parse_field_declaration(LitLexer* lexer, bool final, bool abstract, bool override, bool is_static, LitAccessType access, LitToken* type, LitToken* var_name) {
+static LitStatement* parse_field_declaration(LitLexer* lexer, bool final, bool abstract, bool override, bool is_static, LitAccessType access, char* type, char* name) {
 	LitExpression* init = NULL;
-	const char* name = copy_string(lexer, var_name);
 
 	if (abstract) {
-		error(lexer, var_name, "Can't declare abstract field");
+		error(lexer, &lexer->previous, "Can't declare abstract field");
 	}
 
 	if (override) {
-		error(lexer, var_name, "Can't override a field");
+		error(lexer, &lexer->previous, "Can't override a field");
 	}
 
 	if (match(lexer, TOKEN_EQUAL)) {
@@ -834,7 +823,7 @@ static LitStatement* parse_field_declaration(LitLexer* lexer, bool final, bool a
 		error(lexer, &lexer->previous, "Can't declare a field without type");
 	}
 
-	return (LitStatement*) lit_make_field_statement(lexer->compiler, name, init, type == NULL ? NULL : copy_string(lexer, type), NULL, NULL, access, is_static, final);
+	return (LitStatement*) lit_make_field_statement(lexer->compiler, name, init, type, NULL, NULL, access, is_static, final);
 }
 
 static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, bool is_static, bool final, bool had_class_token) {
@@ -842,7 +831,8 @@ static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, boo
 		consume(lexer, TOKEN_CLASS, "Expected 'class'");
 	}
 
-	LitToken name = consume(lexer, TOKEN_IDENTIFIER, "Expect class name");
+	LitToken name_token = consume(lexer, TOKEN_IDENTIFIER, "Expect class name");
+	char* class_name = (char *) copy_string(lexer, &name_token);
 	LitVarExpression* super = NULL;
 
 	if (match(lexer, TOKEN_LESS)) {
@@ -927,40 +917,54 @@ static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, boo
 				}
 			}
 
-			if (access == UNDEFINED_ACCESS) {
-				access = PUBLIC_ACCESS;
-			}
-
 			if (match(lexer, TOKEN_VAR)) {
+				if (access == UNDEFINED_ACCESS) {
+					access = PROTECTED_ACCESS;
+				}
+
 				if (fields == NULL) {
 					fields = (LitStatements*) reallocate(lexer->compiler, NULL, 0, sizeof(LitStatements));
 					lit_init_statements(fields);
 				}
 
-				LitToken* name = &lexer->previous;
+				char* name = (char *) copy_string(lexer, &lexer->current);
 				advance(lexer);
 				lit_statements_write(lexer->compiler, fields, parse_field_declaration(lexer, final, is_abstract, override, field_is_static, access, NULL, name));
 			} else {
+				if (access == UNDEFINED_ACCESS) {
+					access = PUBLIC_ACCESS;
+				}
+
 				consume(lexer, TOKEN_IDENTIFIER, "Expected method name or variable type");
 
-				if (lexer->current.type != TOKEN_IDENTIFIER) {
+				LitToken before = lexer->previous;
+				advance(lexer);
+
+				char* type = (char *) copy_string(lexer, &before);
+				char* name = (char *) copy_string(lexer, &lexer->previous);
+
+				if (lexer->current.type == TOKEN_LEFT_PAREN) {
 					if (methods == NULL) {
 						methods = (LitMethods*) reallocate(lexer->compiler, NULL, 0, sizeof(LitMethods));
 						lit_init_methods(methods);
 					}
 
-					lit_methods_write(lexer->compiler, methods, (LitMethodStatement*) parse_method_statement(lexer, final, is_abstract, override, field_is_static, access, &lexer->previous));
+					lit_methods_write(lexer->compiler, methods, (LitMethodStatement*) parse_method_statement(lexer, final, is_abstract, override, field_is_static, access, type, name));
 				} else {
-					LitToken type = lexer->previous;
+					LitToken token = lexer->previous;
+
+					lexer->previous = before;
+					lexer->current = token;
+					lexer->current_code = token.start + token.length;
+					lexer->line = token.line;
 
 					if (fields == NULL) {
 						fields = (LitStatements*) reallocate(lexer->compiler, NULL, 0, sizeof(LitStatements));
 						lit_init_statements(fields);
 					}
 
-					LitToken* name = &lexer->previous;
 					advance(lexer);
-					lit_statements_write(lexer->compiler, fields, parse_field_declaration(lexer, final, is_abstract, override, field_is_static, access, &type, name));
+					lit_statements_write(lexer->compiler, fields, parse_field_declaration(lexer, final, is_abstract, override, field_is_static, access, type, name));
 				}
 			}
 		}
@@ -968,7 +972,7 @@ static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, boo
 		consume(lexer, TOKEN_RIGHT_BRACE, "Expect '}' after class body");
 	}
 
-	return (LitStatement*) lit_make_class_statement(lexer->compiler, copy_string(lexer, &name), super, methods, fields, abstract, is_static, final);
+	return (LitStatement*) lit_make_class_statement(lexer->compiler, class_name, super, methods, fields, abstract, is_static, final);
 }
 
 static LitStatement* parse_declaration(LitLexer* lexer) {
