@@ -347,6 +347,7 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 			emit_expression(emitter, expr->condition);
 
 			uint64_t else_jump = emit_jump(emitter, OP_JUMP_IF_FALSE, expression->line);
+			emit_byte(emitter, OP_POP, expression->line);
 			emit_expression(emitter, expr->if_branch);
 
 			uint64_t end_jump = emit_jump(emitter, OP_JUMP, expression->line);
@@ -355,8 +356,10 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 			if (expr->else_if_branches != NULL) {
 				for (int i = 0; i < expr->else_if_branches->count; i++) {
 					patch_jump(emitter, else_jump);
+					emit_byte(emitter, OP_POP, expression->line);
 					emit_expression(emitter, expr->else_if_conditions->values[i]);
 					else_jump = emit_jump(emitter, OP_JUMP_IF_FALSE, expression->line);
+					emit_byte(emitter, OP_POP, expression->line);
 					emit_expression(emitter, expr->else_if_branches->values[i]);
 
 					end_jumps[i] = emit_jump(emitter, OP_JUMP, expression->line);
@@ -364,6 +367,7 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 			}
 
 			patch_jump(emitter, else_jump);
+			emit_byte(emitter, OP_POP, expression->line);
 
 			if (expr->else_branch != NULL) {
 				emit_expression(emitter, expr->else_branch);

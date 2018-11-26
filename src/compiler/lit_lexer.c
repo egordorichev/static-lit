@@ -266,6 +266,7 @@ LitToken lit_lexer_next_token(LitLexer* lexer) {
 		case '{': return make_token(lexer, TOKEN_LEFT_BRACE);
 		case '}': return make_token(lexer, TOKEN_RIGHT_BRACE);
 		case ';': return make_token(lexer, TOKEN_SEMICOLON);
+		case '?': return make_token(lexer, TOKEN_QUESTION);
 		case ',': return make_token(lexer, TOKEN_COMMA);
 		case '^': return make_token(lexer, match(lexer, '=') ? TOKEN_CARET_EQUAL : TOKEN_CARET);
 		case '#': return make_token(lexer, match(lexer, '=') ? TOKEN_CELL_EQUAL : TOKEN_CELL);
@@ -274,7 +275,7 @@ LitToken lit_lexer_next_token(LitLexer* lexer) {
 		case '+': return make_token(lexer, match(lexer, '=') ? TOKEN_PLUS_EQUAL : (match(lexer, '+') ? TOKEN_PLUS_PLUS : TOKEN_PLUS));
 		case '/': return make_token(lexer, match(lexer, '=') ? TOKEN_SLASH_EQUAL : TOKEN_SLASH);
 		case '*': return make_token(lexer, match(lexer, '=') ? TOKEN_STAR_EQUAL : TOKEN_STAR);
-		case ':': return make_token(lexer, TOKEN_COLLUMN);
+		case ':': return make_token(lexer, TOKEN_COLON);
 		case '!': return make_token(lexer, match(lexer, '=') ? TOKEN_BANG_EQUAL : TOKEN_BANG);
 		case '=': return make_token(lexer, match(lexer, '=') ? TOKEN_EQUAL_EQUAL : TOKEN_EQUAL);
 		case '<': return make_token(lexer, match(lexer, '=') ? TOKEN_LESS_EQUAL : TOKEN_LESS);

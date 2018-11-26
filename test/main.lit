@@ -1,20 +1,4 @@
-for var i = 0; i < 10; i++ {
-	print(i)
-}
-
-//*
-
-class Awesome {
-
-}
-
-class Test {
-
-}
-
-var m = Test()
-print(m is Test)
-print(m is Awesome)
+print(true ? "awesome" : "meh")
 
 //* todo list:
 
@@ -26,11 +10,9 @@ print(m is Awesome)
 * saving / loading bytecode
 * getters / setters
 * int a should be assigned 0 and not nil
-* if !(true) {}
 * OP_CONSTANT_LONG
 * Fix error cascades
 * Error reporting: nicer stack traces
-* true ? thing() : else()
 * fix stdout / stderr sync
 * growing stack
 * foreign classes
