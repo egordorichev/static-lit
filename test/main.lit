@@ -9,7 +9,7 @@ class Test {
 	}
 }
 
-Test tt() => return Test()
+Test tt() => Test()
 
 var t = tt()
 t.function("world")

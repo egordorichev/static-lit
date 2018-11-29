@@ -695,22 +695,17 @@ static LitStatement* parse_function_statement(LitLexer* lexer, char* return_type
 
 	consume(lexer, TOKEN_RIGHT_PAREN, "Expected ')' after parameters");
 
-	LitBlockStatement* body;
+	LitStatement* body;
 
 	if (match(lexer, TOKEN_ARROW)) {
 		uint64_t line = lexer->last_line;
-		LitStatements* statements = (LitStatements*) reallocate(lexer->compiler, NULL, 0, sizeof(LitStatements));
-
-		lit_init_statements(statements);
-		lit_statements_write(lexer->compiler, statements, parse_statement(lexer));
-
-		body = lit_make_block_statement(lexer->compiler, line, statements);
+		body = (LitStatement *) lit_make_return_statement(lexer->compiler, line, parse_expression(lexer));
 	} else {
 		consume(lexer, TOKEN_LEFT_BRACE, "Expected '{' before function body");
-		body = (LitBlockStatement*) parse_block_statement(lexer);
+		body = parse_block_statement(lexer);
 	}
 
-	return (LitStatement*) lit_make_function_statement(lexer->compiler, line, name, parameters, (LitStatement*) body, (LitParameter) {NULL, return_type});
+	return (LitStatement*) lit_make_function_statement(lexer->compiler, line, name, parameters, body, (LitParameter) {NULL, return_type});
 }
 
 static LitStatement* parse_method_statement(LitLexer* lexer, bool final, bool abstract, bool override, bool is_static, LitAccessType access, char* return_type, char *name) {
@@ -742,13 +737,13 @@ static LitStatement* parse_method_statement(LitLexer* lexer, bool final, bool ab
 
 	consume(lexer, TOKEN_RIGHT_PAREN, "Expected ')' after parameters");
 
-	LitBlockStatement* body = NULL;
+	LitStatement* body = NULL;
 
 	if (match(lexer, TOKEN_LEFT_BRACE)) {
 		if (abstract) {
 			error(lexer, &lexer->previous, "Abstract method can't have body");
 		} else {
-			body = (LitBlockStatement*) parse_block_statement(lexer);
+			body = parse_block_statement(lexer);
 		}
 	} else if (match(lexer, TOKEN_ARROW)) {
 		uint64_t line = lexer->last_line;
@@ -756,18 +751,13 @@ static LitStatement* parse_method_statement(LitLexer* lexer, bool final, bool ab
 		if (abstract) {
 			error(lexer, &lexer->previous, "Abstract method can't have body");
 		} else {
-			LitStatements* statements = (LitStatements*) reallocate(lexer->compiler, NULL, 0, sizeof(LitStatements));
-
-			lit_init_statements(statements);
-			lit_statements_write(lexer->compiler, statements, (LitStatement*) lit_make_return_statement(lexer->compiler, line, parse_expression(lexer)));
-
-			body = lit_make_block_statement(lexer->compiler, line, statements);
+			body = lit_make_return_statement(lexer->compiler, line, parse_expression(lexer));
 		}
 	} else if (!abstract) {
 		error(lexer, &lexer->previous, "Only abstract methods can have no body");
 	}
 
-	return (LitStatement*) lit_make_method_statement(lexer->compiler, line, name, parameters, (LitStatement*) body, (LitParameter) {NULL, return_type}, override, is_static, abstract, access);
+	return (LitStatement*) lit_make_method_statement(lexer->compiler, line, name, parameters, body, (LitParameter) {NULL, return_type}, override, is_static, abstract, access);
 }
 
 static LitStatement* parse_return_statement(LitLexer* lexer) {
