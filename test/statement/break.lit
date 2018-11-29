@@ -1,0 +1,11 @@
+var i = 0
+var c = 0
+
+while (i < 4) {
+	c++
+	break
+	i++
+}
+
+print(c) // Expected: 1
+print(i) // Expected: 0

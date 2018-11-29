@@ -18,11 +18,15 @@
 
 typedef uint64_t LitValue;
 
-#define IS_BOOL(v) (((v) & (QNAN | TAG_FALSE)) == (QNAN | TAG_FALSE))
+#define MASK_TAG (7)
+#define GET_TAG(value) ((int) ((value) & MASK_TAG))
+#define IS_FALSE(v) (GET_TAG(v) == TAG_FALSE)
+#define IS_TRUE(v) (GET_TAG(v) == TAG_TRUE)
+#define IS_CHAR(v) (GET_TAG(v) == TAG_CHAR)
+#define IS_BOOL(v) (IS_TRUE(v) || IS_FALSE(v))
 #define IS_NIL(v) ((v) == NIL_VALUE)
 #define IS_NUMBER(v) (((v) & QNAN) != QNAN)
 #define IS_OBJECT(v) (((v) & (QNAN | SIGN_BIT)) == (QNAN | SIGN_BIT))
-#define IS_CHAR(v) (((v) & (QNAN | TAG_CHAR)) == (QNAN | TAG_CHAR))
 
 #define AS_BOOL(v) ((v) == TRUE_VALUE)
 #define AS_NUMBER(v) lit_value_to_num(v)
@@ -47,10 +51,10 @@ typedef union {
 
 static inline LitValue lit_char_to_value(unsigned char ch) {
 	DoubleUnion data;
+	data.bits64 = QNAN | 5;
 	data.bits16[0] = (uint16_t) ch;
 
-	data.bits64 |= QNAN;
-	data.bits64 |= TAG_CHAR;
+	printf("Made value with tag %i\n", GET_TAG(data.bits64));
 
 	return data.bits64;
 }

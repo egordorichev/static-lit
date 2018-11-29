@@ -28,7 +28,7 @@ static void resolve_statements(LitResolver* resolver, LitStatements* statements)
 static const char* resolve_expression(LitResolver* resolver, LitExpression* expression);
 static void resolve_expressions(LitResolver* resolver, LitExpressions* expressions);
 
-static void error(LitResolver* resolver, u_int64_t line, const char* format, ...) {
+static void error(LitResolver* resolver, uint64_t line, const char* format, ...) {
 	fflush(stdout);
 
 	va_list vargs;

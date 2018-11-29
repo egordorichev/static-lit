@@ -1,0 +1,20 @@
+class Awesome {
+
+}
+
+class Better < Awesome {
+	public var test = "test"
+	public static var counter = 0
+
+	init() {
+		this.counter++
+		this.test = "Noice"
+	}
+}
+
+print(Better() is Awesome) // Expected: true
+print(Awesome() is Better) // Expected: false
+
+var b = Better()
+print(Better.counter) // Expected: 2
+print(b.test) // Expected: Noice

@@ -2,6 +2,9 @@ print(1 + 2) // Expected: 3
 print(10 - 3) // Expected: 7
 print(3 * 5) // Expected: 15
 print(100 / 5) // Expected: 20
+print(2 ^ 5) // Expected: 32
+print(#100) // Expected: 10
+print((3 ^ 4) # 4) // Expected: 3
 
 print(10 == 10) // Expected: true
 print(19 == 10) // Expected: false

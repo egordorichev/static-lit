@@ -318,7 +318,7 @@ static bool interpret(LitVm* vm) {
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 #define READ_SHORT() (frame->ip += 2, (uint16_t) ((frame->ip[-2] << 8) | frame->ip[-1]))
 #define PUSH(value) { *vm->stack_top = value; vm->stack_top++; }
-#define POP() ({ assert(vm->stack_top > stack); vm->stack_top--; *vm->stack_top; })
+#define POP() ({if (vm->stack_top == stack) { runtime_error(vm, "Attempt to pop below zero"); assert(false); } vm->stack_top--; *vm->stack_top; })
 #define PEEK(depth) (vm->stack_top[-1 - depth])
 
 	while (true) {

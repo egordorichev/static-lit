@@ -2,21 +2,35 @@ if (true) {
 	print("Ok") // Expected: Ok
 }
 
-if (false) {
+if true {
+	print("Ok") // Expected: Ok
+}
+
+if false {
 
 } else {
 	print("Ok") // Expected: Ok
 }
 
-if (false) {
+if false {
 
 } else {
 	print("Ok") // Expected: Ok
 }
 
+if false {
+
+} else if true {
+	print("Ok") // Expected: Ok
+} else {
+
+}
+
 if (false) {
 
-} else if (true) {
+} else if false {
+
+} else if true {
 	print("Ok") // Expected: Ok
 } else {
 

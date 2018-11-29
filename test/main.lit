@@ -1,64 +1,15 @@
-class Awesome {
-
-}
-
 class Test {
+	String test = "hi"
+	var another = ":p"
 
+	void function(String a) {
+		print(this.test)
+		print(this.another)
+		print(a)
+	}
 }
 
-var m = Test()
+Test tt() => return Test()
 
-print(m is Test)
-print(m is Awesome)
-
-//* todo list:
-
-* predefine methods/functions, then resolve them (main() function?)
-* saving / loading bytecode
-* getters / setters
-* int a should be assigned 0 and not nil
-* if !(true) {}
-* OP_CONSTANT_LONG
-* Fix error cascades
-* Error reporting: nicer stack traces
-* true ? thing() : else()
-* fix stdout / stderr sync
-* growing stack
-* foreign classes
-* nicer compile errors
-* foreign structs
-* switch expression
-* switch
-* enums
-* repl (expression -> print result, statement -> just run)
-* LitConfig?
-* Nillable types (Awesome?)
-* 10.imAMethod()
-* Fix incomparable pointers from LitMemManager to LitVm and LitCompiler
-* Exceptions
-* Division by zero handling
-* Arrays
-* Ranges
-* Hashmaps (class)
-* vargs
-* sugar for:
-
-var thing = getThing()
-
-if (thing.exists() && thing.something()) {
-
-}
-
-into something like??
-
-if (with var thing = getThing(); exists() && something())
-
-* fix this crash:
-
-abstract class Test { getThing() }
-class Amazing < Test {}
-
-* detect npe:
-
-var null = nil
-null() // Should throw NPE
+var t = tt()
+t.function("world")

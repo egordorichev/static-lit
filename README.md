@@ -5,7 +5,7 @@ lit is a tiny and fast language, designed to be embeddable and used as a scripti
 Here is how it looks:
 
 ```js
-fun do_thing(String a) > int {
+int do_thing(String a) {
     print(a)
     return 3
 }
@@ -14,13 +14,22 @@ var x = 10
 var a = do_thing("10") // -> 10, a is 3
 
 class Awesome {
-	doStuff() {
-		print("Awesome")
+  var test = "Awesome" // Protected by default  
+    
+	void doStuff() { // Public by default
+		print(this.test)
 	}
 }
 
 var a = Awesome()
 a.doStuff() // -> Awesome
+
+if true { 
+	// You can ignore () if you want, but you sill can
+	// do this: if (true) { ... }
+	// or this: if !(true && false) { .. }
+	print("Truth is right!") 
+}
 ```
 
 Please note, that the language is still in it's early stages, and I would recommend not using it right now. Tho it's growing pretty fast ;)
