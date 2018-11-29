@@ -6,6 +6,7 @@
 #include <compiler/lit_lexer.h>
 #include <util/lit_array.h>
 #include <util/lit_table.h>
+#include <vm/lit_chunk.h>
 
 typedef struct LitParameter {
 	const char* name;
@@ -191,6 +192,7 @@ typedef struct {
 	const char* name;
 	const char* type;
 	bool final;
+	LitOpCode default_value;
 } LitVarStatement;
 
 LitVarStatement* lit_make_var_statement(LitCompiler* compiler, uint64_t line, const char* name, LitExpression* init, const char* type, bool final);

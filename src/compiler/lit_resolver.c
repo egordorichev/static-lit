@@ -12,6 +12,7 @@
 #include <util/lit_table.h>
 #include <vm/lit_memory.h>
 #include <vm/lit_object.h>
+#include <compiler/lit_ast.h>
 
 DEFINE_ARRAY(LitScopes, LitResolverLocals*, scopes)
 DEFINE_ARRAY(LitStrings, char*, strings)
@@ -91,9 +92,9 @@ static size_t strlen_ignoring(const char *str) {
 	return s - str;
 }
 
-static void resolve_type(LitResolver* resolver, const char* type) {
+static void resolve_type(LitResolver* resolver, const char* type, uint64_t line) {
 	if (!lit_types_get(&resolver->types, lit_copy_string(resolver->compiler, type, (int) strlen_ignoring(type)))) {
-		error(resolver, "Type %s is not defined", type);
+		error(resolver, line, "Type %s is not defined", type);
 	}
 }
 
@@ -203,9 +204,17 @@ static const char* resolve_var_statement(LitResolver* resolver, LitVarStatement*
 	if (type == NULL || strcmp(type, "void") == 0) {
 		error(resolver, statement->statement.line, "Can't set variable's %s type to void", statement->name);
 	} else {
-		resolve_type(resolver, type);
+		resolve_type(resolver, type, statement->statement.line);
 		define(resolver, statement->name, type, resolver->class != NULL && resolver->depth == 2)
 			->final = statement->final;
+	}
+
+	if (strcmp(type, "bool") == 0) {
+		statement->default_value = OP_FALSE;
+	} else if (strcmp(type, "int") == 0 || strcmp(type, "double") == 0) {
+		statement->default_value = OP_CONSTANT;
+	} else {
+		statement->default_value = OP_NIL;
 	}
 
 	return type;
@@ -257,12 +266,12 @@ static void resolve_function(LitResolver* resolver, LitParameters* parameters, L
 	if (parameters != NULL) {
 		for (int i = 0; i < parameters->count; i++) {
 			LitParameter parameter = parameters->values[i];
-			resolve_type(resolver, parameter.type);
+			resolve_type(resolver, parameter.type, line);
 			define(resolver, parameter.name, parameter.type, false);
 		}
 	}
 
-	resolve_type(resolver, return_type->type);
+	resolve_type(resolver, return_type->type, line);
 	resolve_statement(resolver, body);
 
 	if (!resolver->had_return) {
@@ -393,7 +402,7 @@ static void resolve_method_statement(LitResolver* resolver, LitMethodStatement* 
 	if (statement->parameters != NULL) {
 		for (int i = 0; i < statement->parameters->count; i++) {
 			LitParameter parameter = statement->parameters->values[i];
-			resolve_type(resolver, parameter.type);
+			resolve_type(resolver, parameter.type, statement->statement.line);
 			define(resolver, parameter.name, parameter.type, false);
 		}
 
@@ -406,7 +415,7 @@ static void resolve_method_statement(LitResolver* resolver, LitMethodStatement* 
 		error(resolver, statement->statement.line, "Constructor must have void return type");
 	}
 
-	resolve_type(resolver, statement->return_type.type);
+	resolve_type(resolver, statement->return_type.type, statement->statement.line);
 
 	if (statement->body != NULL) {
 		LitFunctionStatement *enclosing = resolver->function;
@@ -449,7 +458,7 @@ static void resolve_field_statement(LitResolver* resolver, LitFieldStatement* st
 		error(resolver, statement->statement.line, "Final field must have a value assigned!");
 	}
 
-	resolve_type(resolver, statement->type);
+	resolve_type(resolver, statement->type, statement->statement.line);
 	define(resolver, statement->name, statement->type, resolver->class != NULL && resolver->depth == 2);
 
 	if (statement->getter != NULL) {

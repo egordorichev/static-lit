@@ -1,15 +1,2 @@
-class Test {
-	String test = "hi"
-	var another = ":p"
-
-	void function(String a) {
-		print(this.test)
-		print(this.another)
-		print(a)
-	}
-}
-
-Test tt() => Test()
-
-var t = tt()
-t.function("world")
+Object test
+print(test)

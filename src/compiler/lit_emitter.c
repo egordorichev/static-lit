@@ -7,6 +7,7 @@
 
 #include <compiler/lit_emitter.h>
 #include <vm/lit_memory.h>
+#include <compiler/lit_ast.h>
 
 DEFINE_ARRAY(LitInts, uint64_t, ints)
 
@@ -454,7 +455,11 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 			if (stmt->init != NULL) {
 				emit_expression(emitter, stmt->init);
 			} else {
-				emit_byte(emitter, OP_NIL, statement->line); // TODO: default type! (like bool is false)
+				if (stmt->default_value == OP_CONSTANT) {
+					emit_constant(emitter, MAKE_NUMBER_VALUE(0), statement->line);
+				} else {
+					emit_byte(emitter, stmt->default_value, statement->line);
+				}
 			}
 
 			if (emitter->function->depth == 0) {
