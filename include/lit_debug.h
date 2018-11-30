@@ -13,7 +13,7 @@ void lit_trace_chunk(LitMemManager* manager, LitChunk* chunk, const char* name);
 int lit_disassemble_instruction(LitMemManager* manager, LitChunk* chunk, int offset);
 
 #define DEBUG_TRACE_AST false
-#define DEBUG_TRACE_EXECUTION true
+#define DEBUG_TRACE_EXECUTION false
 #define DEBUG_TRACE_CODE false
 #define DEBUG_TRACE_GC false
 #define DEBUG_TRACE_MEMORY_LEAKS false

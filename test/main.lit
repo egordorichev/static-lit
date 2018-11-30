@@ -1,3 +1,2 @@
 Object t = Object()
-int tt = t.test("HELLO")
-print(tt)
+t.test()

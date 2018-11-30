@@ -51,7 +51,23 @@ void lit_vm_define_native(LitVm* vm, LitNativeRegistry* native);
 void lit_vm_define_natives(LitVm* vm, LitNativeRegistry* natives);
 
 LitClass* lit_vm_define_class(LitVm* vm, LitType* type, LitClass* super);
-LitNativeMethod* lit_vm_define_method(LitVm* vm, LitClass* class, LitResolverMethod* method, LitNativeMethodFn native);
+LitNativeMethod* lit_vm_define_method(LitVm* vm, LitClass* class, LitResolverNativeMethod* method);
+
+typedef struct LitMethodRegistry {
+	const char* name;
+	const char* signature;
+	LitNativeMethodFn fn;
+	bool is_static;
+} LitMethodRegistry;
+
+typedef struct LitClassRegistry {
+	LitType* class;
+	LitMethodRegistry* methods;
+	LitResolverNativeMethod* natives;
+} LitClassRegistry;
+
+LitClassRegistry* lit_declare_class(LitCompiler* compiler, LitType* type, LitMethodRegistry* methods);
+void lit_define_class(LitVm* vm, LitClassRegistry* class);
 
 void lit_free_vm(LitVm* vm);
 

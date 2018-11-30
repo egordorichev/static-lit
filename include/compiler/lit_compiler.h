@@ -26,7 +26,7 @@ void lit_compiler_define_natives(LitCompiler* compiler, LitNativeRegistry* nativ
 
 LitType* lit_compiler_define_class(LitCompiler* compiler, const char* name, LitType* super);
 
-LitResolverMethod* lit_compiler_define_method(LitCompiler* compiler, LitType* class, const char* name, const char* signature, bool is_static);
+LitResolverNativeMethod* lit_compiler_define_method(LitCompiler* compiler, LitType* class, const char* name, const char* signature, LitNativeMethodFn native, bool is_static);
 
 void lit_free_compiler(LitCompiler* compiler);
 

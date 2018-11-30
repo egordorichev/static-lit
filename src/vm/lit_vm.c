@@ -11,6 +11,7 @@
 #include <compiler/lit_parser.h>
 #include <compiler/lit_resolver.h>
 #include <compiler/lit_emitter.h>
+#include <std/lit_std.h>
 #include <lit.h>
 #include <lit_debug.h>
 
@@ -97,7 +98,13 @@ static bool invoke_simple(LitVm* vm, int arg_count, LitValue receiver, LitValue 
 
 
 	if (IS_NATIVE_METHOD(method)) {
-		int count = AS_NATIVE_METHOD(method)(vm, (LitInstance *) vm->stack_top[-arg_count - 2], vm->stack_top - arg_count, arg_count);
+		LitInstance* instance = (LitInstance *) vm->stack_top[-arg_count - 2];
+
+		if (!IS_INSTANCE(MAKE_OBJECT_VALUE(instance))) {
+			instance = NULL;
+		}
+
+		int count = AS_NATIVE_METHOD(method)(vm, instance, vm->stack_top - arg_count, arg_count);
 
 		if (count == 0) {
 			count = 1;
@@ -911,8 +918,7 @@ bool lit_eval(const char* source_code) {
 	lit_init_compiler(&compiler);
 
 	lit_compiler_define_natives(&compiler, std);
-	LitType* object = lit_compiler_define_class(&compiler, "Object", NULL);
-	LitResolverMethod* test = lit_compiler_define_method(&compiler, object, "test", "Function<String, int>", false);
+	LitClassRegistry* std_classes = lit_create_std(&compiler);
 
 	LitFunction* function = lit_compile(&compiler, source_code);
 	lit_free_compiler(&compiler);
@@ -927,8 +933,7 @@ bool lit_eval(const char* source_code) {
 	vm.init_string = lit_copy_string(&vm, "init", 4);
 
 	lit_vm_define_natives(&vm, std);
-	LitClass* object_class = lit_vm_define_class(&vm, object, NULL);
-	lit_vm_define_method(&vm, object_class, test, test_method);
+	lit_define_class(&vm, std_classes);
 
 	bool had_error = lit_execute(&vm, function);
 
@@ -963,10 +968,73 @@ LitClass* lit_vm_define_class(LitVm* vm, LitType* type, LitClass* super) {
 	return class;
 }
 
-
-LitNativeMethod* lit_vm_define_method(LitVm* vm, LitClass* class, LitResolverMethod* method, LitNativeMethodFn native) {
-	LitNativeMethod* m = lit_new_native_method(vm, native);
-	lit_table_set(vm, method->is_static ? &class->static_methods : &class->methods, method->name, MAKE_OBJECT_VALUE(m));
+LitNativeMethod* lit_vm_define_method(LitVm* vm, LitClass* class, LitResolverNativeMethod* method) {
+	LitNativeMethod* m = lit_new_native_method(vm, method->function);
+	lit_table_set(vm, method->method.is_static ? &class->static_methods : &class->methods, method->method.name, MAKE_OBJECT_VALUE(m));
 
 	return m;
+}
+
+LitClassRegistry* lit_declare_class(LitCompiler* compiler, LitType* type, LitMethodRegistry* methods) {
+	LitClassRegistry* registry = reallocate(compiler, NULL, 0, sizeof(LitClassRegistry));
+
+	registry->class = type;
+	registry->methods = methods;
+
+	int i = 0;
+
+	LitResolverNativeMethod* mt[256];
+
+	while (methods[i].name != NULL) {
+		if (i > 256) {
+			printf("Error: more than 256 methods in a native class\n");
+			return NULL;
+		}
+
+		LitMethodRegistry method = methods[i];
+		mt[i] = lit_compiler_define_method(compiler, type, method.name, method.signature, method.fn, method.is_static);
+
+		i++;
+	}
+
+	if (i > 0) {
+		registry->natives = reallocate(compiler, NULL, 0, sizeof(LitResolverNativeMethod) * i);
+
+		for (int j = 0; j < i; j++) {
+			registry->natives[j] = *mt[j];
+		}
+	} else {
+		registry->natives = NULL;
+	}
+
+	return registry;
+}
+
+void lit_define_class(LitVm* vm, LitClassRegistry* class) {
+	LitClass* super = NULL;
+
+	if (class->class->super != NULL) {
+		char* name = class->class->super->name->chars;
+		super = AS_CLASS(MAKE_OBJECT_VALUE(lit_table_get(&vm->globals, lit_copy_string(vm, name, strlen(name)))));
+
+		if (super == NULL) {
+			printf("Creating class error: super %s was not found\n", name);
+			return;
+		}
+	}
+
+	LitClass* object_class = lit_vm_define_class(vm, class->class, super);
+
+	if (class->natives == NULL) {
+		return;
+	}
+
+	int i = 0;
+
+	while (class->methods[i].name != NULL) {
+		printf("Define %s\n", class->methods[i].name);
+		lit_vm_define_method(vm, object_class, &class->natives[i]);
+
+		i++;
+	}
 }

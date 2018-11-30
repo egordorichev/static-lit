@@ -12,6 +12,7 @@
 
 #include <compiler/lit_ast.h>
 #include <util/lit_table.h>
+#include <vm/lit_object.h>
 
 typedef struct LitResolverLocal {
 	bool defined;
@@ -44,6 +45,11 @@ typedef struct LitResolverMethod {
 } LitResolverMethod;
 
 void lit_free_resolver_method(LitCompiler* compiler, LitResolverMethod* method);
+
+typedef struct LitResolverNativeMethod {
+	LitResolverMethod method;
+	LitNativeMethodFn function;
+} LitResolverNativeMethod;
 
 DECLARE_TABLE(LitResolverMethods, LitResolverMethod*, resolver_methods, LitResolverMethod*)
 
