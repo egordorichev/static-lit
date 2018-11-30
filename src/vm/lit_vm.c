@@ -87,19 +87,13 @@ static void trace_stack(LitVm* vm) {
 }
 
 static bool invoke_simple(LitVm* vm, int arg_count, LitValue receiver, LitValue method) {
-	if (!IS_INSTANCE(receiver) && !IS_CLASS(receiver)) {
+	if (!IS_INSTANCE(receiver) && !IS_CLASS(receiver) && !IS_STRING(receiver)) {
 		runtime_error(vm, "Only instances and classes have methods");
 		return false;
 	}
 
-
 	if (IS_NATIVE_METHOD(method)) {
 		LitInstance* instance = (LitInstance *) vm->stack_top[-arg_count - 2];
-
-		if (!IS_INSTANCE(MAKE_OBJECT_VALUE(instance))) {
-			instance = NULL;
-		}
-
 		int count = AS_NATIVE_METHOD(method)(vm, instance, vm->stack_top - arg_count, arg_count);
 
 		if (count == 0) {
@@ -658,21 +652,26 @@ static bool interpret(LitVm* vm) {
 
 		op_get_field: {
 			LitValue from = PEEK(0);
+			LitClass* type = NULL;
 
-			if (IS_INSTANCE(from)) {
+			if (IS_STRING(from)) {
+				type = vm->string_class;
+			}
+
+			if (type != NULL || IS_INSTANCE(from)) {
 				LitInstance *instance = AS_INSTANCE(from);
 				LitString *name = READ_STRING();
-				LitValue *field = lit_table_get(&instance->fields, name);
+				LitValue *method = lit_table_get(type == NULL ? &instance->type->methods : &type->methods, name);
 
-				if (field != NULL) {
+				if (method != NULL) {
 					POP();
-					PUSH(*field);
+					PUSH(*method);
 				} else {
-					LitValue *method = lit_table_get(&instance->type->methods, name);
+					LitValue *field = lit_table_get(&instance->fields, name);
 
-					if (method != NULL) {
+					if (field != NULL) {
 						POP();
-						PUSH(*method);
+						PUSH(*field);
 					} else {
 						runtime_error(vm, "Class %s has no field or method %s", instance->type->name->chars, name->chars);
 					}
@@ -851,7 +850,7 @@ void lit_init_vm(LitVm* vm) {
 	vm->gray_count = 0;
 	vm->gray_stack = NULL;
 
-	// vm->init_string = lit_copy_string(vm, "init", 4);
+	vm->string_class = NULL;
 }
 
 void lit_free_vm(LitVm* vm) {
@@ -936,6 +935,10 @@ void lit_vm_define_natives(LitVm* vm, LitNativeRegistry* natives) {
 LitClass* lit_vm_define_class(LitVm* vm, LitType* type, LitClass* super) {
 	LitClass* class = lit_new_class(vm, type->name, super);
 	lit_table_set(vm, &vm->globals, type->name, MAKE_OBJECT_VALUE(class));
+
+	if (vm->string_class == NULL && strcmp(type->name->chars, "String") == 0) {
+		vm->string_class = class;
+	}
 
 	return class;
 }

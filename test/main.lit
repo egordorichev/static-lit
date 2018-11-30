@@ -1,2 +1,2 @@
-Object t = Object()
-t.test()
+var str = "HELLO WORLD"
+print(str.toLowerCase())

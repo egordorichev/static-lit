@@ -133,6 +133,18 @@ static uint32_t hash_string(const char* key, int length) {
 	return hash;
 }
 
+void lit_hash_string(LitString* string) {
+	string->hash = hash_string(string->chars, string->length);
+}
+
+LitString* lit_new_string(LitMemManager* manager, int length) {
+	LitString* string = allocate_string(manager, NULL, length, 0);
+
+	string->chars = ALLOCATE(manager, char, length + 1);
+
+	return string;
+}
+
 LitString* lit_make_string(LitMemManager* manager, char* chars, int length) {
 	uint32_t hash = hash_string(chars, length);
 	LitString* interned = lit_table_find(&manager->strings, chars, length, hash);

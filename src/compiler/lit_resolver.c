@@ -1176,16 +1176,9 @@ void lit_init_resolver(LitResolver* resolver) {
 
 	push_scope(resolver); // Global scope
 
-	lit_define_type(resolver, "int");
-	lit_define_type(resolver, "bool");
 	lit_define_type(resolver, "error");
 	lit_define_type(resolver, "void");
 	lit_define_type(resolver, "any");
-	lit_define_type(resolver, "double");
-	lit_define_type(resolver, "char");
-	lit_define_type(resolver, "Function");
-	lit_define_type(resolver, "Class");
-	lit_define_type(resolver, "String");
 }
 
 void lit_free_resolver(LitResolver* resolver) {

@@ -56,6 +56,8 @@ struct sLitString {
 	uint32_t hash;
 };
 
+LitString* lit_new_string(LitMemManager* manager, int length);
+void lit_hash_string(LitString* string);
 LitString* lit_make_string(LitMemManager* manager, char* chars, int length);
 LitString* lit_copy_string(LitMemManager* manager, const char* chars, size_t length);
 LitString* lit_format_string(LitMemManager* manager, const char* format, ...);
