@@ -6,14 +6,10 @@
 #include <math.h>
 
 #include <vm/lit_vm.h>
-#include <vm/lit_memory.h>
-#include <vm/lit_object.h>
 #include <compiler/lit_parser.h>
-#include <compiler/lit_resolver.h>
-#include <compiler/lit_emitter.h>
 #include <std/lit_std.h>
-#include <lit.h>
 #include <lit_debug.h>
+#include <vm/lit_object.h>
 
 static inline void reset_stack(LitVm *vm) {
 	vm->stack_top = vm->stack;
@@ -885,28 +881,6 @@ bool lit_execute(LitVm* vm, LitFunction* function) {
 	return true;
 }
 
-static int time_function(LitVm* vm, LitValue* args, int count) {
-	lit_push(vm, MAKE_NUMBER_VALUE((double) clock() / CLOCKS_PER_SEC));
-	return 1;
-}
-
-static int print_function(LitVm* vm, LitValue* args, int count) {
-	printf("%s\n", lit_to_string(vm, args[0]));
-	return 0;
-}
-
-static int error_function(LitVm* vm, LitValue* args, int count) {
-	runtime_error(vm, lit_to_string(vm, args[0]));
-	return 0;
-}
-
-static LitNativeRegistry std[] = {
-	{ time_function, "time", "Function<double>" },
-	{ print_function, "print", "Function<any, void>" },
-	{ error_function, "error", "Function<String, void>" },
-	{ NULL, NULL, NULL } // Null terminator
-};
-
 int test_method(LitVm* vm, LitInstance* instance, LitValue* args, int count) {
 	printf("Hallo, C world! '%s' arg '%s'\n", lit_to_string(vm, MAKE_OBJECT_VALUE(instance)), lit_to_string(vm, args[0]));
 	lit_push(vm, MAKE_NUMBER_VALUE(10));
@@ -917,8 +891,7 @@ bool lit_eval(const char* source_code) {
 	LitCompiler compiler;
 	lit_init_compiler(&compiler);
 
-	lit_compiler_define_natives(&compiler, std);
-	LitClassRegistry* std_classes = lit_create_std(&compiler);
+	LitLibRegistry* std = lit_create_std(&compiler);
 
 	LitFunction* function = lit_compile(&compiler, source_code);
 	lit_free_compiler(&compiler);
@@ -932,8 +905,7 @@ bool lit_eval(const char* source_code) {
 	lit_table_add_all(&vm, &vm.mem_manager.strings, &compiler.mem_manager.strings);
 	vm.init_string = lit_copy_string(&vm, "init", 4);
 
-	lit_vm_define_natives(&vm, std);
-	lit_define_class(&vm, std_classes);
+	lit_define_lib(&vm, std);
 
 	bool had_error = lit_execute(&vm, function);
 
@@ -1032,9 +1004,40 @@ void lit_define_class(LitVm* vm, LitClassRegistry* class) {
 	int i = 0;
 
 	while (class->methods[i].name != NULL) {
-		printf("Define %s\n", class->methods[i].name);
 		lit_vm_define_method(vm, object_class, &class->natives[i]);
 
 		i++;
+	}
+}
+
+LitNativeRegistry* lit_declare_native(LitCompiler* compiler, LitNativeFn fn, const char* name, const char* signature) {
+	LitNativeRegistry* registry = reallocate(compiler, NULL, 0, sizeof(LitNativeRegistry));
+
+	registry->function = fn;
+	registry->name = name;
+	registry->signature = signature;
+
+	lit_compiler_define_native(compiler, registry);
+
+	return registry;
+}
+
+void lit_define_lib(LitVm* vm, LitLibRegistry* lib) {
+	if (lib->classes != NULL) {
+		int i = 0;
+
+		while (lib->classes[i] != NULL) {
+			lit_define_class(vm, lib->classes[i]);
+			i++;
+		}
+	}
+
+	if (lib->functions != NULL) {
+		int i = 0;
+
+		while (lib->functions[i] != NULL) {
+			lit_vm_define_native(vm, lib->functions[i]);
+			i++;
+		}
 	}
 }
