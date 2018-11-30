@@ -1,2 +1,3 @@
-int tt = Object.test()
+Object t = Object()
+int tt = t.test("HELLO")
 print(tt)

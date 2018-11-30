@@ -97,7 +97,7 @@ static bool invoke_simple(LitVm* vm, int arg_count, LitValue receiver, LitValue 
 
 
 	if (IS_NATIVE_METHOD(method)) {
-		int count = AS_NATIVE_METHOD(method)(vm, vm->stack_top - arg_count - 1, arg_count);
+		int count = AS_NATIVE_METHOD(method)(vm, (LitInstance *) vm->stack_top[-arg_count - 2], vm->stack_top - arg_count, arg_count);
 
 		if (count == 0) {
 			count = 1;
@@ -150,7 +150,7 @@ static bool call_value(LitVm* vm, LitValue callee, int arg_count, bool static_in
 			case OBJECT_CLOSURE: return call(vm, AS_CLOSURE(callee), arg_count);
 			case OBJECT_NATIVE: {
 				last_native = true;
-				int count = AS_NATIVE(callee)(vm, vm->stack_top - arg_count - 1, arg_count);
+				int count = AS_NATIVE(callee)(vm, vm->stack_top - arg_count, arg_count);
 
 				if (count == 0) {
 					count = 1;
@@ -884,12 +884,12 @@ static int time_function(LitVm* vm, LitValue* args, int count) {
 }
 
 static int print_function(LitVm* vm, LitValue* args, int count) {
-	printf("%s\n", lit_to_string(vm, args[1]));
+	printf("%s\n", lit_to_string(vm, args[0]));
 	return 0;
 }
 
 static int error_function(LitVm* vm, LitValue* args, int count) {
-	runtime_error(vm, lit_to_string(vm, args[1]));
+	runtime_error(vm, lit_to_string(vm, args[0]));
 	return 0;
 }
 
@@ -900,8 +900,8 @@ static LitNativeRegistry std[] = {
 	{ NULL, NULL, NULL } // Null terminator
 };
 
-int test_method(LitVm* vm, LitValue* args, int count) {
-	printf("Hallo, C world!\n");
+int test_method(LitVm* vm, LitInstance* instance, LitValue* args, int count) {
+	printf("Hallo, C world! '%s' arg '%s'\n", lit_to_string(vm, MAKE_OBJECT_VALUE(instance)), lit_to_string(vm, args[0]));
 	lit_push(vm, MAKE_NUMBER_VALUE(10));
 	return 1;
 }
@@ -912,7 +912,7 @@ bool lit_eval(const char* source_code) {
 
 	lit_compiler_define_natives(&compiler, std);
 	LitType* object = lit_compiler_define_class(&compiler, "Object", NULL);
-	LitResolverMethod* test = lit_compiler_define_method(&compiler, object, "test", "Function<int>", true);
+	LitResolverMethod* test = lit_compiler_define_method(&compiler, object, "test", "Function<String, int>", false);
 
 	LitFunction* function = lit_compile(&compiler, source_code);
 	lit_free_compiler(&compiler);
