@@ -869,12 +869,12 @@ static LitNativeRegistry std[] = {
 
 bool lit_eval(const char* source_code) {
 	LitCompiler compiler;
-
 	lit_init_compiler(&compiler);
+
 	lit_compiler_define_natives(&compiler, std);
+	LitType* object = lit_compiler_define_class(&compiler, "Object", NULL);
 
 	LitFunction* function = lit_compile(&compiler, source_code);
-
 	lit_free_compiler(&compiler);
 
 	if (function == NULL) {
@@ -887,6 +887,7 @@ bool lit_eval(const char* source_code) {
 	vm.init_string = lit_copy_string(&vm, "init", 4);
 
 	lit_vm_define_natives(&vm, std);
+	LitClass* object_class = lit_vm_define_class(&vm, object, NULL);
 
 	bool had_error = lit_execute(&vm, function);
 
@@ -912,4 +913,12 @@ void lit_vm_define_natives(LitVm* vm, LitNativeRegistry* natives) {
 			lit_vm_define_native(vm, &native);
 		}
 	} while (native.name != NULL);
+}
+
+LitClass* lit_vm_define_class(LitVm* vm, LitType* type, LitClass* super) {
+	LitClass* class = lit_new_class(vm, type->name, super);
+
+	lit_table_set(vm, &vm->globals, type->name, MAKE_OBJECT_VALUE(class));
+
+	return class;
 }

@@ -1,2 +1,2 @@
-Object test
-print(test)
+Object t = Object()
+print(t)

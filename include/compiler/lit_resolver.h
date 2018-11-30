@@ -52,6 +52,7 @@ typedef struct sLitType {
 	bool final;
 	bool abstract;
 	bool inited;
+	bool external;
 	struct sLitType* super;
 	LitResolverMethods methods;
 	LitResolverMethods static_methods;
@@ -60,7 +61,7 @@ typedef struct sLitType {
 } LitType;
 
 void lit_init_type(LitType* type);
-void lit_free_type(LitCompiler* compiler, LitType* type);
+void lit_free_type(LitMemManager* manager, LitType* type);
 
 DECLARE_TABLE(LitResolverLocals, LitResolverLocal*, letals, LitResolverLocal*)
 DECLARE_TABLE(LitTypes, bool, types, bool)
@@ -88,6 +89,7 @@ typedef struct LitResolver {
 
 void lit_init_resolver(LitResolver* resolver);
 void lit_free_resolver(LitResolver* resolver);
+void lit_define_type(LitResolver* resolver, const char* type);
 
 bool lit_resolve(LitCompiler* compiler, LitStatements* statements);
 

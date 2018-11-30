@@ -98,7 +98,7 @@ static void resolve_type(LitResolver* resolver, const char* type, uint64_t line)
 	}
 }
 
-static void define_type(LitResolver* resolver, const char* type) {
+void lit_define_type(LitResolver* resolver, const char* type) {
 	LitString* str = lit_copy_string(resolver->compiler, type, (int) strlen(type));
 	lit_types_set(resolver->compiler, &resolver->types, str, true);
 }
@@ -481,7 +481,7 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 
 	LitString* name = lit_copy_string(resolver->compiler, statement->name, len);
 
-	define_type(resolver, name->chars);
+	lit_define_type(resolver, name->chars);
 	declare_and_define(resolver, name->chars, type);
 
 	if (statement->super != NULL) {
@@ -510,6 +510,7 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 
 	class->inited = false;
 	class->super = super;
+	class->external = false;
 	class->name = lit_copy_string(resolver->compiler, statement->name, len);
 	class->is_static = statement->is_static;
 	class->final = statement->final;
@@ -1175,16 +1176,16 @@ void lit_init_resolver(LitResolver* resolver) {
 
 	push_scope(resolver); // Global scope
 
-	define_type(resolver, "int");
-	define_type(resolver, "bool");
-	define_type(resolver, "error");
-	define_type(resolver, "void");
-	define_type(resolver, "any");
-	define_type(resolver, "double");
-	define_type(resolver, "char");
-	define_type(resolver, "Function");
-	define_type(resolver, "Class");
-	define_type(resolver, "String");
+	lit_define_type(resolver, "int");
+	lit_define_type(resolver, "bool");
+	lit_define_type(resolver, "error");
+	lit_define_type(resolver, "void");
+	lit_define_type(resolver, "any");
+	lit_define_type(resolver, "double");
+	lit_define_type(resolver, "char");
+	lit_define_type(resolver, "Function");
+	lit_define_type(resolver, "Class");
+	lit_define_type(resolver, "String");
 }
 
 void lit_free_resolver(LitResolver* resolver) {
@@ -1204,7 +1205,7 @@ void lit_free_resolver(LitResolver* resolver) {
 	for (int i = 0; i <= resolver->classes.capacity_mask; i++) {
 		LitType* type = resolver->classes.entries[i].value;
 
-		if (type != NULL) {
+		if (type != NULL && !type->external) {
 			if (type->fields.count != 0) {
 				for (int j = 0; j <= type->fields.capacity_mask; j++) {
 					LitResolverField *a = type->fields.entries[j].value;
@@ -1278,4 +1279,27 @@ void lit_free_resolver_field(LitCompiler* compiler, LitResolverField* field) {
 void lit_free_resolver_method(LitCompiler* compiler, LitResolverMethod* method) {
 	reallocate(compiler, (void*) method->signature, strlen(method->signature) + 1, 0);
 	reallocate(compiler, (void*) method, sizeof(LitResolverMethod), 0);
+}
+
+void lit_init_type(LitType* type) {
+	type->name = NULL;
+	type->is_static = false;
+	type->final = false;
+	type->abstract = false;
+	type->inited = false;
+	type->super = NULL;
+
+	lit_init_resolver_methods(&type->methods);
+	lit_init_resolver_methods(&type->static_methods);
+
+	lit_init_resolver_fields(&type->fields);
+	lit_init_resolver_fields(&type->static_fields);
+}
+
+void lit_free_type(LitMemManager* manager, LitType* type) {
+	lit_free_resolver_methods(manager, &type->methods);
+	lit_free_resolver_methods(manager, &type->static_methods);
+
+	lit_free_resolver_fields(manager, &type->fields);
+	lit_free_resolver_fields(manager, &type->static_fields);
 }

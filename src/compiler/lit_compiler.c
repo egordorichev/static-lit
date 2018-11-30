@@ -126,3 +126,25 @@ void lit_compiler_define_natives(LitCompiler* compiler, LitNativeRegistry* nativ
 		}
 	} while (native.name != NULL);
 }
+
+LitType* lit_compiler_define_class(LitCompiler* compiler, const char* name, LitType* super) {
+	LitType* type = reallocate(compiler, NULL, 0, sizeof(LitType));
+	lit_init_type(type);
+
+	type->name = lit_copy_string(compiler, name, strlen(name));
+	type->super = super;
+	type->external = true;
+
+	lit_classes_set(compiler, &compiler->resolver.classes, type->name, type);
+	lit_types_set(compiler, &compiler->resolver.types, type->name, true);
+
+	LitResolverLocal* local = (LitResolverLocal*) reallocate(compiler, NULL, 0, sizeof(LitResolverLocal));
+	lit_init_resolver_local(local);
+
+	local->defined = true;
+	local->type = lit_format_string(compiler, "Class<$>", type->name->chars)->chars;
+
+	lit_resolver_locals_set(compiler, compiler->resolver.scopes.values[0], type->name, local);
+
+	return type;
+}

@@ -23,6 +23,9 @@ struct sLitCompiler {
 void lit_init_compiler(LitCompiler* compiler);
 void lit_compiler_define_native(LitCompiler* compiler, LitNativeRegistry* native);
 void lit_compiler_define_natives(LitCompiler* compiler, LitNativeRegistry* natives);
+
+LitType* lit_compiler_define_class(LitCompiler* compiler, const char* name, LitType* super);
+
 void lit_free_compiler(LitCompiler* compiler);
 
 /*

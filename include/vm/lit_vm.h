@@ -13,6 +13,7 @@
 #include <vm/lit_chunk.h>
 #include <vm/lit_object.h>
 #include <vm/lit_memory.h>
+#include <compiler/lit_resolver.h>
 
 #define FRAMES_MAX 64
 #define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
@@ -48,6 +49,9 @@ typedef struct sLitVm {
 void lit_init_vm(LitVm* vm);
 void lit_vm_define_native(LitVm* vm, LitNativeRegistry* native);
 void lit_vm_define_natives(LitVm* vm, LitNativeRegistry* natives);
+
+LitClass* lit_vm_define_class(LitVm* vm, LitType* type, LitClass* super);
+
 void lit_free_vm(LitVm* vm);
 
 bool lit_eval(const char* source_code);
