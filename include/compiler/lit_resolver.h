@@ -40,6 +40,7 @@ typedef struct LitResolverMethod {
 	bool abstract;
 	LitAccessType access;
 	char* signature;
+	LitString* name;
 } LitResolverMethod;
 
 void lit_free_resolver_method(LitCompiler* compiler, LitResolverMethod* method);

@@ -148,3 +148,17 @@ LitType* lit_compiler_define_class(LitCompiler* compiler, const char* name, LitT
 
 	return type;
 }
+
+LitResolverMethod* lit_compiler_define_method(LitCompiler* compiler, LitType* class, const char* name, const char* signature, bool is_static) {
+	LitResolverMethod* m = (LitResolverMethod*) reallocate(compiler, NULL, 0, sizeof(LitResolverMethod));
+
+	m->signature = (char *) signature;
+	m->is_static = is_static;
+	m->access = PUBLIC_ACCESS;
+	m->abstract = false;
+	m->is_overriden = false;
+	m->name = lit_copy_string(compiler, name, strlen(name));
+
+	lit_resolver_methods_set(compiler, m->is_static ? &class->static_methods : &class->methods, lit_copy_string(compiler, name, strlen(name)), m);
+	return m;
+}

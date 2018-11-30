@@ -39,6 +39,9 @@ char *lit_to_string(LitVm* vm, LitValue value) {
 			case OBJECT_NATIVE: {
 				return "<native function>"; // FIXME: get name somehow?
 			}
+			case OBJECT_NATIVE_METHOD: {
+				return "<native method>"; // FIXME: get name somehow?
+			}
 			case OBJECT_FUNCTION: {
 				return lit_format_string(vm, "<fun %>", AS_FUNCTION(value)->name)->chars;
 			}

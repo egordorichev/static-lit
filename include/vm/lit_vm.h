@@ -51,6 +51,7 @@ void lit_vm_define_native(LitVm* vm, LitNativeRegistry* native);
 void lit_vm_define_natives(LitVm* vm, LitNativeRegistry* natives);
 
 LitClass* lit_vm_define_class(LitVm* vm, LitType* type, LitClass* super);
+LitNativeMethod* lit_vm_define_method(LitVm* vm, LitClass* class, LitResolverMethod* method, LitNativeMethodFn native);
 
 void lit_free_vm(LitVm* vm);
 

@@ -1,2 +1,2 @@
-Object t = Object()
-print(t)
+int tt = Object.test()
+print(tt)

@@ -15,12 +15,14 @@
 #define IS_FUNCTION(value) lit_is_object_type(value, OBJECT_FUNCTION)
 #define IS_NATIVE(value) lit_is_object_type(value, OBJECT_NATIVE)
 #define IS_METHOD(value) lit_is_object_type(value, OBJECT_BOUND_METHOD)
+#define IS_NATIVE_METHOD(value) lit_is_object_type(value, OBJECT_NATIVE_METHOD)
 #define IS_CLASS(value) lit_is_object_type(value, OBJECT_CLASS)
 #define IS_INSTANCE(value) lit_is_object_type(value, OBJECT_INSTANCE)
 
 #define AS_CLOSURE(value) ((LitClosure*) AS_OBJECT(value))
 #define AS_FUNCTION(value) ((LitFunction*) AS_OBJECT(value))
 #define AS_NATIVE(value) (((LitNative*) AS_OBJECT(value))->function)
+#define AS_NATIVE_METHOD(value) (((LitNativeMethod*) AS_OBJECT(value))->method)
 #define AS_METHOD(value) ((LitMethod*) AS_OBJECT(value))
 #define AS_CLASS(value) ((LitClass*) AS_OBJECT(value))
 #define AS_INSTANCE(value) ((LitInstance*) AS_OBJECT(value))
@@ -36,7 +38,8 @@ typedef enum {
 	OBJECT_CLOSURE,
 	OBJECT_BOUND_METHOD,
 	OBJECT_CLASS,
-	OBJECT_INSTANCE
+	OBJECT_INSTANCE,
+	OBJECT_NATIVE_METHOD
 } LitObjectType;
 
 struct sLitObject {
@@ -135,6 +138,15 @@ typedef struct {
 } LitMethod;
 
 LitMethod* lit_new_bound_method(LitMemManager* manager, LitValue receiver, LitClosure* method);
+
+typedef int (*LitNativeMethodFn)(LitVm *vm, LitValue* args, int count);
+
+typedef struct {
+	LitObject object;
+	LitNativeMethodFn method;
+} LitNativeMethod;
+
+LitNativeMethod* lit_new_native_method(LitMemManager* manager, LitNativeMethodFn method);
 
 static inline bool lit_is_object_type(LitValue value, LitObjectType type) {
 	return IS_OBJECT(value) && AS_OBJECT(value)->type == type;

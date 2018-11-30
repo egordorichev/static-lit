@@ -151,6 +151,10 @@ void lit_free_object(LitMemManager* manager, LitObject* object) {
 			FREE(manager, LitNative, object);
 			break;
 		}
+		case OBJECT_NATIVE_METHOD: {
+			FREE(manager, LitNativeMethod, object);
+			break;
+		}
 		case OBJECT_UPVALUE: {
 			FREE(manager, LitUpvalue, object);
 			break;
@@ -162,10 +166,10 @@ void lit_free_object(LitMemManager* manager, LitObject* object) {
 		case OBJECT_CLASS: {
 			LitClass* class = ((LitClass*) object);
 
-			/*lit_free_table(manager, &class->methods);
+			lit_free_table(manager, &class->methods);
 			lit_free_table(manager, &class->static_methods);
 			lit_free_table(manager, &class->fields);
-			lit_free_table(manager, &class->static_methods);*/
+			lit_free_table(manager, &class->static_methods);
 
 			FREE(manager, LitClass, object);
 			break;
@@ -173,7 +177,7 @@ void lit_free_object(LitMemManager* manager, LitObject* object) {
 		case OBJECT_INSTANCE: {
 			LitInstance* instance = ((LitInstance*) object);
 
-			// lit_free_table(manager, &instance->fields);
+			lit_free_table(manager, &instance->fields);
 			FREE(manager, LitInstance, object);
 
 			break;

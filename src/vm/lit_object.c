@@ -90,6 +90,14 @@ LitClass* lit_new_class(LitMemManager* manager, LitString* name, LitClass* super
 	return class;
 }
 
+LitNativeMethod* lit_new_native_method(LitMemManager* manager, LitNativeMethodFn method) {
+	LitNativeMethod* m = ALLOCATE_OBJECT(manager, LitNativeMethod, OBJECT_NATIVE_METHOD);
+
+	m->method = method;
+
+	return m;
+}
+
 LitInstance* lit_new_instance(LitMemManager* manager, LitClass* class) {
 	LitInstance* instance = ALLOCATE_OBJECT(manager, LitInstance, OBJECT_INSTANCE);
 

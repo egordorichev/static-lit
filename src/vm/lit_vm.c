@@ -95,14 +95,44 @@ static bool invoke_simple(LitVm* vm, int arg_count, LitValue receiver, LitValue 
 		return false;
 	}
 
-	bool value = call(vm, AS_CLOSURE(method), arg_count);
 
-	if (value) {
-		vm->frames[vm->frame_count - 1].slots = vm->stack_top - arg_count - 1;
-		vm->frames[vm->frame_count - 1].slots[0] = receiver; // this var
+	if (IS_NATIVE_METHOD(method)) {
+		int count = AS_NATIVE_METHOD(method)(vm, vm->stack_top - arg_count - 1, arg_count);
+
+		if (count == 0) {
+			count = 1;
+			lit_push(vm, NIL_VALUE);
+		}
+
+		LitValue values[count];
+
+		for (int i = 0; i < count; i++) {
+			values[i] = lit_pop(vm);
+		}
+
+		// Pop args
+		for (int i = 0; i < arg_count; i++) {
+			lit_pop(vm);
+		}
+
+		lit_pop(vm); // Pop native method
+		lit_pop(vm); // Pop instance
+
+		for (int i = 0; i < count; i++) {
+			lit_push(vm, values[i]);
+		}
+
+		return true;
+	} else {
+		bool value = call(vm, AS_CLOSURE(method), arg_count);
+
+		if (value) {
+			vm->frames[vm->frame_count - 1].slots = vm->stack_top - arg_count - 1;
+			vm->frames[vm->frame_count - 1].slots[0] = receiver; // this var
+		}
+
+		return value;
 	}
-
-	return value;
 }
 
 static bool invoke(LitVm* vm, int arg_count) {
@@ -145,6 +175,9 @@ static bool call_value(LitVm* vm, LitValue callee, int arg_count, bool static_in
 				}
 
 				return true;
+			}
+			case OBJECT_NATIVE_METHOD: {
+				assert(false);
 			}
 			case OBJECT_BOUND_METHOD: {
 				LitMethod* bound = AS_METHOD(callee);
@@ -867,12 +900,19 @@ static LitNativeRegistry std[] = {
 	{ NULL, NULL, NULL } // Null terminator
 };
 
+int test_method(LitVm* vm, LitValue* args, int count) {
+	printf("Hallo, C world!\n");
+	lit_push(vm, MAKE_NUMBER_VALUE(10));
+	return 1;
+}
+
 bool lit_eval(const char* source_code) {
 	LitCompiler compiler;
 	lit_init_compiler(&compiler);
 
 	lit_compiler_define_natives(&compiler, std);
 	LitType* object = lit_compiler_define_class(&compiler, "Object", NULL);
+	LitResolverMethod* test = lit_compiler_define_method(&compiler, object, "test", "Function<int>", true);
 
 	LitFunction* function = lit_compile(&compiler, source_code);
 	lit_free_compiler(&compiler);
@@ -888,6 +928,7 @@ bool lit_eval(const char* source_code) {
 
 	lit_vm_define_natives(&vm, std);
 	LitClass* object_class = lit_vm_define_class(&vm, object, NULL);
+	lit_vm_define_method(&vm, object_class, test, test_method);
 
 	bool had_error = lit_execute(&vm, function);
 
@@ -917,8 +958,15 @@ void lit_vm_define_natives(LitVm* vm, LitNativeRegistry* natives) {
 
 LitClass* lit_vm_define_class(LitVm* vm, LitType* type, LitClass* super) {
 	LitClass* class = lit_new_class(vm, type->name, super);
-
 	lit_table_set(vm, &vm->globals, type->name, MAKE_OBJECT_VALUE(class));
 
 	return class;
+}
+
+
+LitNativeMethod* lit_vm_define_method(LitVm* vm, LitClass* class, LitResolverMethod* method, LitNativeMethodFn native) {
+	LitNativeMethod* m = lit_new_native_method(vm, native);
+	lit_table_set(vm, method->is_static ? &class->static_methods : &class->methods, method->name, MAKE_OBJECT_VALUE(m));
+
+	return m;
 }
