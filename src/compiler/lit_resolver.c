@@ -132,13 +132,13 @@ static LitResolverLocal* resolve_local(LitResolver* resolver, const char* name, 
 	return NULL;
 }
 
-static void declare(LitResolver* resolver, const char* name) {
+static void declare(LitResolver* resolver, const char* name, uint64_t line) {
 	LitResolverLocals* scope = peek_scope(resolver);
 	LitString* str = lit_copy_string(resolver->compiler, name, (int) strlen(name));
 	LitResolverLocal* value = lit_resolver_locals_get(scope, str);
 
 	if (value != NULL) {
-		error(resolver, "Variable %s is already defined in current scope", name);
+		error(resolver, line, "Variable %s is already defined in current scope", name);
 	}
 
 	LitResolverLocal* local = (LitResolverLocal*) reallocate(resolver->compiler, NULL, 0, sizeof(LitResolverLocal));
@@ -147,13 +147,13 @@ static void declare(LitResolver* resolver, const char* name) {
 	lit_resolver_locals_set(resolver->compiler, scope, str, local);
 }
 
-static void declare_and_define(LitResolver* resolver, const char* name, const char* type) {
+static void declare_and_define(LitResolver* resolver, const char* name, const char* type, uint64_t line) {
 	LitResolverLocals* scope = peek_scope(resolver);
 	LitString* str = lit_copy_string(resolver->compiler, name, (int) strlen(name));
 	LitResolverLocal* value = lit_resolver_locals_get(scope, str);
 
 	if (value != NULL) {
-		error(resolver, "Variable %s is already defined in current scope", name);
+		error(resolver, line, "Variable %s is already defined in current scope", name);
 	} else {
 		LitResolverLocal* local = (LitResolverLocal*) reallocate(resolver->compiler, NULL, 0, sizeof(LitResolverLocal));
 		lit_init_resolver_local(local);
@@ -192,7 +192,7 @@ static LitResolverLocal* define(LitResolver* resolver, const char* name, const c
 }
 
 static const char* resolve_var_statement(LitResolver* resolver, LitVarStatement* statement) {
-	declare(resolver, statement->name);
+	declare(resolver, statement->name, statement->statement.line);
 	const char *type = statement->type == NULL ? "void" : statement->type;
 
 	if (statement->init != NULL) {
@@ -338,7 +338,7 @@ static void resolve_function_statement(LitResolver* resolver, LitFunctionStateme
 	LitFunctionStatement* last = resolver->function;
 	resolver->function = statement;
 
-	declare_and_define(resolver, statement->name, type);
+	declare_and_define(resolver, statement->name, type, statement->statement.line);
 	resolve_function(resolver, statement->parameters, &statement->return_type, statement->body, "Missing return statement in function %s", statement->name, statement->statement.line);
 
 	resolver->function = last;
@@ -346,7 +346,7 @@ static void resolve_function_statement(LitResolver* resolver, LitFunctionStateme
 	lit_strings_write(resolver->compiler, &resolver->allocated_strings, (char*) type);
 
 	if (statement->parameters != NULL && statement->parameters->count > 255) {
-		error(resolver, "Function %s has more than 255 parameters", statement->name);
+		error(resolver, statement->statement.line, "Function %s has more than 255 parameters", statement->name);
 	}
 }
 
@@ -444,7 +444,7 @@ static void resolve_method_statement(LitResolver* resolver, LitMethodStatement* 
 }
 
 static void resolve_field_statement(LitResolver* resolver, LitFieldStatement* statement) {
-	declare(resolver, statement->name);
+	declare(resolver, statement->name, statement->statement.line);
 
 	if (statement->init != NULL) {
 		const char* given = (char*) resolve_expression(resolver, statement->init);
@@ -482,7 +482,7 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 	LitString* name = lit_copy_string(resolver->compiler, statement->name, len);
 
 	lit_define_type(resolver, name->chars);
-	declare_and_define(resolver, name->chars, type);
+	declare_and_define(resolver, name->chars, type, statement->statement.line);
 
 	if (statement->super != NULL) {
 		const char* tp = resolve_var_expression(resolver, statement->super);
@@ -932,7 +932,9 @@ static const char* resolve_get_expression(LitResolver* resolver, LitGetExpressio
 	LitType* class = NULL;
 	bool should_be_static = false;
 
-	if (strcmp_ignoring(type, "Class<") == 0) {
+	if (strcmp(type, "int") == 0) {
+		class = resolver->int_class;
+	} else if (strcmp_ignoring(type, "Class<") == 0) {
 		int len = (int) strlen(type);
 
 		// Hack that allows us not to reallocate another string
@@ -964,7 +966,7 @@ static const char* resolve_get_expression(LitResolver* resolver, LitGetExpressio
 		LitResolverMethod* method = lit_resolver_methods_get(should_be_static ? &class->static_methods : &class->methods, str);
 
 		if (method == NULL) {
-			error(resolver, expression->expression.line, "%s%s has no %sfield or method %s", should_be_static ? "" : "Class ", type, should_be_static ? "static " : "", expression->property);
+			error(resolver, expression->expression.line, "%s%s has no %sfield or method %s", should_be_static ? "" : "Class ", class->name->chars, should_be_static ? "static " : "", expression->property);
 			return "error";
 		}
 
@@ -1115,7 +1117,7 @@ static const char* resolve_if_expression(LitResolver* resolver, LitIfExpression*
 			const char* branch_type = resolve_expression(resolver, expression->else_if_branches->values[i]);
 
 			if (strcmp(branch_type, type) != 0) {
-				error(resolver, "If expression type was declared %s (from if branch), can't return a %s value from else if branch", type, branch_type);
+				error(resolver, expression->else_if_branches->values[i]->line, "If expression type was declared %s (from if branch), can't return a %s value from else if branch", type, branch_type);
 			}
 		}
 	}
@@ -1124,7 +1126,7 @@ static const char* resolve_if_expression(LitResolver* resolver, LitIfExpression*
 		const char* branch_type = resolve_expression(resolver, expression->else_branch);
 
 		if (strcmp(branch_type, type) != 0) {
-			error(resolver, "If expression type was declared %s (from if branch), can't return a %s value from else branch", type, branch_type);
+			error(resolver, expression->else_branch->line, "If expression type was declared %s (from if branch), can't return a %s value from else branch", type, branch_type);
 		}
 	}
 
@@ -1174,11 +1176,14 @@ void lit_init_resolver(LitResolver* resolver) {
 	resolver->function = NULL;
 	resolver->class = NULL;
 
+	resolver->int_class = NULL;
+
 	push_scope(resolver); // Global scope
 
 	lit_define_type(resolver, "error");
 	lit_define_type(resolver, "void");
 	lit_define_type(resolver, "any");
+	lit_define_type(resolver, "int");
 }
 
 void lit_free_resolver(LitResolver* resolver) {

@@ -11,6 +11,13 @@ static char output[21];
 static DoubleUnion data;
 
 char *lit_to_string(LitVm* vm, LitValue value) {
+	if (IS_NUMBER(value)) {
+		snprintf(output, 21, "%g", AS_NUMBER(value));
+		output[20] = '\0';
+
+		return output;
+	}
+
 	int tag = GET_TAG(value);
 
 	if (tag == TAG_FALSE) {
@@ -26,11 +33,6 @@ char *lit_to_string(LitVm* vm, LitValue value) {
 		return output;
 	} else if (tag == TAG_NIL) {
 		return "nil";
-	} else if (IS_NUMBER(value)) {
-		snprintf(output, 21, "%g", AS_NUMBER(value));
-		output[20] = '\0';
-
-		return output;
 	} else if (IS_OBJECT(value)) {
 		switch (AS_OBJECT(value)->type) {
 			case OBJECT_STRING: {

@@ -146,6 +146,10 @@ LitType* lit_compiler_define_class(LitCompiler* compiler, const char* name, LitT
 
 	lit_resolver_locals_set(compiler, compiler->resolver.scopes.values[0], type->name, local);
 
+	if (compiler->resolver.int_class == NULL && strcmp(name, "Int") == 0) {
+		compiler->resolver.int_class = type;
+	}
+
 	return type;
 }
 

@@ -44,7 +44,7 @@ static void runtime_error(LitVm* vm, const char* format, ...) {
 	for (int i = vm->frame_count - 1; i >= 0; i--) {
 		LitFrame* frame = &vm->frames[i];
 		LitFunction* function = frame->closure->function;
-		fprintf(stderr, "%s():%ld\n", function->name->chars, lit_chunk_get_line(&function->chunk, frame->ip - function->chunk.code - 1));
+		fprintf(stderr, "\tat %s():%ld\n", function->name->chars, lit_chunk_get_line(&function->chunk, frame->ip - function->chunk.code - 1));
 	}
 
 	vm->abort = true;
@@ -87,14 +87,8 @@ static void trace_stack(LitVm* vm) {
 }
 
 static bool invoke_simple(LitVm* vm, int arg_count, LitValue receiver, LitValue method) {
-	if (!IS_INSTANCE(receiver) && !IS_CLASS(receiver) && !IS_STRING(receiver)) {
-		runtime_error(vm, "Only instances and classes have methods");
-		return false;
-	}
-
 	if (IS_NATIVE_METHOD(method)) {
-		LitInstance* instance = (LitInstance *) vm->stack_top[-arg_count - 2];
-		int count = AS_NATIVE_METHOD(method)(vm, instance, vm->stack_top - arg_count, arg_count);
+		int count = AS_NATIVE_METHOD(method)(vm, vm->stack_top[-arg_count - 2], vm->stack_top - arg_count, arg_count);
 
 		if (count == 0) {
 			count = 1;
@@ -656,6 +650,10 @@ static bool interpret(LitVm* vm) {
 
 			if (IS_STRING(from)) {
 				type = vm->string_class;
+			} else if (IS_CLASS(from)) {
+				type = vm->class_class;
+			} else if (IS_NUMBER(from)) { // TODO: double class
+				type = vm->int_class;
 			}
 
 			if (type != NULL || IS_INSTANCE(from)) {
@@ -850,7 +848,10 @@ void lit_init_vm(LitVm* vm) {
 	vm->gray_count = 0;
 	vm->gray_stack = NULL;
 
+	vm->class_class = NULL;
+	vm->object_class = NULL;
 	vm->string_class = NULL;
+	vm->int_class = NULL;
 }
 
 void lit_free_vm(LitVm* vm) {
@@ -938,6 +939,12 @@ LitClass* lit_vm_define_class(LitVm* vm, LitType* type, LitClass* super) {
 
 	if (vm->string_class == NULL && strcmp(type->name->chars, "String") == 0) {
 		vm->string_class = class;
+	} else if (vm->class_class == NULL && strcmp(type->name->chars, "Class") == 0) {
+		vm->class_class = class;
+	} else if (vm->object_class == NULL && strcmp(type->name->chars, "Object") == 0) {
+		vm->object_class = class;
+	} else if (vm->int_class == NULL && strcmp(type->name->chars, "Int") == 0) {
+		vm->int_class = class;
 	}
 
 	return class;

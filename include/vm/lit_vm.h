@@ -46,7 +46,10 @@ typedef struct sLitVm {
 	LitObject** gray_stack;
 
 	// Std classes
+	LitClass* class_class;
+	LitClass* object_class;
 	LitClass* string_class;
+	LitClass* int_class;
 } sLitVm;
 
 void lit_init_vm(LitVm* vm);
@@ -105,7 +108,7 @@ char *lit_to_string(LitVm* vm, LitValue value);
 	LitType* id##_class = (lib->classes[i] = lit_declare_class(compiler, lit_compiler_define_class(compiler, name, super), id##_methods))->class;\
 	i++;
 
-#define METHOD(name) int name(LitVm* vm, LitInstance* instance, LitValue* args, int count)
+#define METHOD(name) int name(LitVm* vm, LitValue instance, LitValue* args, int count)
 #define START_METHODS(name) static LitMethodRegistry name##_methods[] = {
 #define ADD(name, signature, fn, stat) { name, signature, fn, stat },
 #define END_METHODS { NULL } };

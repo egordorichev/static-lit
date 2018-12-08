@@ -92,6 +92,9 @@ typedef struct LitResolver {
 	bool had_error;
 
 	LitFunctionStatement* function;
+
+	// Std primitives
+	LitType* int_class;
 } LitResolver;
 
 void lit_init_resolver(LitResolver* resolver);

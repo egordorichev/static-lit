@@ -1,2 +1,2 @@
-var str = "HELLO WORLD"
-print(str.toLowerCase())
+print("test".toUpperCase())
+print(32.log())
