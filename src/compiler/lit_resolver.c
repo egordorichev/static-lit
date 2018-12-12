@@ -540,6 +540,7 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 			field->access = var->access;
 			field->is_static = var->is_static;
 			field->is_final = var->final;
+			field->original = class;
 
 			resolve_field_statement(resolver, var); // The var->type might be assigned here
 			field->type = var->type; // Thats why this must go here
@@ -581,6 +582,7 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 			m->access = method->access;
 			m->abstract = method->abstract;
 			m->is_overriden = method->overriden;
+			m->original = class;
 
 			LitString* name = lit_copy_string(resolver->compiler, method->name, strlen(method->name));
 			LitResolverMethod* check_method = lit_resolver_methods_get(method->is_static ? &class->methods : &class->static_methods, name);
@@ -1203,7 +1205,7 @@ void lit_free_resolver(LitResolver* resolver) {
 				for (int j = 0; j <= type->fields.capacity_mask; j++) {
 					LitResolverField *a = type->fields.entries[j].value;
 
-					if (a != NULL) {
+					if (a != NULL && a->original == type) {
 						reallocate(resolver->compiler, (void *) a, sizeof(LitResolverField), 0);
 					}
 				}
@@ -1223,7 +1225,7 @@ void lit_free_resolver(LitResolver* resolver) {
 				for (int j = 0; j <= type->methods.capacity_mask; j++) {
 					LitResolverMethod *a = type->methods.entries[j].value;
 
-					if (a != NULL) {
+					if (a != NULL && a->original == type) {
 						lit_free_resolver_method(resolver->compiler, a);
 					}
 				}

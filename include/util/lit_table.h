@@ -25,6 +25,7 @@
 	bool lit_##shr##_delete(LitMemManager* manager, name* table, LitString* key); \
 	LitString* lit_##shr##_find(name* table, const char* chars, int length, uint32_t hash); \
 	void lit_##shr##_add_all(LitMemManager* manager, name* to, name* from); \
+	void lit_##shr##_remove_all(LitMemManager* manager, name* to, name* from); \
 	void lit_##shr##_remove_white(LitMemManager* manager, name* table); \
 
 DECLARE_TABLE(LitTable, LitValue, table, LitValue*)
@@ -186,6 +187,16 @@ DECLARE_TABLE(LitTable, LitValue, table, LitValue*)
 	\
 			if (entry->key != NULL) { \
 				lit_##shr##_set(manager, to, entry->key, entry->value); \
+			} \
+		} \
+	} \
+	\
+	void lit_##shr##_remove_all(LitMemManager* manager, name* to, name* from) { \
+		for (int i = 0; i <= from->capacity_mask; i++) { \
+			name##Entry* entry = &from->entries[i]; \
+	\
+			if (entry->key != NULL) { \
+				lit_##shr##_delete(manager, to, entry->key); \
 			} \
 		} \
 	} \

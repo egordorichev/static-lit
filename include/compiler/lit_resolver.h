@@ -29,6 +29,7 @@ typedef struct LitResolverField {
 	bool is_final;
 	LitAccessType access;
 	const char* type;
+	struct sLitType* original;
 } LitResolverField;
 
 void lit_free_resolver_field(LitCompiler* compiler, LitResolverField* resource);
@@ -42,6 +43,7 @@ typedef struct LitResolverMethod {
 	LitAccessType access;
 	char* signature;
 	LitString* name;
+	struct sLitType* original;
 } LitResolverMethod;
 
 void lit_free_resolver_method(LitCompiler* compiler, LitResolverMethod* method);

@@ -1,2 +1,7 @@
-var str = "HELLO WORLD"
-print(str.toLowerCase())
+class Test {
+	static String test = ""
+}
+
+class Awesome < Test {
+
+}
