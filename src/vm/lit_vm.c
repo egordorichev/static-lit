@@ -650,11 +650,8 @@ static bool interpret(LitVm* vm) {
 			continue;
 		};
 
-		op_get_field:
-		{
+		op_get_field: {
 			LitValue from = PEEK(0);
-			LitClass *type = NULL;
-
 
 			if (IS_CLASS(from)) {
 				LitString *name = READ_STRING();
@@ -671,10 +668,19 @@ static bool interpret(LitVm* vm) {
 						POP();
 						PUSH(*method);
 					} else {
-						runtime_error(vm, "Class %s has no static field or method %s", class->name->chars, name->chars);
+						method = lit_table_get(&vm->class_class->methods, name);
+
+						if (method != NULL) {
+							POP();
+							PUSH(*method);
+						} else {
+							runtime_error(vm, "Class %s has no static field or method %s", class->name->chars, name->chars);
+						}
 					}
 				}
 			} else {
+				LitClass *type = NULL;
+
 				if (IS_NIL(from)) {
 					runtime_error(vm, "Attempt to get a field from a nil value");
 					return false;
