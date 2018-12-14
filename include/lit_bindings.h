@@ -21,10 +21,10 @@
 	lit_declare_class(compiler, lit_compiler_define_class(compiler, name, super), id##_methods))->class; \
 	i++;
 
-#define METHOD(name) int name(LitVm* vm, LitValue instance, LitValue* args, int count)
+#define METHOD(name) int name(LitVm* vm, LitValue instance, const LitValue* args, int count)
 #define START_METHODS(name) static LitMethodRegistry name##_methods[] = {
 #define ADD(name, signature, fn, stat) { name, signature, fn, stat },
-#define END_METHODS { NULL } };
+#define END_METHODS { NULL, NULL, NULL, NULL } };
 
 #define START_FUNCTIONS(size) ({\
 	int i = 0; \

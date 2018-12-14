@@ -180,7 +180,7 @@ static bool call_value(LitVm* vm, LitValue callee, int arg_count, bool static_in
 				LitClass* class = AS_CLASS(callee);
 
 				if (!static_init) {
-					vm->stack_top[-arg_count - 1] = MAKE_OBJECT_VALUE(lit_new_instance(vm, class));
+					vm->stack_top[-arg_count - 1] = MAKE_OBJECT_VALUE(lit_new_instance(MM(vm), class));
 				}
 
 				LitValue* initializer = lit_table_get(static_init ? &class->static_methods : &class->methods, vm->init_string);
@@ -206,6 +206,7 @@ static bool call_value(LitVm* vm, LitValue callee, int arg_count, bool static_in
 				last_native = true;
 				return true;
 			}
+			default: UNREACHABLE();
 		}
 	}
 
@@ -213,7 +214,7 @@ static bool call_value(LitVm* vm, LitValue callee, int arg_count, bool static_in
 	return false;
 }
 
-static void close_upvalues(LitVm* vm, LitValue* last) {
+static void close_upvalues(LitVm* vm, const LitValue* last) {
 	while (vm->open_upvalues != NULL && vm->open_upvalues->value >= last) {
 		LitUpvalue* upvalue = vm->open_upvalues;
 
@@ -225,7 +226,7 @@ static void close_upvalues(LitVm* vm, LitValue* last) {
 
 static LitUpvalue* capture_upvalue(LitVm* vm, LitValue* local) {
 	if (vm->open_upvalues == NULL) {
-		vm->open_upvalues = lit_new_upvalue(vm, local);
+		vm->open_upvalues = lit_new_upvalue(MM(vm), local);
 		return vm->open_upvalues;
 	}
 
@@ -241,7 +242,7 @@ static LitUpvalue* capture_upvalue(LitVm* vm, LitValue* local) {
 		return upvalue;
 	}
 
-	LitUpvalue* created_upvalue = lit_new_upvalue(vm, local);
+	LitUpvalue* created_upvalue = lit_new_upvalue(MM(vm), local);
 	created_upvalue->next = upvalue;
 
 	if (prev_upvalue == NULL) {
@@ -254,14 +255,14 @@ static LitUpvalue* capture_upvalue(LitVm* vm, LitValue* local) {
 }
 
 static void create_class(LitVm* vm, LitString* name, LitClass* super) {
-	LitClass* class = lit_new_class(vm, name, super);
+	LitClass* class = lit_new_class(MM(vm), name, super);
 	lit_push(vm, MAKE_OBJECT_VALUE(class));
 
 	if (super != NULL) {
-		lit_table_add_all(vm, &class->static_methods, &super->static_methods);
-		lit_table_add_all(vm, &class->methods, &super->methods);
-		lit_table_add_all(vm, &class->static_fields, &super->static_fields);
-		lit_table_add_all(vm, &class->fields, &super->fields);
+		lit_table_add_all(MM(vm), &class->static_methods, &super->static_methods);
+		lit_table_add_all(MM(vm), &class->methods, &super->methods);
+		lit_table_add_all(MM(vm), &class->static_fields, &super->static_fields);
+		lit_table_add_all(MM(vm), &class->fields, &super->fields);
 	}
 }
 
@@ -269,7 +270,7 @@ static void define_method(LitVm* vm, LitString* name) {
 	LitValue method = lit_peek(vm, 0);
 	LitClass* class = AS_CLASS(lit_peek(vm, 1));
 
-	lit_table_set(vm, &class->methods, name, method);
+	lit_table_set(MM(vm), &class->methods, name, method);
 	lit_pop(vm);
 }
 
@@ -352,7 +353,7 @@ static bool interpret(LitVm* vm) {
 
 		if (DEBUG_TRACE_EXECUTION) {
 			trace_stack(vm);
-			lit_disassemble_instruction(vm, &frame->closure->function->chunk, (int) (frame->ip - frame->closure->function->chunk.code));
+			lit_disassemble_instruction(MM(vm), &frame->closure->function->chunk, (int) (frame->ip - frame->closure->function->chunk.code));
 		}
 
 		goto *functions[*frame->ip++];
@@ -529,7 +530,7 @@ static bool interpret(LitVm* vm) {
 		};
 
 		op_define_global: {
-			lit_table_set(vm, &vm->globals, READ_STRING(), vm->stack_top[-1]);
+			lit_table_set(MM(vm), &vm->globals, READ_STRING(), vm->stack_top[-1]);
 			POP();
 
 			continue;
@@ -544,7 +545,7 @@ static bool interpret(LitVm* vm) {
 		};
 
 		op_set_global: {
-			lit_table_set(vm, &vm->globals, READ_STRING(), PEEK(0));
+			lit_table_set(MM(vm), &vm->globals, READ_STRING(), PEEK(0));
 			continue;
 		};
 
@@ -591,7 +592,7 @@ static bool interpret(LitVm* vm) {
 		op_closure: {
 			LitFunction* function = AS_FUNCTION(READ_CONSTANT());
 
-			LitClosure* closure = lit_new_closure(vm, function);
+			LitClosure* closure = lit_new_closure(MM(vm), function);
 			PUSH(MAKE_OBJECT_VALUE(closure));
 
 			for (int i = 0; i < closure->upvalue_count; i++) {
@@ -712,7 +713,7 @@ static bool interpret(LitVm* vm) {
 
 			if (IS_CLASS(from)) {
 				LitValue value = POP();
-				lit_table_set(vm, &AS_CLASS(from)->static_fields, READ_STRING(), value);
+				lit_table_set(MM(vm), &AS_CLASS(from)->static_fields, READ_STRING(), value);
 
 				POP();
 				PUSH(value);
@@ -720,7 +721,7 @@ static bool interpret(LitVm* vm) {
 				LitInstance* instance = AS_INSTANCE(PEEK(1));
 				LitValue value = POP();
 
-				lit_table_set(vm, &instance->fields, READ_STRING(), value);
+				lit_table_set(MM(vm), &instance->fields, READ_STRING(), value);
 
 				POP();
 				PUSH(value);
@@ -751,7 +752,7 @@ static bool interpret(LitVm* vm) {
 			}
 
 			LitClass* class = AS_CLASS(PEEK(1));
-			lit_table_set(vm, &class->fields, READ_STRING(), POP());
+			lit_table_set(MM(vm), &class->fields, READ_STRING(), POP());
 
 			continue;
 		};
@@ -761,7 +762,7 @@ static bool interpret(LitVm* vm) {
 			LitValue method = POP();
 			LitClass* class = AS_CLASS(PEEK(0));
 
-			lit_table_set(vm, &class->methods, name, method);
+			lit_table_set(MM(vm), &class->methods, name, method);
 			continue;
 		};
 
@@ -775,7 +776,7 @@ static bool interpret(LitVm* vm) {
 				return false;
 			}
 
-			LitMethod* bound = lit_new_bound_method(vm, MAKE_OBJECT_VALUE(instance), AS_CLOSURE(*method));
+			LitMethod* bound = lit_new_bound_method(MM(vm), MAKE_OBJECT_VALUE(instance), AS_CLOSURE(*method));
 			PUSH(MAKE_OBJECT_VALUE(bound));
 
 			continue;
@@ -788,7 +789,7 @@ static bool interpret(LitVm* vm) {
 			}
 
 			LitClass* class = AS_CLASS(PEEK(1));
-			lit_table_set(vm, &class->static_fields, READ_STRING(), POP());
+			lit_table_set(MM(vm), &class->static_fields, READ_STRING(), POP());
 
 			continue;
 		};
@@ -798,7 +799,7 @@ static bool interpret(LitVm* vm) {
 			LitValue method = POP();
 			LitClass* class = AS_CLASS(PEEK(0));
 
-			lit_table_set(vm, &class->static_methods, name, method);
+			lit_table_set(MM(vm), &class->static_methods, name, method);
 			continue;
 		};
 
@@ -869,9 +870,9 @@ void lit_free_vm(LitVm* vm) {
 		printf("Bytes allocated before freeing vm: %ld\n", ((LitMemManager*) vm)->bytes_allocated);
 	}
 
-	lit_free_table(vm, &manager->strings);
-	lit_free_table(vm, &vm->globals);
-	lit_free_objects(vm);
+	lit_free_table(MM(vm), &manager->strings);
+	lit_free_table(MM(vm), &vm->globals);
+	lit_free_objects(MM(vm));
 
 	vm->init_string = NULL;
 
@@ -882,7 +883,7 @@ void lit_free_vm(LitVm* vm) {
 
 bool lit_execute(LitVm* vm, LitFunction* function) {
 	if (!DEBUG_NO_EXECUTE) {
-		call_value(vm, MAKE_OBJECT_VALUE(lit_new_closure(vm, function)), 0, false);
+		call_value(vm, MAKE_OBJECT_VALUE(lit_new_closure(MM(vm), function)), 0, false);
 		return interpret(vm);
 	}
 
@@ -910,8 +911,8 @@ bool lit_eval(const char* source_code) {
 
 	LitVm vm;
 	lit_init_vm(&vm);
-	lit_table_add_all(&vm, &vm.mem_manager.strings, &compiler.mem_manager.strings);
-	vm.init_string = lit_copy_string(&vm, "init", 4);
+	lit_table_add_all(MM(&vm), &vm.mem_manager.strings, &compiler.mem_manager.strings);
+	vm.init_string = lit_copy_string(MM(&vm), "init", 4);
 
 	// lit_define_lib(&vm, std);
 
@@ -924,8 +925,8 @@ bool lit_eval(const char* source_code) {
 }
 
 void lit_vm_define_native(LitVm* vm, LitNativeRegistry* native) {
-	LitString* str = lit_copy_string(vm, native->name, (int) strlen(native->name));
-	lit_table_set(vm, &vm->globals, AS_STRING(MAKE_OBJECT_VALUE(str)), MAKE_OBJECT_VALUE(lit_new_native(vm, native->function)));
+	LitString* str = lit_copy_string(MM(vm), native->name, (int) strlen(native->name));
+	lit_table_set(MM(vm), &vm->globals, AS_STRING(MAKE_OBJECT_VALUE(str)), MAKE_OBJECT_VALUE(lit_new_native(MM(vm), native->function)));
 }
 
 void lit_vm_define_natives(LitVm* vm, LitNativeRegistry* natives) {
@@ -942,8 +943,8 @@ void lit_vm_define_natives(LitVm* vm, LitNativeRegistry* natives) {
 }
 
 LitClass* lit_vm_define_class(LitVm* vm, LitType* type, LitClass* super) {
-	LitClass* class = lit_new_class(vm, type->name, super);
-	lit_table_set(vm, &vm->globals, type->name, MAKE_OBJECT_VALUE(class));
+	LitClass* class = lit_new_class(MM(vm), type->name, super);
+	lit_table_set(MM(vm), &vm->globals, type->name, MAKE_OBJECT_VALUE(class));
 
 	if (vm->string_class == NULL && strcmp(type->name->chars, "String") == 0) {
 		vm->string_class = class;
@@ -958,18 +959,18 @@ LitClass* lit_vm_define_class(LitVm* vm, LitType* type, LitClass* super) {
 	}
 
 	if (super != NULL) {
-		lit_table_add_all(vm, &class->static_methods, &super->static_methods);
-		lit_table_add_all(vm, &class->methods, &super->methods);
-		lit_table_add_all(vm, &class->static_fields, &super->static_fields);
-		lit_table_add_all(vm, &class->fields, &super->fields);
+		lit_table_add_all(MM(vm), &class->static_methods, &super->static_methods);
+		lit_table_add_all(MM(vm), &class->methods, &super->methods);
+		lit_table_add_all(MM(vm), &class->static_fields, &super->static_fields);
+		lit_table_add_all(MM(vm), &class->fields, &super->fields);
 	}
 
 	return class;
 }
 
 LitNativeMethod* lit_vm_define_method(LitVm* vm, LitClass* class, LitResolverNativeMethod* method) {
-	LitNativeMethod* m = lit_new_native_method(vm, method->function);
-	lit_table_set(vm, method->method.is_static ? &class->static_methods : &class->methods, method->method.name, MAKE_OBJECT_VALUE(m));
+	LitNativeMethod* m = lit_new_native_method(MM(vm), method->function);
+	lit_table_set(MM(vm), method->method.is_static ? &class->static_methods : &class->methods, method->method.name, MAKE_OBJECT_VALUE(m));
 
 	return m;
 }

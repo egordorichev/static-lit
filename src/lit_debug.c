@@ -350,6 +350,7 @@ void lit_trace_expression(LitMemManager* manager, LitExpression* expression, int
 					case TOKEN_LESS_EQUAL: printf("\"<=\"\n"); break;
 					case TOKEN_GREATER: printf("\">\"\n"); break;
 					case TOKEN_GREATER_EQUAL: printf("\">=\"\n"); break;
+					default: UNREACHABLE();
 				}
 
 				break;
@@ -367,6 +368,7 @@ void lit_trace_expression(LitMemManager* manager, LitExpression* expression, int
 				switch (logic->operator) {
 					case TOKEN_AND: printf("\"and\"\n"); break;
 					case TOKEN_OR: printf("\"or\"\n"); break;
+					default: UNREACHABLE();
 				}
 
 				break;
@@ -375,7 +377,7 @@ void lit_trace_expression(LitMemManager* manager, LitExpression* expression, int
 				LitLiteralExpression* literal = (LitLiteralExpression*) expression;
 
 				printf("\"type\" : \"literal\",\n");
-				printf("\"value\" : \"%s\"\n", lit_to_string(manager, literal->value));
+				printf("\"value\" : \"%s\"\n", lit_to_string((LitVm*) (manager), literal->value));
 				break;
 			}
 			case UNARY_EXPRESSION: {
@@ -535,37 +537,37 @@ void lit_trace_expression(LitMemManager* manager, LitExpression* expression, int
 void lit_trace_chunk(LitMemManager* manager, LitChunk* chunk, const char* name) {
 	printf("== %s ==\n", name);
 
-	for (int i = 0; i < chunk->count;) {
+	for (uint64_t i = 0; i < chunk->count;) {
 		i = lit_disassemble_instruction(manager, chunk, i);
 	}
 }
 
-static int simple_instruction(const char* name, int offset) {
+static uint64_t simple_instruction(const char* name, uint64_t offset) {
 	printf("%s\n", name);
 	return offset + 1;
 }
 
-static int constant_instruction(LitMemManager* manager, const char* name, LitChunk* chunk, int offset) {
+static uint64_t constant_instruction(LitMemManager* manager, const char* name, LitChunk* chunk, uint64_t offset) {
 	uint8_t constant = chunk->code[offset + 1];
-	printf("%-16s %4d '%s'\n", name, constant, lit_to_string(manager, chunk->constants.values[constant]));
+	printf("%-16s %4d '%s'\n", name, constant, lit_to_string((LitVm*) manager, chunk->constants.values[constant]));
 	return offset + 2;
 }
 
-static int byte_instruction(const char* name, LitChunk* chunk, int offset) {
+static uint64_t byte_instruction(const char* name, LitChunk* chunk, uint64_t offset) {
 	uint8_t slot = chunk->code[offset + 1];
 	printf("%-16s %4d\n", name, slot);
 	return offset + 2;
 }
 
-static int jump_instruction(const char* name, int sign, LitChunk* chunk, int offset) {
+static uint64_t jump_instruction(const char* name, int sign, LitChunk* chunk, uint64_t offset) {
 	uint16_t jump = (uint16_t)(chunk->code[offset + 1] << 8);
 	jump |= chunk->code[offset + 2];
-	printf("%-16s %4d -> %d\n", name, offset, offset + 3 + sign * jump);
+	printf("%-16s %lu -> %lu\n", name, offset, offset + 3 + sign * jump);
 	return offset + 3;
 }
 
-int lit_disassemble_instruction(LitMemManager* manager, LitChunk* chunk, int offset) {
-	printf("%04d ", offset);
+uint64_t lit_disassemble_instruction(LitMemManager* manager, LitChunk* chunk, uint64_t offset) {
+	printf("%lu ", offset);
 	uint8_t instruction = chunk->code[offset];
 
 	switch (instruction) {
@@ -616,7 +618,7 @@ int lit_disassemble_instruction(LitMemManager* manager, LitChunk* chunk, int off
 		case OP_CLOSURE: {
 			offset++;
 			uint8_t constant = chunk->code[offset++];
-			printf("%-16s %4d %s\n", "OP_CLOSURE", constant, lit_to_string(manager, chunk->constants.values[constant]));
+			printf("%-16s %4d %s\n", "OP_CLOSURE", constant, lit_to_string((LitVm*) (manager), chunk->constants.values[constant]));
 
 			LitFunction* function = AS_FUNCTION(chunk->constants.values[constant]);
 
@@ -624,7 +626,7 @@ int lit_disassemble_instruction(LitMemManager* manager, LitChunk* chunk, int off
 				int isLocal = chunk->code[offset++];
 				int index = chunk->code[offset++];
 
-				printf("%04d   |                     %s %d\n", offset - 2, isLocal ? "local" : "upvalue", index);
+				printf("%lu   |                     %s %d\n", offset - 2, isLocal ? "local" : "upvalue", index);
 			}
 
 			return offset;

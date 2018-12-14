@@ -13,7 +13,10 @@
 #define FREE(vm, type, pointer) reallocate(vm, pointer, sizeof(type), 0)
 
 // Used by both VM and compiler
-void* reallocate(LitMemManager* manager, void* previous, size_t old_size, size_t new_size);
+void* base_reallocate(LitMemManager* manager, void* previous, size_t old_size, size_t new_size);
+
+#define reallocate(x, b, c, d) base_reallocate(_Generic((x), LitCompiler*: (LitMemManager*)(x), LitVm*: (LitMemManager*)(x), LitMemManager*: x), b, c, d)
+
 // VM only stuff
 void lit_gray_object(LitVm* vm, LitObject* object);
 void lit_gray_value(LitVm* vm, LitValue value);

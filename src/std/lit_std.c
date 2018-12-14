@@ -73,7 +73,7 @@ END_METHODS
  */
 METHOD(string_toLowerCase) {
 	LitString* old = AS_STRING(instance);
-	LitString* string = lit_new_string(vm, old->length);
+	LitString* string = lit_new_string(MM(vm), old->length);
 
 	for (int i = 0; i < old->length; i++) {
 		string->chars[i] = (char) tolower(old->chars[i]);
@@ -85,7 +85,7 @@ METHOD(string_toLowerCase) {
 
 METHOD(string_toUpperCase) {
 	LitString* old = AS_STRING(instance);
-	LitString* string = lit_new_string(vm, old->length);
+	LitString* string = lit_new_string(MM(vm), old->length);
 
 	for (int i = 0; i < old->length; i++) {
 		string->chars[i] = (char) toupper(old->chars[i]);

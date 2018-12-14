@@ -62,7 +62,7 @@ static bool compare_arg(char* needed, char* given) {
 static void push_scope(LitResolver* resolver) {
 	LitResolverLocals* table = (LitResolverLocals*) reallocate(resolver->compiler, NULL, 0, sizeof(LitResolverLocals));
 	lit_init_resolver_locals(table);
-	lit_scopes_write(resolver->compiler, &resolver->scopes, table);
+	lit_scopes_write(MM(resolver->compiler), &resolver->scopes, table);
 
 	resolver->depth ++;
 }
@@ -83,7 +83,7 @@ static void pop_scope(LitResolver* resolver) {
 		}
 	}
 
-	lit_free_resolver_locals(resolver->compiler, table);
+	lit_free_resolver_locals(MM(resolver->compiler), table);
 	reallocate(resolver->compiler, table, sizeof(LitResolverLocals), 0);
 
 	resolver->depth --;
@@ -97,7 +97,7 @@ static size_t strlen_ignoring(const char *str) {
 }
 
 static void resolve_type(LitResolver* resolver, const char* type, uint64_t line) {
-	if (type != NULL && !lit_types_get(&resolver->types, lit_copy_string(resolver->compiler, type, (int) strlen_ignoring(type)))) {
+	if (type != NULL && !lit_types_get(&resolver->types, lit_copy_string(MM(resolver->compiler), type, (int) strlen_ignoring(type)))) {
 		error(resolver, line, "Type %s is not defined", type);
 	}
 }
@@ -107,8 +107,8 @@ void lit_define_type(LitResolver* resolver, const char* type) {
 		return;
 	}
 
-	LitString* str = lit_copy_string(resolver->compiler, type, (int) strlen(type));
-	lit_types_set(resolver->compiler, &resolver->types, str, true);
+	LitString* str = lit_copy_string(MM(resolver->compiler), type, (int) strlen(type));
+	lit_types_set(MM(resolver->compiler), &resolver->types, str, true);
 }
 
 void lit_init_resolver_local(LitResolverLocal* local) {
@@ -120,7 +120,7 @@ void lit_init_resolver_local(LitResolverLocal* local) {
 }
 
 static LitResolverLocal* resolve_local(LitResolver* resolver, const char* name, uint64_t line) {
-	LitString *str = lit_copy_string(resolver->compiler, name, (int) strlen(name));
+	LitString *str = lit_copy_string(MM(resolver->compiler), name, (int) strlen(name));
 
 	for (int i = resolver->scopes.count - 1; i >= 0; i --) {
 		LitResolverLocal* value = lit_resolver_locals_get(resolver->scopes.values[i], str);
@@ -142,7 +142,7 @@ static LitResolverLocal* resolve_local(LitResolver* resolver, const char* name, 
 
 static void declare(LitResolver* resolver, const char* name, uint64_t line) {
 	LitResolverLocals* scope = peek_scope(resolver);
-	LitString* str = lit_copy_string(resolver->compiler, name, (int) strlen(name));
+	LitString* str = lit_copy_string(MM(resolver->compiler), name, (int) strlen(name));
 	LitResolverLocal* value = lit_resolver_locals_get(scope, str);
 
 	if (value != NULL) {
@@ -152,12 +152,12 @@ static void declare(LitResolver* resolver, const char* name, uint64_t line) {
 	LitResolverLocal* local = (LitResolverLocal*) reallocate(resolver->compiler, NULL, 0, sizeof(LitResolverLocal));
 
 	lit_init_resolver_local(local);
-	lit_resolver_locals_set(resolver->compiler, scope, str, local);
+	lit_resolver_locals_set(MM(resolver->compiler), scope, str, local);
 }
 
 static void declare_and_define(LitResolver* resolver, const char* name, const char* type, uint64_t line) {
 	LitResolverLocals* scope = peek_scope(resolver);
-	LitString* str = lit_copy_string(resolver->compiler, name, (int) strlen(name));
+	LitString* str = lit_copy_string(MM(resolver->compiler), name, (int) strlen(name));
 	LitResolverLocal* value = lit_resolver_locals_get(scope, str);
 
 	if (value != NULL) {
@@ -169,13 +169,13 @@ static void declare_and_define(LitResolver* resolver, const char* name, const ch
 		local->defined = true;
 		local->type = type;
 
-		lit_resolver_locals_set(resolver->compiler, scope, str, local);
+		lit_resolver_locals_set(MM(resolver->compiler), scope, str, local);
 	}
 }
 
 static LitResolverLocal* define(LitResolver* resolver, const char* name, const char* type, bool field) {
 	LitResolverLocals* scope = peek_scope(resolver);
-	LitString* str = lit_copy_string(resolver->compiler, name, (int) strlen(name));
+	LitString* str = lit_copy_string(MM(resolver->compiler), name, (int) strlen(name));
 
 	LitResolverLocal* value = lit_resolver_locals_get(scope, str);
 
@@ -188,7 +188,7 @@ static LitResolverLocal* define(LitResolver* resolver, const char* name, const c
 		local->type = type;
 		local->field = field;
 
-		lit_resolver_locals_set(resolver->compiler, scope, str, local);
+		lit_resolver_locals_set(MM(resolver->compiler), scope, str, local);
 		return local;
 	} else {
 		value->defined = true;
@@ -263,7 +263,7 @@ static void resolve_block_statement(LitResolver* resolver, LitBlockStatement* st
 
 static void resolve_while_statement(LitResolver* resolver, LitWhileStatement* statement) {
 	LitStatement* enclosing = resolver->loop;
-	resolver->loop = statement;
+	resolver->loop = (LitStatement *) statement;
 
 	resolve_expression(resolver, statement->condition);
 	resolve_statement(resolver, statement->body);
@@ -273,7 +273,7 @@ static void resolve_while_statement(LitResolver* resolver, LitWhileStatement* st
 
 static void resolve_function(LitResolver* resolver, LitParameters* parameters, LitParameter* return_type, LitStatement* body,
 	const char* message, const char* name, uint64_t line) {
-
+	
 	push_scope(resolver);
 
 	resolver->had_return = false;
@@ -291,7 +291,7 @@ static void resolve_function(LitResolver* resolver, LitParameters* parameters, L
 
 	if (!resolver->had_return) {
 		if (strcmp(return_type->type, "void") != 0) {
-			error(resolver, message, name);
+			error(resolver, line, message, name);
 		} else {
 			LitBlockStatement* block = (LitBlockStatement*) body;
 
@@ -300,7 +300,7 @@ static void resolve_function(LitResolver* resolver, LitParameters* parameters, L
 				lit_init_statements(block->statements);
 			}
 
-			lit_statements_write(resolver->compiler, block->statements, (LitStatement*) lit_make_return_statement(resolver->compiler, line, NULL));
+			lit_statements_write(MM(resolver->compiler), block->statements, (LitStatement*) lit_make_return_statement(resolver->compiler, line, NULL));
 		}
 	}
 
@@ -358,7 +358,7 @@ static void resolve_function_statement(LitResolver* resolver, LitFunctionStateme
 
 	resolver->function = last;
 
-	lit_strings_write(resolver->compiler, &resolver->allocated_strings, (char*) type);
+	lit_strings_write(MM(resolver->compiler), &resolver->allocated_strings, (char*) type);
 
 	if (statement->parameters != NULL && statement->parameters->count > 255) {
 		error(resolver, statement->statement.line, "Function %s has more than 255 parameters", statement->name);
@@ -400,7 +400,7 @@ static void resolve_method_statement(LitResolver* resolver, LitMethodStatement* 
 		if (resolver->class->super == NULL) {
 			error(resolver, statement->statement.line, "Can't override a method in a class without a base");
 		} else {
-			LitResolverMethod* super_method = lit_resolver_methods_get(&resolver->class->super->methods, lit_copy_string(resolver->compiler, statement->name, strlen(statement->name)));
+			LitResolverMethod* super_method = lit_resolver_methods_get(&resolver->class->super->methods, lit_copy_string(MM(resolver->compiler), statement->name, strlen(statement->name)));
 
 			if (super_method == NULL) {
 				error(resolver, statement->statement.line, "Can't override method %s, it does not exist in the base class", statement->name);
@@ -451,7 +451,7 @@ static void resolve_method_statement(LitResolver* resolver, LitMethodStatement* 
 				lit_init_statements(block->statements);
 			}
 
-			lit_statements_write(resolver->compiler, block->statements, (LitStatement*) lit_make_return_statement(resolver->compiler, statement->statement.line, NULL));
+			lit_statements_write(MM(resolver->compiler), block->statements, (LitStatement*) lit_make_return_statement(resolver->compiler, statement->statement.line, NULL));
 		}
 	}
 
@@ -494,7 +494,7 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 	type[6 + len] = '>';
 	type[7 + len] = '\0';
 
-	LitString* name = lit_copy_string(resolver->compiler, statement->name, len);
+	LitString* name = lit_copy_string(MM(resolver->compiler), statement->name, len);
 
 	lit_define_type(resolver, name->chars);
 	declare_and_define(resolver, name->chars, type, statement->statement.line);
@@ -510,7 +510,7 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 	LitType* super = NULL;
 
 	if (statement->super != NULL) {
-		LitType* super_class = lit_classes_get(&resolver->classes, lit_copy_string(resolver->compiler, statement->super->name, strlen(statement->super->name)));
+		LitType* super_class = lit_classes_get(&resolver->classes, lit_copy_string(MM(resolver->compiler), statement->super->name, strlen(statement->super->name)));
 
 		if (super_class == NULL) {
 			error(resolver, statement->statement.line, "Can't inherit undefined class %s", statement->super->name);
@@ -526,7 +526,7 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 	class->inited = false;
 	class->super = super;
 	class->external = false;
-	class->name = lit_copy_string(resolver->compiler, statement->name, len);
+	class->name = lit_copy_string(MM(resolver->compiler), statement->name, len);
 	class->is_static = statement->is_static;
 	class->final = statement->final;
 	class->abstract = statement->abstract;
@@ -537,12 +537,12 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 	lit_init_resolver_fields(&class->static_fields);
 
 	if (super != NULL) {
-		lit_resolver_methods_add_all(resolver->compiler, &class->methods, &super->methods);
-		lit_resolver_fields_add_all(resolver->compiler, &class->fields, &super->fields);
+		lit_resolver_methods_add_all(MM(resolver->compiler), &class->methods, &super->methods);
+		lit_resolver_fields_add_all(MM(resolver->compiler), &class->fields, &super->fields);
 	}
 
 	resolver->class = class;
-	lit_classes_set(resolver->compiler, &resolver->classes, name, class);
+	lit_classes_set(MM(resolver->compiler), &resolver->classes, name, class);
 	push_scope(resolver);
 
 	if (statement->fields != NULL) {
@@ -560,26 +560,26 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 			resolve_field_statement(resolver, var); // The var->type might be assigned here
 			field->type = var->type; // Thats why this must go here
 
-			LitString* name = lit_copy_string(resolver->compiler, n, strlen(n));
-			LitResolverField* check_field =	lit_resolver_fields_get(field->is_static ? &class->fields : &class->static_fields, name);
+			LitString* fieldName = lit_copy_string(MM(resolver->compiler), n, strlen(n));
+			LitResolverField* check_field =	lit_resolver_fields_get(field->is_static ? &class->fields : &class->static_fields, fieldName);
 
 			if (check_field != NULL) {
-				error(resolver, statement->statement.line, "Field %s is already defined!", name->chars);
+				error(resolver, statement->statement.line, "Field %s is already defined!", fieldName->chars);
 			} else {
-				LitResolverMethod* check_method = lit_resolver_methods_get(&class->methods, name);
+				LitResolverMethod* check_method = lit_resolver_methods_get(&class->methods, fieldName);
 
 				if (check_method != NULL) {
-					error(resolver, statement->statement.line, "Can't define field and method with the same name %s", name->chars);
+					error(resolver, statement->statement.line, "Can't define field and method with the same name %s", fieldName->chars);
 				} else {
-					check_method = lit_resolver_methods_get(&class->static_methods, name);
+					check_method = lit_resolver_methods_get(&class->static_methods, fieldName);
 
 					if (check_method != NULL) {
-						error(resolver, statement->statement.line, "Can't define field and method with the same name %s", name->chars);
+						error(resolver, statement->statement.line, "Can't define field and method with the same name %s", fieldName->chars);
 					}
 				}
 			}
 
-			lit_resolver_fields_set(resolver->compiler, field->is_static ? &class->static_fields : &class->fields, name, field);
+			lit_resolver_fields_set(MM(resolver->compiler), field->is_static ? &class->static_fields : &class->fields, fieldName, field);
 		}
 	}
 
@@ -599,32 +599,32 @@ static void resolve_class_statement(LitResolver* resolver, LitClassStatement* st
 			m->is_overriden = method->overriden;
 			m->original = class;
 
-			LitString* name = lit_copy_string(resolver->compiler, method->name, strlen(method->name));
-			LitResolverMethod* check_method = lit_resolver_methods_get(method->is_static ? &class->methods : &class->static_methods, name);
+			LitString* methodName = lit_copy_string(MM(resolver->compiler), method->name, strlen(method->name));
+			LitResolverMethod* check_method = lit_resolver_methods_get(method->is_static ? &class->methods : &class->static_methods, methodName);
 
 			if (check_method != NULL) {
-				error(resolver, statement->statement.line, "Method %s is already defined!", name->chars);
+				error(resolver, statement->statement.line, "Method %s is already defined!", methodName->chars);
 			} else {
-				LitResolverField* check_field = lit_resolver_fields_get(&class->fields, name);
+				LitResolverField* check_field = lit_resolver_fields_get(&class->fields, methodName);
 
 				if (check_field != NULL) {
-					error(resolver, statement->statement.line, "Can't define field and method with the same name %s", name->chars);
+					error(resolver, statement->statement.line, "Can't define field and method with the same name %s", methodName->chars);
 				} else {
-					check_field = lit_resolver_fields_get(&class->static_fields, name);
+					check_field = lit_resolver_fields_get(&class->static_fields, methodName);
 
 					if (check_field != NULL) {
-						error(resolver, statement->statement.line, "Can't define field and method with the same name %s", name->chars);
+						error(resolver, statement->statement.line, "Can't define field and method with the same name %s", methodName->chars);
 					}
 				}
 			}
 
-			lit_resolver_methods_set(resolver->compiler, method->is_static ? &class->static_methods : &class->methods, lit_copy_string(resolver->compiler, method->name, strlen(method->name)), m);
+			lit_resolver_methods_set(MM(resolver->compiler), method->is_static ? &class->static_methods : &class->methods, lit_copy_string(MM(resolver->compiler), method->name, strlen(method->name)), m);
 		}
 	}
 
 	pop_scope(resolver);
 	resolver->class = NULL;
-	lit_strings_write(resolver->compiler, &resolver->allocated_strings, type);
+	lit_strings_write(MM(resolver->compiler), &resolver->allocated_strings, type);
 
 	if (super != NULL) {
 		for (int i = 0; i <= super->methods.capacity_mask; i++) {
@@ -712,7 +712,7 @@ static const char* resolve_binary_expression(LitResolver* resolver, LitBinaryExp
 
 			// Hack that allows us not to reallocate another string
 			b[len - 1] = '\0';
-			class = lit_classes_get(&resolver->classes, lit_copy_string(resolver->compiler, &b[6], (size_t) (len - 7)));
+			class = lit_classes_get(&resolver->classes, lit_copy_string(MM(resolver->compiler), &b[6], (size_t) (len - 7)));
 			b[len - 1] = '>';
 		}
 
@@ -772,7 +772,7 @@ static const char* resolve_grouping_expression(LitResolver* resolver, LitGroupin
 }
 
 static const char* resolve_var_expression(LitResolver* resolver, LitVarExpression* expression) {
-	LitResolverLocal* value = lit_resolver_locals_get(peek_scope(resolver), lit_copy_string(resolver->compiler, expression->name, (int) strlen(expression->name)));
+	LitResolverLocal* value = lit_resolver_locals_get(peek_scope(resolver), lit_copy_string(MM(resolver->compiler), expression->name, (int) strlen(expression->name)));
 
 	if (value != NULL && !value->defined) {
 		error(resolver, expression->expression.line, "Can't use local variable %s in it's own initializer", expression->name);
@@ -864,9 +864,8 @@ static const char* extract_callee_name(LitExpression* expression) {
 		case SET_EXPRESSION: return ((LitSetExpression*) expression)->property;
 		case GROUPING_EXPRESSION: return extract_callee_name(((LitGroupingExpression*) expression)->expr);
 		case SUPER_EXPRESSION: return ((LitSuperExpression*) expression)->method;
+		default: return NULL;
 	}
-
-	return NULL;
 }
 
 static const char* resolve_call_expression(LitResolver* resolver, LitCallExpression* expression) {
@@ -893,8 +892,8 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 			strncpy(return_type, &type[6], len - 7);
 			return_type[len - 7] = '\0';
 
-			lit_strings_write(resolver->compiler, &resolver->allocated_strings, return_type);
-			LitType* cl = lit_classes_get(&resolver->classes, lit_copy_string(resolver->compiler, return_type, len - 7));
+			lit_strings_write(MM(resolver->compiler), &resolver->allocated_strings, return_type);
+			LitType* cl = lit_classes_get(&resolver->classes, lit_copy_string(MM(resolver->compiler), return_type, len - 7));
 
 			if (cl->is_static) {
 				error(resolver, expression->expression.line, "Can not create an instance of a static class %s", cl->name->chars);
@@ -904,8 +903,7 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 		} else if (strcmp_ignoring(type, "Function<") != 0) {
 			error(resolver, expression->expression.line, "Can't call non-function variable %s with type %s", name, type);
 		} else {
-			if (strcmp(type, NULL) == 0) {
-				error(resolver, expression->expression.line, "Can't call non-defined function %s", name);
+			if (type == NULL) {
 				return NULL;
 			}
 
@@ -938,7 +936,7 @@ static const char* resolve_call_expression(LitResolver* resolver, LitCallExpress
 					strncpy(return_type, arg, l);
 					return_type[l] = '\0';
 
-					lit_strings_write(resolver->compiler, &resolver->allocated_strings, return_type);
+					lit_strings_write(MM(resolver->compiler), &resolver->allocated_strings, return_type);
 
 					break;
 				}
@@ -985,11 +983,11 @@ static const char* resolve_get_expression(LitResolver* resolver, LitGetExpressio
 
 		// Hack that allows us not to reallocate another string
 		type[len - 1] = '\0';
-		class = lit_classes_get(&resolver->classes, lit_copy_string(resolver->compiler, &type[6], (size_t) (len - 7)));
+		class = lit_classes_get(&resolver->classes, lit_copy_string(MM(resolver->compiler), &type[6], (size_t) (len - 7)));
 		type[len - 1] = '>';
 		should_be_static = true;
 	} else {
-		class = lit_classes_get(&resolver->classes, lit_copy_string(resolver->compiler, type, strlen(type)));
+		class = lit_classes_get(&resolver->classes, lit_copy_string(MM(resolver->compiler), type, strlen(type)));
 	}
 
 	if (class == NULL) {
@@ -1000,7 +998,7 @@ static const char* resolve_get_expression(LitResolver* resolver, LitGetExpressio
 		expression->emit_static_init = true;
 	}
 
-	LitString* str = lit_copy_string(resolver->compiler, expression->property, strlen(expression->property));
+	LitString* str = lit_copy_string(MM(resolver->compiler), expression->property, strlen(expression->property));
 
 	if (str == resolver->compiler->init_string) {
 		error(resolver, expression->expression.line, "Can't call class constructor directly");
@@ -1051,8 +1049,8 @@ static const char* resolve_set_expression(LitResolver* resolver, LitSetExpressio
 		strncpy(tp, &type[6], len - 7);
 		tp[len - 7] = '\0';
 
-		lit_strings_write(resolver->compiler, &resolver->allocated_strings, tp);
-		LitType* class = lit_classes_get(&resolver->classes, lit_copy_string(resolver->compiler, tp, len - 7));
+		lit_strings_write(MM(resolver->compiler), &resolver->allocated_strings, tp);
+		LitType* class = lit_classes_get(&resolver->classes, lit_copy_string(MM(resolver->compiler), tp, len - 7));
 
 		if (class == NULL) {
 			error(resolver, expression->expression.line, "Undefined type %s", type);
@@ -1064,7 +1062,7 @@ static const char* resolve_set_expression(LitResolver* resolver, LitSetExpressio
 			expression->emit_static_init = true;
 		}
 
-		LitResolverField *field = lit_resolver_fields_get(&class->static_fields, lit_copy_string(resolver->compiler, expression->property, strlen(expression->property)));
+		LitResolverField *field = lit_resolver_fields_get(&class->static_fields, lit_copy_string(MM(resolver->compiler), expression->property, strlen(expression->property)));
 
 		if (field == NULL) {
 			error(resolver, expression->expression.line, "Class %s has no field %s", type, expression->property);
@@ -1088,14 +1086,14 @@ static const char* resolve_set_expression(LitResolver* resolver, LitSetExpressio
 
 		return field->type;
 	} else {
-		LitType *class = lit_classes_get(&resolver->classes, lit_copy_string(resolver->compiler, type, strlen(type)));
+		LitType *class = lit_classes_get(&resolver->classes, lit_copy_string(MM(resolver->compiler), type, strlen(type)));
 
 		if (class == NULL) {
 			error(resolver, expression->expression.line, "Undefined type %s", type);
 			return NULL;
 		}
 
-		LitResolverField *field = lit_resolver_fields_get(&class->fields, lit_copy_string(resolver->compiler, expression->property, strlen(expression->property)));
+		LitResolverField *field = lit_resolver_fields_get(&class->fields, lit_copy_string(MM(resolver->compiler), expression->property, strlen(expression->property)));
 
 		if (field == NULL) {
 			error(resolver, expression->expression.line, "Class %s has no field %s", type, expression->property);
@@ -1134,7 +1132,7 @@ static const char* resolve_lambda_expression(LitResolver* resolver, LitLambdaExp
 	resolve_function(resolver, expression->parameters, &expression->return_type, expression->body, "Missing return statement in lambda", NULL, expression->expression.line);
 	resolver->function = last;
 
-	lit_strings_write(resolver->compiler, &resolver->allocated_strings, (char*) type);
+	lit_strings_write(MM(resolver->compiler), &resolver->allocated_strings, (char*) type);
 
 	return type;
 }
@@ -1159,7 +1157,7 @@ static const char* resolve_super_expression(LitResolver* resolver, LitSuperExpre
 		return NULL;
 	}
 
-	LitResolverMethod* method = lit_resolver_methods_get(&resolver->class->super->methods, lit_copy_string(resolver->compiler, expression->method, strlen(expression->method)));
+	LitResolverMethod* method = lit_resolver_methods_get(&resolver->class->super->methods, lit_copy_string(MM(resolver->compiler), expression->method, strlen(expression->method)));
 
 	if (method == NULL) {
 		error(resolver, expression->expression.line, "Class %s has no method %s", resolver->class->super->name->chars, expression->method);
@@ -1269,7 +1267,7 @@ void lit_free_resolver(LitResolver* resolver) {
 		}
 	}
 
-	lit_free_resolver_locals(resolver->compiler, &resolver->externals);
+	lit_free_resolver_locals(MM(resolver->compiler), &resolver->externals);
 
 	for (int i = 0; i <= resolver->classes.capacity_mask; i++) {
 		LitType* type = resolver->classes.entries[i].value;
@@ -1315,25 +1313,25 @@ void lit_free_resolver(LitResolver* resolver) {
 				}
 			}
 
-			lit_free_resolver_fields(resolver->compiler, &type->fields);
-			lit_free_resolver_fields(resolver->compiler, &type->static_fields);
-			lit_free_resolver_methods(resolver->compiler, &type->methods);
-			lit_free_resolver_methods(resolver->compiler, &type->static_methods);
+			lit_free_resolver_fields(MM(resolver->compiler), &type->fields);
+			lit_free_resolver_fields(MM(resolver->compiler), &type->static_fields);
+			lit_free_resolver_methods(MM(resolver->compiler), &type->methods);
+			lit_free_resolver_methods(MM(resolver->compiler), &type->static_methods);
 
 			reallocate(resolver->compiler, (void*) type, sizeof(LitType), 0);
 		}
 	}
 
-	lit_free_classes(resolver->compiler, &resolver->classes);
+	lit_free_classes(MM(resolver->compiler), &resolver->classes);
 
 	for (int i = 0; i < resolver->allocated_strings.count; i++) {
 		char* str = resolver->allocated_strings.values[i];
 		reallocate(resolver->compiler, (void*) str, strlen(str) + 1, 0);
 	}
 
-	lit_free_strings(resolver->compiler, &resolver->allocated_strings);
-	lit_free_types(resolver->compiler, &resolver->types);
-	lit_free_scopes(resolver->compiler, &resolver->scopes);
+	lit_free_strings(MM(resolver->compiler), &resolver->allocated_strings);
+	lit_free_types(MM(resolver->compiler), &resolver->types);
+	lit_free_scopes(MM(resolver->compiler), &resolver->scopes);
 }
 
 bool lit_resolve(LitCompiler* compiler, LitStatements* statements) {

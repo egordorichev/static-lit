@@ -19,4 +19,6 @@ struct sLitMemManager {
 	LitTable strings;
 } sLitMemManager;
 
+#define MM(x) ((LitMemManager*) x)
+
 #endif

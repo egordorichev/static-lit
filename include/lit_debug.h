@@ -10,7 +10,7 @@ void lit_trace_statement(LitMemManager* manager, LitStatement* statement, int de
 void lit_trace_expression(LitMemManager* manager, LitExpression* expression, int depth);
 
 void lit_trace_chunk(LitMemManager* manager, LitChunk* chunk, const char* name);
-int lit_disassemble_instruction(LitMemManager* manager, LitChunk* chunk, int offset);
+uint64_t lit_disassemble_instruction(LitMemManager* manager, LitChunk* chunk, uint64_t offset);
 
 #define DEBUG_TRACE_AST false
 #define DEBUG_TRACE_EXECUTION false

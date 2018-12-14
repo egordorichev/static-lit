@@ -4,6 +4,7 @@
 
 #include <compiler/lit_compiler.h>
 #include <compiler/lit_parser.h>
+#include <compiler/lit_resolver.h>
 
 void lit_init_compiler(LitCompiler* compiler) {
 	LitMemManager* manager = (LitMemManager*) compiler;
@@ -32,8 +33,8 @@ void lit_free_compiler(LitCompiler* compiler) {
 }
 
 void lit_free_bytecode_objects(LitCompiler* compiler) {
-	lit_free_table(compiler, &compiler->mem_manager.strings);
-	lit_free_objects(compiler);
+	lit_free_table(MM(compiler), &compiler->mem_manager.strings);
+	lit_free_objects(MM(compiler));
 
 	if (DEBUG_TRACE_MEMORY_LEAKS) {
 		printf("Bytes allocated after freeing compiler and bytecode: %ld\n", ((LitMemManager*) &compiler)->bytes_allocated);
@@ -65,7 +66,7 @@ LitFunction* lit_compile(LitCompiler* compiler, const char* source_code) {
 		printf("[\n");
 
 		for (int i = 0; i < statements.count; i++) {
-			lit_trace_statement(compiler, statements.values[i], 1);
+			lit_trace_statement(MM(compiler), statements.values[i], 1);
 
 			if (i < statements.count - 1) {
 				printf(",\n");
@@ -87,7 +88,7 @@ LitFunction* lit_compile(LitCompiler* compiler, const char* source_code) {
 	LitFunction* function = lit_emit(&compiler->emitter, &statements);
 
 	if (DEBUG_TRACE_CODE) {
-		lit_trace_chunk(compiler, &function->chunk, "$main");
+		lit_trace_chunk(MM(compiler), &function->chunk, "$main");
 	}
 
 	for (int i = 0; i < statements.count; i++) {
@@ -99,7 +100,7 @@ LitFunction* lit_compile(LitCompiler* compiler, const char* source_code) {
 }
 
 void lit_compiler_define_native(LitCompiler* compiler, LitNativeRegistry* native) {
-	LitString* str = lit_copy_string(compiler, native->name, (int) strlen(native->name));
+	LitString* str = lit_copy_string(MM(compiler), native->name, (int) strlen(native->name));
 	LitResolverLocal* letal = (LitResolverLocal*) reallocate(compiler, NULL, 0, sizeof(LitResolverLocal));
 
 	size_t len = strlen(native->signature);
@@ -111,7 +112,7 @@ void lit_compiler_define_native(LitCompiler* compiler, LitNativeRegistry* native
 	letal->nil = false;
 	letal->field = false;
 
-	lit_resolver_locals_set(compiler, &compiler->resolver.externals, str, letal);
+	lit_resolver_locals_set(MM(compiler), &compiler->resolver.externals, str, letal);
 }
 
 void lit_compiler_define_natives(LitCompiler* compiler, LitNativeRegistry* natives) {
@@ -131,24 +132,24 @@ LitType* lit_compiler_define_class(LitCompiler* compiler, const char* name, LitT
 	LitType* type = reallocate(compiler, NULL, 0, sizeof(LitType));
 	lit_init_type(type);
 
-	type->name = lit_copy_string(compiler, name, strlen(name));
+	type->name = lit_copy_string(MM(compiler), name, strlen(name));
 	type->super = super;
 	type->external = true;
 
-	lit_classes_set(compiler, &compiler->resolver.classes, type->name, type);
-	lit_types_set(compiler, &compiler->resolver.types, type->name, true);
+	lit_classes_set(MM(compiler), &compiler->resolver.classes, type->name, type);
+	lit_types_set(MM(compiler), &compiler->resolver.types, type->name, true);
 
 	LitResolverLocal* local = (LitResolverLocal*) reallocate(compiler, NULL, 0, sizeof(LitResolverLocal));
 	lit_init_resolver_local(local);
 
 	local->defined = true;
-	local->type = lit_format_string(compiler, "Class<$>", type->name->chars)->chars;
+	local->type = lit_format_string(MM(compiler), "Class<$>", type->name->chars)->chars;
 
-	lit_resolver_locals_set(compiler, compiler->resolver.scopes.values[0], type->name, local);
+	lit_resolver_locals_set(MM(compiler), compiler->resolver.scopes.values[0], type->name, local);
 
 	if (super != NULL) {
-		lit_resolver_methods_add_all(compiler, &type->methods, &super->methods);
-		lit_resolver_fields_add_all(compiler, &type->fields, &super->fields);
+		lit_resolver_methods_add_all(MM(compiler), &type->methods, &super->methods);
+		lit_resolver_fields_add_all(MM(compiler), &type->fields, &super->fields);
 	}
 
 	if (compiler->resolver.int_class == NULL && strcmp(name, "Int") == 0) {
@@ -175,9 +176,9 @@ LitResolverNativeMethod* lit_compiler_define_method(LitCompiler* compiler, LitTy
 	mt->access = PUBLIC_ACCESS;
 	mt->abstract = false;
 	mt->is_overriden = false;
-	mt->name = lit_copy_string(compiler, name, strlen(name));
+	mt->name = lit_copy_string(MM(compiler), name, strlen(name));
 
-	lit_resolver_methods_set(compiler, mt->is_static ? &class->static_methods : &class->methods, lit_copy_string(compiler, name, strlen(name)), mt);
+	lit_resolver_methods_set(MM(compiler), mt->is_static ? &class->static_methods : &class->methods, lit_copy_string(MM(compiler), name, strlen(name)), mt);
 
 	return m;
 }

@@ -8,7 +8,7 @@
 
 #define GC_HEAP_GROW_FACTOR 2
 
-void* reallocate(LitMemManager* manager, void* previous, size_t old_size, size_t new_size) {
+void* base_reallocate(LitMemManager* manager, void* previous, size_t old_size, size_t new_size) {
 	manager->bytes_allocated += new_size - old_size;
 
 	if (new_size > old_size && manager->type == MANAGER_VM) {
@@ -215,7 +215,7 @@ void lit_collect_garbage(LitVm* vm) {
 
 	LitMemManager* manager = (LitMemManager*) vm;
 
-	lit_table_remove_white(vm, &manager->strings);
+	lit_table_remove_white(MM(vm), &manager->strings);
 	LitObject** object = &manager->objects;
 
 	while (*object != NULL) {
@@ -223,7 +223,7 @@ void lit_collect_garbage(LitVm* vm) {
 			LitObject* unreached = *object;
 			*object = unreached->next;
 
-			lit_free_object(vm, unreached);
+			lit_free_object(MM(vm), unreached);
 		} else {
 			(*object)->dark = false;
 			object = &(*object)->next;

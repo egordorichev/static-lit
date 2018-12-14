@@ -141,7 +141,7 @@ typedef struct {
 
 LitMethod* lit_new_bound_method(LitMemManager* manager, LitValue receiver, LitClosure* method);
 
-typedef int (*LitNativeMethodFn)(LitVm *vm, LitValue instance, LitValue* args, int count);
+typedef int (*LitNativeMethodFn)(LitVm *vm, LitValue instance, const LitValue* args, int count);
 
 typedef struct {
 	LitObject object;

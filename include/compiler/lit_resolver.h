@@ -72,7 +72,7 @@ typedef struct sLitType {
 void lit_init_type(LitType* type);
 void lit_free_type(LitMemManager* manager, LitType* type);
 
-DECLARE_TABLE(LitResolverLocals, LitResolverLocal*, letals, LitResolverLocal*)
+DECLARE_TABLE(LitResolverLocals, LitResolverLocal*, resolver_locals, LitResolverLocal*)
 DECLARE_TABLE(LitTypes, bool, types, bool)
 DECLARE_TABLE(LitClasses, LitType*, classes, LitType*)
 DECLARE_ARRAY(LitScopes, LitResolverLocals*, scopes)

@@ -348,8 +348,8 @@ void lit_free_statement(LitCompiler* compiler, LitStatement* statement) {
 					lit_free_statement(compiler, stmt->else_if_branches->values[i]);
 				}
 
-				lit_free_expressions(compiler, stmt->else_if_conditions);
-				lit_free_statements(compiler, stmt->else_if_branches);
+				lit_free_expressions(MM(compiler), stmt->else_if_conditions);
+				lit_free_statements(MM(compiler), stmt->else_if_branches);
 
 				reallocate(compiler, (void*) stmt->else_if_conditions, sizeof(LitExpressions), 0);
 				reallocate(compiler, (void*) stmt->else_if_branches, sizeof(LitStatements), 0);
@@ -370,7 +370,7 @@ void lit_free_statement(LitCompiler* compiler, LitStatement* statement) {
 					lit_free_statement(compiler, stmt->statements->values[i]);
 				}
 
-				lit_free_statements(compiler, stmt->statements);
+				lit_free_statements(MM(compiler), stmt->statements);
 				reallocate(compiler, (void*) stmt->statements, sizeof(LitStatements), 0);
 			}
 
@@ -405,7 +405,7 @@ void lit_free_statement(LitCompiler* compiler, LitStatement* statement) {
 					reallocate(compiler, (void*) parameter.type, strlen(parameter.type) + 1, 0);
 				}
 
-				lit_free_parameters(compiler, stmt->parameters);
+				lit_free_parameters(MM(compiler), stmt->parameters);
 				reallocate(compiler, (void*) stmt->parameters, sizeof(LitParameters), 0);
 			}
 
@@ -432,7 +432,7 @@ void lit_free_statement(LitCompiler* compiler, LitStatement* statement) {
 					reallocate(compiler, (void*) parameter.type, strlen(parameter.type) + 1, 0);
 				}
 
-				lit_free_parameters(compiler, stmt->parameters);
+				lit_free_parameters(MM(compiler), stmt->parameters);
 				reallocate(compiler, (void*) stmt->parameters, sizeof(LitParameters), 0);
 			}
 
@@ -458,7 +458,7 @@ void lit_free_statement(LitCompiler* compiler, LitStatement* statement) {
 					lit_free_statement(compiler, stmt->fields->values[i]);
 				}
 
-				lit_free_statements(compiler, stmt->fields);
+				lit_free_statements(MM(compiler), stmt->fields);
 				reallocate(compiler, (void*) stmt->fields, sizeof(LitStatements), 0);
 			}
 
@@ -467,7 +467,7 @@ void lit_free_statement(LitCompiler* compiler, LitStatement* statement) {
 					lit_free_statement(compiler, (LitStatement*) stmt->methods->values[i]);
 				}
 
-				lit_free_methods(compiler, stmt->methods);
+				lit_free_methods(MM(compiler), stmt->methods);
 				reallocate(compiler, (void*) stmt->methods, sizeof(LitFunctions), 0);
 			}
 
@@ -560,7 +560,8 @@ void lit_free_expression(LitCompiler* compiler, LitExpression* expression) {
 				lit_free_expression(compiler, expr->args->values[i]);
 			}
 
-			lit_free_expressions(compiler, expr->args);
+			lit_free_expressions(MM(compiler), expr->args);
+
 			reallocate(compiler, (void*) expr->args, sizeof(LitExpressions), 0);
 			reallocate(compiler, (void*) expression, sizeof(LitCallExpression), 0);
 
@@ -583,7 +584,7 @@ void lit_free_expression(LitCompiler* compiler, LitExpression* expression) {
 					reallocate(compiler, (void*) parameter.type, strlen(parameter.type) + 1, 0);
 				}
 
-				lit_free_parameters(compiler, expr->parameters);
+				lit_free_parameters(MM(compiler), expr->parameters);
 				reallocate(compiler, (void*) expr->parameters, sizeof(LitParameters), 0);
 			}
 
@@ -634,8 +635,8 @@ void lit_free_expression(LitCompiler* compiler, LitExpression* expression) {
 					lit_free_expression(compiler, expr->else_if_branches->values[i]);
 				}
 
-				lit_free_expressions(compiler, expr->else_if_conditions);
-				lit_free_expressions(compiler, expr->else_if_branches);
+				lit_free_expressions(MM(compiler), expr->else_if_conditions);
+				lit_free_expressions(MM(compiler), expr->else_if_branches);
 
 				reallocate(compiler, (void*) expr->else_if_conditions, sizeof(LitExpressions), 0);
 				reallocate(compiler, (void*) expr->else_if_branches, sizeof(LitExpressions), 0);

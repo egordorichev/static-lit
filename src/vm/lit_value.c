@@ -45,22 +45,22 @@ char *lit_to_string(LitVm* vm, LitValue value) {
 				return "<native method>"; // FIXME: get name somehow?
 			}
 			case OBJECT_FUNCTION: {
-				return lit_format_string(vm, "<fun %>", AS_FUNCTION(value)->name)->chars;
+				return lit_format_string(MM(vm), "<function %>", AS_FUNCTION(value)->name)->chars;
 			}
 			case OBJECT_INSTANCE: {
-				return lit_format_string(vm, "% instance", AS_INSTANCE(value)->type->name)->chars;
+				return lit_format_string(MM(vm), "% instance", AS_INSTANCE(value)->type->name)->chars;
 			}
 			case OBJECT_CLASS: {
-				return lit_format_string(vm, "Class<%>", AS_CLASS(value)->name)->chars;
+				return lit_format_string(MM(vm), "Class<%>", AS_CLASS(value)->name)->chars;
 			}
 			case OBJECT_UPVALUE: {
 				return lit_to_string(vm, *AS_UPVALUE(value)->value);
 			}
 			case OBJECT_BOUND_METHOD: {
-				return lit_format_string(vm, "<method %>", AS_METHOD(value)->method->function->name)->chars;
+				return lit_format_string(MM(vm), "<method %>", AS_METHOD(value)->method->function->name)->chars;
 			}
 			case OBJECT_CLOSURE: {
-				return lit_format_string(vm, "<function %>", AS_CLOSURE(value)->function->name)->chars;
+				return lit_format_string(MM(vm), "<function %>", AS_CLOSURE(value)->function->name)->chars;
 			}
 			default: UNREACHABLE();
 		}
