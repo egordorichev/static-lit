@@ -4,6 +4,6 @@
 #include <vm/lit_vm.h>
 #include <compiler/lit_compiler.h>
 
-LitLibRegistry* lit_create_std(LitVm* vm, LitCompiler* compiler);
+LitLibRegistry* lit_create_std(LitCompiler* compiler);
 
 #endif

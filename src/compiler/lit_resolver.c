@@ -44,6 +44,8 @@ static void error(LitResolver* resolver, uint64_t line, const char* format, ...)
 }
 
 static bool compare_arg(char* needed, char* given) {
+	// FIXME: class extened or not, check that
+
 	if (needed == NULL || given == NULL) {
 		return true; // Ignore the error, cause already generated it
 	}
@@ -791,6 +793,8 @@ static const char* resolve_var_expression(LitResolver* resolver, LitVarExpressio
 	return local->type;
 }
 
+static const char* resolve_get_expression(LitResolver* resolver, LitGetExpression* expression);
+
 static const char* resolve_assign_expression(LitResolver* resolver, LitAssignExpression* expression) {
 	const char* given = resolve_expression(resolver, expression->value);
 	const char* type = resolve_expression(resolver, expression->to);
@@ -803,18 +807,22 @@ static const char* resolve_assign_expression(LitResolver* resolver, LitAssignExp
 		error(resolver, expression->expression.line, "Can't assign %s value to a %s var", given, type);
 	}
 
-	LitVarExpression* expr = (LitVarExpression*) expression->to;
-	LitResolverLocal* local = resolve_local(resolver, expr->name, expression->expression.line);
+	if (expression->to->type == GET_EXPRESSION) {
+		return resolve_get_expression(resolver, expression->to);
+	} else {
+		LitVarExpression* expr = (LitVarExpression*) expression->to;
+		LitResolverLocal* local = resolve_local(resolver, expr->name, expression->expression.line);
 
-	if (local == NULL) {
-		return NULL;
+		if (local == NULL) {
+			return NULL;
+		}
+
+		if (local->final) {
+			error(resolver, expression->expression.line, "Can't assign value to a final %s var", type);
+		}
+
+		return local->type;
 	}
-
-	if (local->final) {
-		error(resolver, expression->expression.line, "Can't assign value to a final %s var", type);
-	}
-
-	return local->type;
 }
 
 static const char* resolve_logical_expression(LitResolver* resolver, LitLogicalExpression* expression) {
@@ -1249,10 +1257,11 @@ void lit_init_resolver(LitResolver* resolver) {
 
 	push_scope(resolver); // Global scope
 
-	lit_define_type(resolver, NULL);
 	lit_define_type(resolver, "void");
-	lit_define_type(resolver, "any");
 	lit_define_type(resolver, "int");
+	lit_define_type(resolver, "string");
+	lit_define_type(resolver, "double");
+	lit_define_type(resolver, "bool");
 }
 
 void lit_free_resolver(LitResolver* resolver) {

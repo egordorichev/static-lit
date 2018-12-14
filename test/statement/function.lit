@@ -1,4 +1,4 @@
-fun test(double a, double b) > double {
+double test(double a, double b) {
 	print(a)
 	print(b)
 

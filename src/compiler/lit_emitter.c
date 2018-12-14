@@ -192,20 +192,31 @@ static void emit_expression(LitEmitter* emitter, LitExpression* expression) {
 		}
 		case ASSIGN_EXPRESSION: {
 			LitAssignExpression* expr = (LitAssignExpression*) expression;
-			LitVarExpression* e = (LitVarExpression*) expr->to;
 
-			emit_expression(emitter, expr->value);
-			int local = resolve_local(emitter->function, e->name);
+			if (expr->to->type == GET_EXPRESSION) {
+				LitGetExpression* e = (LitGetExpression*) expr->to;
 
-			if (local != -1) {
-				emit_bytes(emitter, OP_SET_LOCAL, (uint8_t) local, expression->line);
+				emit_expression(emitter, e->object);
+				emit_expression(emitter, expr->value);
+
+				emit_bytes(emitter, OP_SET_FIELD, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(MM(emitter->compiler), e->property, strlen(e->property)))), expression->line);
 			} else {
-				int upvalue = resolve_upvalue(emitter, emitter->function, (char*) e->name);
+				LitVarExpression *e = (LitVarExpression*) expr->to;
 
-				if (upvalue != -1) {
-					emit_bytes(emitter, OP_SET_UPVALUE, (uint8_t) upvalue, expression->line);
+				emit_expression(emitter, expr->value);
+				int local = resolve_local(emitter->function, e->name);
+
+				if (local != -1) {
+					emit_bytes(emitter, OP_SET_LOCAL, (uint8_t) local, expression->line);
 				} else {
-					emit_bytes(emitter, OP_SET_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(MM(emitter->compiler), e->name, strlen(e->name)))), expression->line);
+					int upvalue = resolve_upvalue(emitter, emitter->function, (char *) e->name);
+
+					if (upvalue != -1) {
+						emit_bytes(emitter, OP_SET_UPVALUE, (uint8_t) upvalue, expression->line);
+					} else {
+						emit_bytes(emitter, OP_SET_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(
+							lit_copy_string(MM(emitter->compiler), e->name, strlen(e->name)))), expression->line);
+					}
 				}
 			}
 

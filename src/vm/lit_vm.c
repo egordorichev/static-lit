@@ -645,49 +645,15 @@ static bool interpret(LitVm* vm) {
 			continue;
 		};
 
-		op_get_field: {
+		op_get_field:
+		{
 			LitValue from = PEEK(0);
-			LitClass* type = NULL;
+			LitClass *type = NULL;
 
-			if (IS_NIL(from)) {
-				runtime_error(vm, "Attempt to get a field from a nil value");
-				return false;
-			} else if (IS_STRING(from)) {
-				type = vm->string_class;
-			} else if (IS_CLASS(from)) {
-				type = vm->class_class;
-			} else if (IS_NUMBER(from)) {
-				double number = AS_NUMBER(from);
-				double temp;
 
-				if (modf(number, &temp) == 0) {
-					type = vm->int_class;
-				} else {
-					type = vm->double_class;
-				}
-			}
-
-			if (type != NULL || IS_INSTANCE(from)) {
-				LitInstance *instance = AS_INSTANCE(from);
+			if (IS_CLASS(from)) {
 				LitString *name = READ_STRING();
-				LitValue *method = lit_table_get(type == NULL ? &instance->type->methods : &type->methods, name);
-
-				if (method != NULL) {
-					POP();
-					PUSH(*method);
-				} else {
-					LitValue *field = lit_table_get(&instance->fields, name);
-
-					if (field != NULL) {
-						POP();
-						PUSH(*field);
-					} else {
-						runtime_error(vm, "Class %s has no field or method %s", instance->type->name->chars, name->chars);
-					}
-				}
-			} else if (IS_CLASS(from)) {
-				LitString *name = READ_STRING();
-				LitClass* class = AS_CLASS(from);
+				LitClass *class = AS_CLASS(from);
 				LitValue *field = lit_table_get(&class->static_fields, name);
 
 				if (field != NULL) {
@@ -704,8 +670,46 @@ static bool interpret(LitVm* vm) {
 					}
 				}
 			} else {
-				runtime_error(vm, "Only instances and classes have properties");
-				return false;
+				if (IS_NIL(from)) {
+					runtime_error(vm, "Attempt to get a field from a nil value");
+					return false;
+				} else if (IS_STRING(from)) {
+					type = vm->string_class;
+				} else if (IS_CLASS(from)) {
+					type = vm->class_class;
+				} else if (IS_NUMBER(from)) {
+					double number = AS_NUMBER(from);
+					double temp;
+
+					if (modf(number, &temp) == 0) {
+						type = vm->int_class;
+					} else {
+						type = vm->double_class;
+					}
+				}
+
+				if (type != NULL || IS_INSTANCE(from)) {
+					LitInstance *instance = AS_INSTANCE(from);
+					LitString *name = READ_STRING();
+					LitValue *method = lit_table_get(type == NULL ? &instance->type->methods : &type->methods, name);
+
+					if (method != NULL) {
+						POP();
+						PUSH(*method);
+					} else {
+						LitValue *field = lit_table_get(&instance->fields, name);
+
+						if (field != NULL) {
+							POP();
+							PUSH(*field);
+						} else {
+							runtime_error(vm, "Class %s has no field or method %s", instance->type->name->chars, name->chars);
+						}
+					}
+				} else {
+					runtime_error(vm, "Only instances and classes have properties");
+					return false;
+				}
 			}
 
 			continue;
@@ -902,10 +906,7 @@ int test_method(LitVm* vm, LitInstance* instance, LitValue* args, int count) {
 bool lit_eval(const char* source_code) {
 	LitCompiler compiler;
 	lit_init_compiler(&compiler);
-
-	LitVm vm;
-	lit_init_vm(&vm);
-	LitLibRegistry* std = lit_create_std(&vm, &compiler);
+	LitLibRegistry* std = lit_create_std(&compiler);
 
 	LitFunction* function = lit_compile(&compiler, source_code);
 	lit_free_compiler(&compiler);
@@ -913,6 +914,9 @@ bool lit_eval(const char* source_code) {
 	if (function == NULL) {
 		return false;
 	}
+
+	LitVm vm;
+	lit_init_vm(&vm);
 
 	lit_table_add_all(MM(&vm), &vm.mem_manager.strings, &compiler.mem_manager.strings);
 	vm.init_string = lit_copy_string(MM(&vm), "init", 4);

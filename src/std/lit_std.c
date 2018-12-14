@@ -198,7 +198,7 @@ FUNCTION(print) {
 	RETURN_VOID
 }
 
-LitLibRegistry* lit_create_std(LitVm* vm, LitCompiler* compiler) {
+LitLibRegistry* lit_create_std(LitCompiler* compiler) {
 	START_LIB
 
 	START_CLASSES(8)

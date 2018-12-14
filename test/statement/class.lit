@@ -1,13 +1,11 @@
-class Awesome {
-
-}
+class Awesome
 
 class Better < Awesome {
 	public var test = "test"
 	public static var counter = 0
 
-	init() {
-		this.counter++
+	void init() { // Fixme: remove type
+		Better.counter++
 		this.test = "Noice"
 	}
 }

@@ -1,2 +1,12 @@
-String test = nil
-test.getClass()
+class Better {
+	public static var counter = 10
+	public var c = 0
+}
+
+var b = Better()
+
+b.c++
+Better.counter += 4
+
+print(b.c)
+print(Better.counter)
