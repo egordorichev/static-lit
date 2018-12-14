@@ -353,7 +353,7 @@ static bool interpret(LitVm* vm) {
 
 		if (DEBUG_TRACE_EXECUTION) {
 			trace_stack(vm);
-			lit_disassemble_instruction(MM(vm), &frame->closure->function->chunk, (int) (frame->ip - frame->closure->function->chunk.code));
+			lit_disassemble_instruction(MM(vm), &frame->closure->function->chunk, (uint64_t) (frame->ip - frame->closure->function->chunk.code));
 		}
 
 		goto *functions[*frame->ip++];
@@ -649,7 +649,10 @@ static bool interpret(LitVm* vm) {
 			LitValue from = PEEK(0);
 			LitClass* type = NULL;
 
-			if (IS_STRING(from)) {
+			if (IS_NIL(from)) {
+				runtime_error(vm, "Attempt to get a field from a nil value");
+				return false;
+			} else if (IS_STRING(from)) {
 				type = vm->string_class;
 			} else if (IS_CLASS(from)) {
 				type = vm->class_class;
@@ -900,7 +903,9 @@ bool lit_eval(const char* source_code) {
 	LitCompiler compiler;
 	lit_init_compiler(&compiler);
 
-	// LitLibRegistry* std = lit_create_std(&compiler);
+	LitVm vm;
+	lit_init_vm(&vm);
+	LitLibRegistry* std = lit_create_std(&vm, &compiler);
 
 	LitFunction* function = lit_compile(&compiler, source_code);
 	lit_free_compiler(&compiler);
@@ -909,12 +914,10 @@ bool lit_eval(const char* source_code) {
 		return false;
 	}
 
-	LitVm vm;
-	lit_init_vm(&vm);
 	lit_table_add_all(MM(&vm), &vm.mem_manager.strings, &compiler.mem_manager.strings);
 	vm.init_string = lit_copy_string(MM(&vm), "init", 4);
 
-	// lit_define_lib(&vm, std);
+	lit_define_lib(&vm, std);
 
 	bool had_error = lit_execute(&vm, function);
 
@@ -1014,9 +1017,7 @@ void lit_define_class(LitVm* vm, LitClassRegistry* class) {
 	LitClass* super = NULL;
 
 	if (class->class->super != NULL) {
-		super = (LitClass*) lit_table_get(&vm->globals, class->class->super->name);
-		//printf("Super class %p\n", super);
-		//printf("Super class %s\n", super->name->chars);
+		super = AS_CLASS(*lit_table_get(&vm->globals, class->class->super->name));
 
 		if (super == NULL) {
 			printf("Creating class error: super %s was not found\n", class->class->super->name->chars);

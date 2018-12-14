@@ -1,4 +1,2 @@
-print("test".toUpperCase())
-print(32.log())
-print(32.getClass())
-print(32.0.getClass())
+String test = nil
+test.getClass()

@@ -92,6 +92,7 @@ static void blacken_object(LitVm* vm, LitObject* object) {
 
 			lit_gray_object(vm, (LitObject*) class->name);
 			lit_gray_object(vm, (LitObject*) class->super);
+
 			lit_table_gray(vm, &class->methods);
 			lit_table_gray(vm, &class->fields);
 			lit_table_gray(vm, &class->static_methods);

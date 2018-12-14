@@ -31,6 +31,18 @@ END_METHODS
  * Object class
  */
 METHOD(object_getClass) {
+	if (IS_NUMBER(instance)) {
+		double temp;
+
+		if (modf(AS_NUMBER(instance), &temp) == 0) {
+			RETURN_OBJECT(vm->int_class) // Fixme: 10.0 will be still int
+		} else {
+			RETURN_OBJECT(vm->double_class)
+		}
+	} else if (IS_STRING(instance)) {
+		RETURN_OBJECT(vm->string_class)
+	}
+
 	RETURN_OBJECT(AS_INSTANCE(instance)->type)
 }
 
@@ -186,7 +198,7 @@ FUNCTION(print) {
 	RETURN_VOID
 }
 
-LitLibRegistry* lit_create_std(LitCompiler* compiler) {
+LitLibRegistry* lit_create_std(LitVm* vm, LitCompiler* compiler) {
 	START_LIB
 
 	START_CLASSES(8)

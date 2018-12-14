@@ -18,7 +18,7 @@
 
 #define DEFINE_CLASS(name, id, super) \
 	LitType* id##_class = (lib->classes[i] = \
-	lit_declare_class(compiler, lit_compiler_define_class(compiler, name, super), id##_methods))->class; \
+	lit_declare_class(compiler, lit_compiler_define_class(vm, compiler, name, super), id##_methods))->class; \
 	i++;
 
 #define METHOD(name) int name(LitVm* vm, LitValue instance, const LitValue* args, int count)

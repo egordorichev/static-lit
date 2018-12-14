@@ -128,7 +128,7 @@ void lit_compiler_define_natives(LitCompiler* compiler, LitNativeRegistry* nativ
 	} while (native.name != NULL);
 }
 
-LitType* lit_compiler_define_class(LitCompiler* compiler, const char* name, LitType* super) {
+LitType* lit_compiler_define_class(LitVm* vm, LitCompiler* compiler, const char* name, LitType* super) {
 	LitType* type = reallocate(compiler, NULL, 0, sizeof(LitType));
 	lit_init_type(type);
 
