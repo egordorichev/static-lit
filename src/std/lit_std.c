@@ -60,18 +60,28 @@ END_METHODS
  * Int class
  */
 
-METHOD(int_log) {
-	RETURN_NUMBER(log(AS_NUMBER(instance)))
-}
-
 START_METHODS(int)
-	ADD("log", "Function<double>", int_log, false)
 END_METHODS
 
 /*
  * Double class
  */
+METHOD(double_floor) {
+	RETURN_NUMBER(floor(AS_NUMBER(instance)))
+}
+
+METHOD(double_ceil) {
+	RETURN_NUMBER(ceil(AS_NUMBER(instance)))
+}
+
+METHOD(double_round) {
+	RETURN_NUMBER(round(AS_NUMBER(instance)))
+}
+
 START_METHODS(double)
+	ADD("floor", "Function<double>", double_floor, false)
+	ADD("ceil", "Function<double>", double_ceil, false)
+	ADD("round", "Function<double>", double_round, false)
 END_METHODS
 
 /*
