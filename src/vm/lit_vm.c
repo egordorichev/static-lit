@@ -132,13 +132,16 @@ static bool invoke(LitVm* vm, int arg_count) {
 
 static bool last_native;
 static bool last_init;
+static bool last_super;
 
 static bool call_value(LitVm* vm, LitValue callee, int arg_count, bool static_init) {
 	last_native = false;
 
 	if (IS_OBJECT(callee)) {
 		switch (OBJECT_TYPE(callee)) {
-			case OBJECT_CLOSURE: return call(vm, AS_CLOSURE(callee), arg_count);
+			case OBJECT_CLOSURE: {
+				return call(vm, AS_CLOSURE(callee), arg_count);
+			}
 			case OBJECT_NATIVE: {
 				last_native = true;
 				int count = AS_NATIVE(callee)(vm, vm->stack_top - arg_count, arg_count);
@@ -173,7 +176,8 @@ static bool call_value(LitVm* vm, LitValue callee, int arg_count, bool static_in
 			case OBJECT_BOUND_METHOD: {
 				LitMethod* bound = AS_METHOD(callee);
 
-				vm->stack_top[-arg_count - 1] = bound->receiver;
+				vm->stack_top[-arg_count - (last_super ? 0 : 1)] = bound->receiver;
+				last_super = false;
 				return call(vm, bound->method, arg_count);
 			}
 			case OBJECT_CLASS: {
@@ -551,6 +555,7 @@ static bool interpret(LitVm* vm) {
 
 		op_get_local: {
 			PUSH(frame->slots[READ_BYTE()]);
+
 			continue;
 		};
 
@@ -782,6 +787,8 @@ static bool interpret(LitVm* vm) {
 				runtime_error(vm, "Undefined method %s", name->chars);
 				return false;
 			}
+
+			last_super = true;
 
 			LitMethod* bound = lit_new_bound_method(MM(vm), MAKE_OBJECT_VALUE(instance), AS_CLOSURE(*method));
 			PUSH(MAKE_OBJECT_VALUE(bound));

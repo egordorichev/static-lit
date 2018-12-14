@@ -1,3 +1,5 @@
+print("FIXME") // Expected: FIXME
+//* // Fixme not syntax rn
 fun call(Function<int, int, int> add, int a, int b) > int {
 	return add(a, b)
 }
@@ -6,5 +8,5 @@ var add = fun(int a, int b) > int {
 	return a + b
 }
 
-print(add(32, 3)) // Expected: 35
-print(call(add, 3, 5)) // Expected: 8
+print(add(32, 3)) Expected: 35
+print(call(add, 3, 5)) Expected: 8

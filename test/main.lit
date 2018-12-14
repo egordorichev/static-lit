@@ -1,12 +1,15 @@
-class Better {
-	public static var counter = 10
-	public var c = 0
-}
+var a = if (true) 10 else 20
+print(a) // Expected: 10
 
-var b = Better()
+a = if (false) 10
+		else if (true) 30
+		else 20
 
-b.c++
-Better.counter += 4
+print(a) // Expected: 30
 
-print(b.c)
-print(Better.counter)
+a = if (false) 10
+		else if (false) 30
+		else if (true) 40
+		else 20
+
+print(a) // Expected: 40

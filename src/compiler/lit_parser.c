@@ -458,8 +458,31 @@ static LitExpression* parse_or(LitLexer* lexer) {
 	return expression;
 }
 
-static LitExpression* parse_assigment(LitLexer* lexer) {
+static LitExpression* parse_short_if(LitLexer* lexer) {
+	uint64_t line = lexer->line;
 	LitExpression* expression = parse_or(lexer);
+
+	if (match(lexer, TOKEN_QUESTION)) {
+		LitExpression* if_branch = parse_expression(lexer);
+		consume(lexer, TOKEN_COLON, "Expected ':'");
+		LitExpression* else_branch = parse_expression(lexer);
+
+		return (LitExpression*) lit_make_if_expression(lexer->compiler, line, expression, if_branch, else_branch, NULL, NULL);
+	}
+
+	return expression;
+}
+
+static LitExpression* parse_if_expr(LitLexer* lexer) {
+	if (match(lexer, TOKEN_IF)) {
+		return parse_if_expression(lexer);
+	}
+
+	return parse_short_if(lexer);
+}
+
+static LitExpression* parse_assigment(LitLexer* lexer) {
+	LitExpression* expression = parse_if_expr(lexer);
 
 	if (match(lexer, TOKEN_EQUAL)) {
 		uint64_t line = lexer->last_line;
@@ -476,27 +499,8 @@ static LitExpression* parse_assigment(LitLexer* lexer) {
 	return expression;
 }
 
-static LitExpression* parse_short_if(LitLexer* lexer) {
-	uint64_t line = lexer->line;
-	LitExpression* expression = parse_assigment(lexer);
-
-	if (match(lexer, TOKEN_QUESTION)) {
-		LitExpression* if_branch = parse_expression(lexer);
-		consume(lexer, TOKEN_COLON, "Expected ':'");
-		LitExpression* else_branch = parse_expression(lexer);
-
-		return (LitExpression*) lit_make_if_expression(lexer->compiler, line, expression, if_branch, else_branch, NULL, NULL);
-	}
-
-	return expression;
-}
-
 static LitExpression* parse_expression(LitLexer* lexer) {
-	if (match(lexer, TOKEN_IF)) {
-		return parse_if_expression(lexer);
-	}
-
-	return parse_short_if(lexer);
+	return parse_assigment(lexer);
 }
 
 static LitStatement* parse_expression_statement(LitLexer* lexer) {
