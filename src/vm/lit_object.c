@@ -141,6 +141,7 @@ LitString* lit_new_string(LitMemManager* manager, int length) {
 	LitString* string = allocate_string(manager, NULL, length, 0);
 
 	string->chars = ALLOCATE(manager, char, length + 1);
+	string->chars[length] = '\0';
 
 	return string;
 }

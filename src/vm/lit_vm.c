@@ -44,7 +44,7 @@ static void runtime_error(LitVm* vm, const char* format, ...) {
 	for (int i = vm->frame_count - 1; i >= 0; i--) {
 		LitFrame* frame = &vm->frames[i];
 		LitFunction* function = frame->closure->function;
-		fprintf(stderr, "%s():%ld\n", function->name->chars, lit_chunk_get_line(&function->chunk, frame->ip - function->chunk.code - 1));
+		fprintf(stderr, "\tat %s():%ld\n", function->name->chars, lit_chunk_get_line(&function->chunk, frame->ip - function->chunk.code - 1));
 	}
 
 	vm->abort = true;
@@ -87,14 +87,8 @@ static void trace_stack(LitVm* vm) {
 }
 
 static bool invoke_simple(LitVm* vm, int arg_count, LitValue receiver, LitValue method) {
-	if (!IS_INSTANCE(receiver) && !IS_CLASS(receiver) && !IS_STRING(receiver)) {
-		runtime_error(vm, "Only instances and classes have methods");
-		return false;
-	}
-
 	if (IS_NATIVE_METHOD(method)) {
-		LitInstance* instance = (LitInstance *) vm->stack_top[-arg_count - 2];
-		int count = AS_NATIVE_METHOD(method)(vm, instance, vm->stack_top - arg_count, arg_count);
+		int count = AS_NATIVE_METHOD(method)(vm, vm->stack_top[-arg_count - 2], vm->stack_top - arg_count, arg_count);
 
 		if (count == 0) {
 			count = 1;
@@ -656,6 +650,17 @@ static bool interpret(LitVm* vm) {
 
 			if (IS_STRING(from)) {
 				type = vm->string_class;
+			} else if (IS_CLASS(from)) {
+				type = vm->class_class;
+			} else if (IS_NUMBER(from)) {
+				double number = AS_NUMBER(from);
+				double temp;
+
+				if (modf(number, &temp) == 0) {
+					type = vm->int_class;
+				} else {
+					type = vm->double_class;
+				}
 			}
 
 			if (type != NULL || IS_INSTANCE(from)) {
@@ -850,7 +855,11 @@ void lit_init_vm(LitVm* vm) {
 	vm->gray_count = 0;
 	vm->gray_stack = NULL;
 
+	vm->class_class = NULL;
+	vm->object_class = NULL;
 	vm->string_class = NULL;
+	vm->int_class = NULL;
+	vm->double_class = NULL;
 }
 
 void lit_free_vm(LitVm* vm) {
@@ -890,7 +899,7 @@ bool lit_eval(const char* source_code) {
 	LitCompiler compiler;
 	lit_init_compiler(&compiler);
 
-	LitLibRegistry* std = lit_create_std(&compiler);
+	// LitLibRegistry* std = lit_create_std(&compiler);
 
 	LitFunction* function = lit_compile(&compiler, source_code);
 	lit_free_compiler(&compiler);
@@ -904,7 +913,7 @@ bool lit_eval(const char* source_code) {
 	lit_table_add_all(&vm, &vm.mem_manager.strings, &compiler.mem_manager.strings);
 	vm.init_string = lit_copy_string(&vm, "init", 4);
 
-	lit_define_lib(&vm, std);
+	// lit_define_lib(&vm, std);
 
 	bool had_error = lit_execute(&vm, function);
 
@@ -938,6 +947,21 @@ LitClass* lit_vm_define_class(LitVm* vm, LitType* type, LitClass* super) {
 
 	if (vm->string_class == NULL && strcmp(type->name->chars, "String") == 0) {
 		vm->string_class = class;
+	} else if (vm->class_class == NULL && strcmp(type->name->chars, "Class") == 0) {
+		vm->class_class = class;
+	} else if (vm->object_class == NULL && strcmp(type->name->chars, "Object") == 0) {
+		vm->object_class = class;
+	} else if (vm->int_class == NULL && strcmp(type->name->chars, "Int") == 0) {
+		vm->int_class = class;
+	} else if (vm->double_class == NULL && strcmp(type->name->chars, "Double") == 0) {
+		vm->double_class = class;
+	}
+
+	if (super != NULL) {
+		lit_table_add_all(vm, &class->static_methods, &super->static_methods);
+		lit_table_add_all(vm, &class->methods, &super->methods);
+		lit_table_add_all(vm, &class->static_fields, &super->static_fields);
+		lit_table_add_all(vm, &class->fields, &super->fields);
 	}
 
 	return class;
@@ -989,11 +1013,12 @@ void lit_define_class(LitVm* vm, LitClassRegistry* class) {
 	LitClass* super = NULL;
 
 	if (class->class->super != NULL) {
-		char* name = class->class->super->name->chars;
-		super = AS_CLASS(MAKE_OBJECT_VALUE(lit_table_get(&vm->globals, lit_copy_string(vm, name, strlen(name)))));
+		super = (LitClass*) lit_table_get(&vm->globals, class->class->super->name);
+		//printf("Super class %p\n", super);
+		//printf("Super class %s\n", super->name->chars);
 
 		if (super == NULL) {
-			printf("Creating class error: super %s was not found\n", name);
+			printf("Creating class error: super %s was not found\n", class->class->super->name->chars);
 			return;
 		}
 	}
