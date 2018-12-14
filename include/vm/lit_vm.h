@@ -50,6 +50,7 @@ typedef struct sLitVm {
 	LitClass* object_class;
 	LitClass* string_class;
 	LitClass* int_class;
+	LitClass* double_class;
 } sLitVm;
 
 void lit_init_vm(LitVm* vm);
@@ -105,7 +106,8 @@ char *lit_to_string(LitVm* vm, LitValue value);
 	});
 
 #define DEFINE_CLASS(name, id, super) \
-	LitType* id##_class = (lib->classes[i] = lit_declare_class(compiler, lit_compiler_define_class(compiler, name, super), id##_methods))->class;\
+	LitType* id##_class = (lib->classes[i] = \
+	lit_declare_class(compiler, lit_compiler_define_class(compiler, name, super), id##_methods))->class; \
 	i++;
 
 #define METHOD(name) int name(LitVm* vm, LitValue instance, LitValue* args, int count)

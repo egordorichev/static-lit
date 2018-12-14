@@ -95,6 +95,9 @@ typedef struct LitResolver {
 
 	// Std primitives
 	LitType* int_class;
+	LitType* double_class;
+	LitType* string_class;
+	LitType* bool_class;
 } LitResolver;
 
 void lit_init_resolver(LitResolver* resolver);

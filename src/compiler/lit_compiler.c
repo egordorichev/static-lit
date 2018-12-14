@@ -146,8 +146,19 @@ LitType* lit_compiler_define_class(LitCompiler* compiler, const char* name, LitT
 
 	lit_resolver_locals_set(compiler, compiler->resolver.scopes.values[0], type->name, local);
 
+	if (super != NULL) {
+		lit_resolver_methods_add_all(compiler, &type->methods, &super->methods);
+		lit_resolver_fields_add_all(compiler, &type->fields, &super->fields);
+	}
+
 	if (compiler->resolver.int_class == NULL && strcmp(name, "Int") == 0) {
 		compiler->resolver.int_class = type;
+	} else 	if (compiler->resolver.string_class == NULL && strcmp(name, "String") == 0) {
+		compiler->resolver.string_class = type;
+	} else 	if (compiler->resolver.double_class == NULL && strcmp(name, "Double") == 0) {
+		compiler->resolver.double_class = type;
+	} else 	if (compiler->resolver.bool_class == NULL && strcmp(name, "Bool") == 0) {
+		compiler->resolver.bool_class = type;
 	}
 
 	return type;

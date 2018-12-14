@@ -187,6 +187,7 @@ FUNCTION(print) {
 LitLibRegistry* lit_create_std(LitCompiler* compiler) {
 	START_LIB
 
+	// FIXME: segfault because of the super
 	START_CLASSES(8)
 		DEFINE_CLASS("Class", class, NULL)
 		DEFINE_CLASS("Object", object, NULL)

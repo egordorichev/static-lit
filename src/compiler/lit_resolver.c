@@ -934,6 +934,12 @@ static const char* resolve_get_expression(LitResolver* resolver, LitGetExpressio
 
 	if (strcmp(type, "int") == 0) {
 		class = resolver->int_class;
+	} else if (strcmp(type, "string") == 0) {
+		class = resolver->string_class;
+	} else if (strcmp(type, "double") == 0) {
+		class = resolver->double_class;
+	} else if (strcmp(type, "bool") == 0) {
+		class = resolver->bool_class;
 	} else if (strcmp_ignoring(type, "Class<") == 0) {
 		int len = (int) strlen(type);
 
@@ -1177,6 +1183,9 @@ void lit_init_resolver(LitResolver* resolver) {
 	resolver->class = NULL;
 
 	resolver->int_class = NULL;
+	resolver->string_class = NULL;
+	resolver->double_class = NULL;
+	resolver->bool_class = NULL;
 
 	push_scope(resolver); // Global scope
 
