@@ -1,1 +1,1 @@
-print(32.6.round())
+print(3 % 2)

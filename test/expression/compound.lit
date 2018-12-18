@@ -8,3 +8,5 @@ print(a ^= 5) // Expected: -32
 
 a = 2 ^ 4
 print(a #= 4) // Expected: 2
+a = 3
+print(a %= 2) // Expected: 1
