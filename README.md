@@ -36,7 +36,7 @@ Please note, that the language is still in it's early stages, and I would recomm
 
 ### Building
 
-To build lit, you will only need cmake and make:
+To build lit, you will only need cmake, make and GCC (4.9.0+):
 
 ```
 cd lit
@@ -47,7 +47,7 @@ make
 To run a program simply use:
 
 ```
-./lit main.lit
+./lit test/main.lit
 ```
 
 ### Thanks
