@@ -60,8 +60,9 @@ typedef enum {
 	OP_ROOT = 45,
 	OP_IS = 46,
 	OP_MODULO = 47,
+	OP_FLOOR = 48,
 
-	OP_TOTAL = 48
+	OP_TOTAL = 49
 } LitOpCode;
 
 typedef struct {

@@ -1,1 +1,5 @@
-print(3 % 2)
+var t = 32.32
+print(t.getClass())
+int b = t
+print(t.getClass())
+print(t)

@@ -334,6 +334,7 @@ static bool interpret(LitVm* vm) {
 		functions[OP_ROOT] = &&op_root;
 		functions[OP_IS] = &&op_is;
 		functions[OP_MODULO] = &&op_modulo;
+		functions[OP_FLOOR] = &&op_floor;
 		functions[OP_TOTAL] = &&op_unknown;
 	}
 
@@ -449,6 +450,11 @@ static bool interpret(LitVm* vm) {
 
 		op_modulo: {
 			PUSH(MAKE_NUMBER_VALUE(fmod(AS_NUMBER(POP()), AS_NUMBER(POP()))));
+			continue;
+		};
+
+		op_floor: {
+			vm->stack_top[-1] = MAKE_NUMBER_VALUE(floor(AS_NUMBER(vm->stack_top[-1])));
 			continue;
 		};
 
