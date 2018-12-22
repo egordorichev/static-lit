@@ -211,7 +211,7 @@ static const char* resolve_var_statement(LitResolver* resolver, LitVarStatement*
 		error(resolver, statement->statement.line, "Final variable must be assigned a value in the declaration!");
 	}
 
-	if (strcmp(type, "void") == 0) {
+	if (type != NULL && strcmp(type, "void") == 0) {
 		error(resolver, statement->statement.line, "Can't set variable's %s type to void", statement->name);
 	} else {
 		if (type != NULL) {
@@ -808,7 +808,7 @@ static const char* resolve_assign_expression(LitResolver* resolver, LitAssignExp
 	}
 
 	if (expression->to->type == GET_EXPRESSION) {
-		return resolve_get_expression(resolver, expression->to);
+		return resolve_get_expression(resolver, (LitGetExpression*) expression->to);
 	} else {
 		LitVarExpression* expr = (LitVarExpression*) expression->to;
 		LitResolverLocal* local = resolve_local(resolver, expr->name, expression->expression.line);

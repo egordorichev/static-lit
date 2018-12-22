@@ -42,11 +42,11 @@ typedef uint64_t LitValue;
 #define MAKE_OBJECT_VALUE(obj) (LitValue) (SIGN_BIT | QNAN | (uint64_t) (uintptr_t) (obj))
 
 typedef union {
-		uint64_t bits64;
-		uint32_t bits32[2];
-		uint16_t bits16[4];
-		uint8_t bits8[8];
-		double num;
+	uint64_t bits64;
+	uint32_t bits32[2];
+	uint16_t bits16[4];
+	uint8_t bits8[8];
+	double num;
 } DoubleUnion;
 
 static inline LitValue lit_char_to_value(unsigned char ch) {

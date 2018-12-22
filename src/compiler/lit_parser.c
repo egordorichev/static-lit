@@ -97,6 +97,8 @@ static void error(LitLexer* lexer, LitToken *token, const char* message) {
 
 	fprintf(stderr, ": %s\n", message);
 	fflush(stderr);
+
+	synchronize(lexer);
 }
 
 static LitToken consume(LitLexer* lexer, LitTokenType type, const char* message) {
@@ -111,8 +113,8 @@ static LitToken consume(LitLexer* lexer, LitTokenType type, const char* message)
 static LitExpression* parse_if_expression(LitLexer* lexer) {
 	uint64_t line = lexer->line;
 	LitExpression* condition = parse_expression(lexer);
-
 	LitExpression* if_branch = parse_expression(lexer);
+
 	LitExpression* else_branch = NULL;
 	LitExpressions* else_if_branches = NULL;
 	LitExpressions* else_if_conditions = NULL;
@@ -121,6 +123,7 @@ static LitExpression* parse_if_expression(LitLexer* lexer) {
 		if (match(lexer, TOKEN_IF)) {
 			if (else_branch != NULL) {
 				error(lexer, &lexer->current, "Else branch is already defined for this if");
+				return NULL;
 			}
 
 			if (else_if_branches == NULL) {
@@ -132,7 +135,7 @@ static LitExpression* parse_if_expression(LitLexer* lexer) {
 			}
 
 			lit_expressions_write(MM(lexer->compiler), else_if_conditions, parse_expression(lexer));
-			lit_expressions_write(MM(lexer->compiler), else_if_branches, parse_expression(lexer));
+			lit_expressions_write(MM(lexer->compiler), else_if_conditions, parse_expression(lexer));
 		} else {
 			else_branch = parse_expression(lexer);
 		}
@@ -140,6 +143,7 @@ static LitExpression* parse_if_expression(LitLexer* lexer) {
 
 	if (else_branch == NULL) {
 		error(lexer, &lexer->previous, "If expression must have else branch");
+		return NULL;
 	}
 
 	return (LitExpression*) lit_make_if_expression(lexer->compiler, line, condition, if_branch, else_branch, else_if_branches, else_if_conditions);
@@ -206,9 +210,7 @@ static LitExpression* parse_primary(LitLexer* lexer) {
 	}*/ // fixme: lambdas
 
 	error(lexer, &lexer->current, "Unexpected token");
-	advance(lexer);
-
-	return parse_primary(lexer);
+	return NULL;
 }
 
 static LitExpression* finish_call(LitLexer* lexer, LitExpression* callee) {
@@ -498,6 +500,7 @@ static LitExpression* parse_assigment(LitLexer* lexer) {
 		}
 
 		error(lexer, &equal, "Invalid assignment target");
+		return NULL;
 	}
 
 	return expression;
@@ -525,6 +528,7 @@ static LitStatement* parse_if_statement(LitLexer* lexer) {
 		if (match(lexer, TOKEN_IF)) {
 			if (else_branch != NULL) {
 				error(lexer, &lexer->current, "Else branch is already defined for this if");
+				return NULL;
 			}
 
 			if (else_if_branches == NULL) {
@@ -617,7 +621,6 @@ static LitStatement* parse_block_statement(LitLexer* lexer) {
 	uint64_t line = lexer->last_line;
 
 	while (!match(lexer, TOKEN_RIGHT_BRACE)) {
-
 		if (statements == NULL) {
 			statements = (LitStatements*) reallocate(lexer->compiler, NULL, 0, sizeof(LitStatements));
 			lit_init_statements(statements);
@@ -625,7 +628,7 @@ static LitStatement* parse_block_statement(LitLexer* lexer) {
 
 		if (lexer->current.type == TOKEN_EOF) {
 			error(lexer, &lexer->current, "Expected '}' to close the block");
-			break;
+			return NULL;
 		}
 
 		lit_statements_write(MM(lexer->compiler), statements, parse_declaration(lexer));
@@ -722,10 +725,12 @@ static LitStatement* parse_method_statement(LitLexer* lexer, bool final, bool ab
 
 	if (final) {
 		error(lexer, &lexer->previous, "Can't declare a final method");
+		return NULL;
 	}
 
 	if (is_static && override) {
 		error(lexer, &lexer->previous, "Can't override a static class");
+		return NULL;
 	}
 
 	consume(lexer, TOKEN_LEFT_PAREN, "Expected '(' after method name");
@@ -751,6 +756,7 @@ static LitStatement* parse_method_statement(LitLexer* lexer, bool final, bool ab
 	if (match(lexer, TOKEN_LEFT_BRACE)) {
 		if (abstract) {
 			error(lexer, &lexer->previous, "Abstract method can't have body");
+			return NULL;
 		} else {
 			body = parse_block_statement(lexer);
 		}
@@ -759,11 +765,13 @@ static LitStatement* parse_method_statement(LitLexer* lexer, bool final, bool ab
 
 		if (abstract) {
 			error(lexer, &lexer->previous, "Abstract method can't have body");
+			return NULL;
 		} else {
 			body = (LitStatement *) lit_make_return_statement(lexer->compiler, bodyLine, parse_expression(lexer));
 		}
 	} else if (!abstract) {
 		error(lexer, &lexer->previous, "Only abstract methods can have no body");
+		return NULL;
 	}
 
 	return (LitStatement*) lit_make_method_statement(lexer->compiler, line, name, parameters, body, (LitParameter) {NULL, return_type}, override, is_static, abstract, access);
@@ -839,10 +847,12 @@ static LitStatement* parse_field_declaration(LitLexer* lexer, bool final, bool a
 
 	if (abstract) {
 		error(lexer, &lexer->previous, "Can't declare abstract field");
+		return NULL;
 	}
 
 	if (override) {
 		error(lexer, &lexer->previous, "Can't override a field");
+		return NULL;
 	}
 
 	if (match(lexer, TOKEN_EQUAL)) {
@@ -851,10 +861,12 @@ static LitStatement* parse_field_declaration(LitLexer* lexer, bool final, bool a
 
 	if (final && init == NULL) {
 		error(lexer, &lexer->previous, "Can't declare a final variable without value");
+		return NULL;
 	}
 
 	if (type == NULL && init == NULL) {
 		error(lexer, &lexer->previous, "Can't declare a field without type");
+		return NULL;
 	}
 
 	return (LitStatement*) lit_make_field_statement(lexer->compiler, line, name, init, type, NULL, NULL, access, is_static, final);
@@ -874,6 +886,7 @@ static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, boo
 	if (match(lexer, TOKEN_LESS)) {
 		if (is_static) {
 			error(lexer, &lexer->previous, "Static classes can't inherit other classes");
+			return NULL;
 		}
 
 		consume(lexer, TOKEN_IDENTIFIER, "Expected superclass name");
@@ -896,6 +909,7 @@ static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, boo
 					case TOKEN_FINAL: {
 						if (final) {
 							error(lexer, &lexer->previous, "Final modifier used twice or more per field");
+							return NULL;
 						} else {
 							final = true;
 						}
@@ -905,6 +919,7 @@ static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, boo
 					case TOKEN_STATIC: {
 						if (field_is_static) {
 							error(lexer, &lexer->previous, is_static ? "No need to use static field modifier in a static class" : "Static keyword used twice or more per field");
+							return NULL;
 						}
 
 						field_is_static = true;
@@ -913,6 +928,7 @@ static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, boo
 					case TOKEN_PRIVATE: {
 						if (access != UNDEFINED_ACCESS) {
 							error(lexer, &lexer->previous, "Access modifier used twice or more per field");
+							return NULL;
 						}
 	
 						access = PRIVATE_ACCESS;
@@ -921,6 +937,7 @@ static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, boo
 					case TOKEN_PROTECTED: {
 						if (access != UNDEFINED_ACCESS) {
 							error(lexer, &lexer->previous, "Access modifier used twice or more per field");
+							return NULL;
 						}
 	
 						access = PROTECTED_ACCESS;
@@ -929,6 +946,7 @@ static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, boo
 					case TOKEN_PUBLIC: {
 						if (access != UNDEFINED_ACCESS) {
 							error(lexer, &lexer->previous, "Access modifier used twice or more per field");
+							return NULL;
 						}
 	
 						access = PUBLIC_ACCESS;
@@ -937,6 +955,7 @@ static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, boo
 					case TOKEN_OVERRIDE: {
 						if (override) {
 							error(lexer, &lexer->previous, "Override keyword used twice or more per field");
+							return NULL;
 						}
 
 						override = true;
@@ -945,6 +964,7 @@ static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, boo
 					case TOKEN_ABSTRACT: {
 						if (is_abstract) {
 							error(lexer, &lexer->previous, "Abstract keyword used twice or more per field");
+							return NULL;
 						}
 
 						is_abstract = true;
@@ -1058,16 +1078,20 @@ static LitStatement* parse_declaration(LitLexer* lexer) {
 	if (match(lexer, TOKEN_ABSTRACT)) {
 		if (lexer->current.type == TOKEN_STATIC) {
 			error(lexer, &lexer->current, "Abstract class can not be declared static");
+			return NULL;
 		} else if (lexer->current.type == TOKEN_FINAL) {
 			error(lexer, &lexer->current, "Abstract class can not be declared final");
+			return NULL;
 		} else {
 			return parse_class_declaration(lexer, true, false, false, false);
 		}
 	} else if (match(lexer, TOKEN_STATIC)) {
 		if (lexer->current.type == TOKEN_ABSTRACT) {
 			error(lexer, &lexer->current, "Static class can not be declared abstract");
+			return NULL;
 		} else if (lexer->current.type == TOKEN_FINAL) {
 			error(lexer, &lexer->current, "Static class can not be inherited, so can it be final");
+			return NULL;
 		} else {
 			return parse_class_declaration(lexer, false, true, false, false);
 		}
@@ -1086,12 +1110,14 @@ static LitStatement* parse_declaration(LitLexer* lexer) {
 			return parse_var_declaration(lexer, true);
 		} else if (match(lexer, TOKEN_VAL)) {
 			error(lexer, &lexer->previous, "Val can't be declared final, because it is already final by definition");
-			return parse_var_declaration(lexer, true);
+			return NULL;
 		} else {
 			if (lexer->current.type == TOKEN_ABSTRACT) {
 				error(lexer, &lexer->current, "Abstract class can not be declared abstract");
+				return NULL;
 			} else if (lexer->current.type == TOKEN_STATIC) {
 				error(lexer, &lexer->current, "Final class can not be declared static");
+				return NULL;
 			} else {
 				return parse_class_declaration(lexer, false, false, true, false);
 			}
@@ -1108,7 +1134,11 @@ bool lit_parse(LitCompiler* compiler, LitLexer* lexer, LitStatements* statements
 		error(lexer, &lexer->current, "Expected statement but got end of file");
 	} else {
 		while (!is_at_end(lexer)) {
-			lit_statements_write(MM(compiler), statements, parse_declaration(lexer));
+			LitStatement* statement = parse_declaration(lexer);
+
+			if (statement != NULL) {
+				lit_statements_write(MM(compiler), statements, statement);
+			}
 		}
 	}
 

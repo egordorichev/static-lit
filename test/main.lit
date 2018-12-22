@@ -1,5 +1,5 @@
-var t = 32.32
-print(t.getClass())
-int b = t
-print(t.getClass())
-print(t)
+var a = 32
+
+if (true) {
+	print(a)
+}
