@@ -1,5 +1,1 @@
-var a = 32
-
-if (true) {
-	print(a)
-}
+32 + 60

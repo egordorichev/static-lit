@@ -226,13 +226,14 @@ static const char* resolve_var_statement(LitResolver* resolver, LitVarStatement*
 		return NULL;
 	}
 
+	/*
 	if (strcmp(type, "bool") == 0) {
 		statement->default_value = OP_FALSE;
 	} else if (strcmp(type, "int") == 0 || strcmp(type, "double") == 0) {
 		statement->default_value = OP_CONSTANT;
 	} else {
 		statement->default_value = OP_NIL;
-	}
+	}*/
 
 	return type;
 }

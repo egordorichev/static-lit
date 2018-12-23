@@ -567,9 +567,10 @@ static uint64_t jump_instruction(const char* name, int sign, LitChunk* chunk, ui
 }
 
 uint64_t lit_disassemble_instruction(LitMemManager* manager, LitChunk* chunk, uint64_t offset) {
-	printf("%lu ", offset);
-	uint8_t instruction = chunk->code[offset];
+	// printf("%lu ", offset);
+	// uint8_t instruction = chunk->code[offset];
 
+	/*
 	switch (instruction) {
 		case OP_RETURN: return simple_instruction("OP_RETURN", offset);
 		case OP_ADD: return simple_instruction("OP_ADD", offset);
@@ -632,5 +633,5 @@ uint64_t lit_disassemble_instruction(LitMemManager* manager, LitChunk* chunk, ui
 			return offset;
 		}
 		default: printf("Unknown opcode %i\n", instruction); return offset + 1;
-	}
+	}*/
 }

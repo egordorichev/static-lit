@@ -6,11 +6,27 @@
  * before including this file
  */
 
+// exit()
+// Exits the frame without returning a value
+OPCODE(EXIT)
+// return(return_value)
+// Exits the frame returning a single value
 OPCODE(RETURN)
+// constant(id, res_reg)
+// Copies constant from register id to result register
+// Id size is 1 byte
 OPCODE(CONSTANT)
+// constant(res_reg, id)
+// Copies constant from register id to result register
+// Id size is 2 bytes
+OPCODE(CONSTANT_LONG)
+// add(res_reg, a_reg, b_reg)
+// Adds values from register a and b into result register
+OPCODE(ADD)
+
+/*
 OPCODE(STATIC_INIT)
 OPCODE(NEGATE)
-OPCODE(ADD)
 OPCODE(SUBTRACT)
 OPCODE(MULTIPLY)
 OPCODE(DIVIDE)
@@ -54,4 +70,4 @@ OPCODE(SQUARE)
 OPCODE(ROOT)
 OPCODE(IS)
 OPCODE(MODULO)
-OPCODE(FLOOR)
+OPCODE(FLOOR)*/

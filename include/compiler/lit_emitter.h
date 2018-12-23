@@ -25,12 +25,6 @@ typedef struct LitClassCompiler {
 typedef struct LitEmitterFunction {
 	LitFunction* function;
 	struct LitEmitterFunction* enclosing;
-
-	int local_count;
-	int depth;
-
-	LitLocal locals[UINT8_COUNT];
-	LitEmvalue upvalues[UINT8_COUNT];
 } LitEmitterFunction;
 
 DECLARE_ARRAY(LitInts, uint64_t, ints)
@@ -40,6 +34,7 @@ typedef struct LitEmitter {
 	LitClassCompiler* class;
 	LitCompiler* compiler;
 	LitInts breaks;
+	uint16_t register_count;
 
 	uint64_t loop_start;
 	bool had_error;

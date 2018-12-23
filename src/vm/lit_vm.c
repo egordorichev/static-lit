@@ -11,28 +11,6 @@
 #include <lit_debug.h>
 #include <vm/lit_object.h>
 
-static inline void reset_stack(LitVm *vm) {
-	vm->stack_top = vm->stack;
-	vm->open_upvalues = NULL;
-	vm->frame_count = 0;
-}
-
-void lit_push(LitVm* vm, LitValue value) {
-	*vm->stack_top = value;
-	vm->stack_top++;
-}
-
-LitValue lit_pop(LitVm* vm) {
-	assert(vm->stack_top > vm->stack);
-	vm->stack_top--;
-
-	return *vm->stack_top;
-}
-
-LitValue lit_peek(LitVm* vm, int depth) {
-	return vm->stack_top[-1 - depth];
-}
-
 static void runtime_error(LitVm* vm, const char* format, ...) {
 	va_list args;
 	va_start(args, format);
@@ -62,153 +40,19 @@ static bool call(LitVm* vm, LitClosure* closure, int arg_count) {
 
 	frame->closure = closure;
 	frame->ip = closure->function->chunk.code;
-	frame->slots = vm->stack_top - arg_count;
 
 	if (DEBUG_TRACE_EXECUTION) {
 		printf("== %s ==\n", frame->closure->function->name == NULL ? "top-level" : frame->closure->function->name->chars);
 	}
 
-	// fixme: why should be local vars on stack already?
-	// they are often duplicated because of that:
-	// [<native fun>][<fun test>][<fun lambda>][10][32][10][32]
-	// last two are GET_LOCAL 0 and 1
-
 	return true;
 }
 
-static void trace_stack(LitVm* vm) {
-	if (vm->stack != vm->stack_top) {
-		for (LitValue* slot = vm->stack; slot < vm->stack_top; slot++) {
-			printf("[%s]", lit_to_string(vm, *slot));
-		}
-
-		printf("\n");
-	}
-}
-
-static bool invoke_simple(LitVm* vm, int arg_count, LitValue receiver, LitValue method) {
-	if (IS_NATIVE_METHOD(method)) {
-		int count = AS_NATIVE_METHOD(method)(vm, vm->stack_top[-arg_count - 2], vm->stack_top - arg_count, arg_count);
-
-		if (count == 0) {
-			count = 1;
-			lit_push(vm, NIL_VALUE);
-		}
-
-		LitValue values[count];
-
-		for (int i = 0; i < count; i++) {
-			values[i] = lit_pop(vm);
-		}
-
-		// Pop args
-		for (int i = 0; i < arg_count; i++) {
-			lit_pop(vm);
-		}
-
-		lit_pop(vm); // Pop native method
-		lit_pop(vm); // Pop instance
-
-		for (int i = 0; i < count; i++) {
-			lit_push(vm, values[i]);
-		}
-
-		return true;
-	} else {
-		bool value = call(vm, AS_CLOSURE(method), arg_count);
-
-		if (value) {
-			vm->frames[vm->frame_count - 1].slots = vm->stack_top - arg_count - 1;
-			vm->frames[vm->frame_count - 1].slots[0] = receiver; // this var
-		}
-
-		return value;
-	}
-}
-
-static bool invoke(LitVm* vm, int arg_count) {
-	return invoke_simple(vm, arg_count, lit_peek(vm, arg_count + 1), lit_peek(vm, arg_count));
-}
-
-static bool last_native;
-static bool last_init;
-static bool last_super;
-
 static bool call_value(LitVm* vm, LitValue callee, int arg_count, bool static_init) {
-	last_native = false;
-
 	if (IS_OBJECT(callee)) {
 		switch (OBJECT_TYPE(callee)) {
 			case OBJECT_CLOSURE: {
 				return call(vm, AS_CLOSURE(callee), arg_count);
-			}
-			case OBJECT_NATIVE: {
-				last_native = true;
-				int count = AS_NATIVE(callee)(vm, vm->stack_top - arg_count, arg_count);
-
-				if (count == 0) {
-					count = 1;
-					lit_push(vm, NIL_VALUE);
-				}
-
-				LitValue values[count];
-
-				for (int i = 0; i < count; i++) {
-					values[i] = lit_pop(vm);
-				}
-
-				// Pop args
-				for (int i = 0; i < arg_count; i++) {
-					lit_pop(vm);
-				}
-
-				lit_pop(vm); // Pop native function
-
-				for (int i = 0; i < count; i++) {
-					lit_push(vm, values[i]);
-				}
-
-				return true;
-			}
-			case OBJECT_NATIVE_METHOD: {
-				assert(false);
-			}
-			case OBJECT_BOUND_METHOD: {
-				LitMethod* bound = AS_METHOD(callee);
-
-				vm->stack_top[-arg_count - (last_super ? 0 : 1)] = bound->receiver;
-				last_super = false;
-				return call(vm, bound->method, arg_count);
-			}
-			case OBJECT_CLASS: {
-				LitClass* class = AS_CLASS(callee);
-
-				if (!static_init) {
-					vm->stack_top[-arg_count - 1] = MAKE_OBJECT_VALUE(lit_new_instance(MM(vm), class));
-				}
-
-				LitValue* initializer = lit_table_get(static_init ? &class->static_methods : &class->methods, vm->init_string);
-
-				if (initializer != NULL) {
-					LitValue values[arg_count];
-
-					for (int i = 0; i < arg_count; i++) {
-						values[i] = lit_pop(vm);
-					}
-
-					lit_push(vm, *initializer);
-
-					for (int i = 0; i < arg_count; i++) {
-						lit_push(vm, values[i]);
-					}
-
-					last_init = true;
-
-					return invoke_simple(vm, arg_count, lit_peek(vm, arg_count + 1), *initializer);
-				}
-
-				last_native = true;
-				return true;
 			}
 			default: UNREACHABLE();
 		}
@@ -217,67 +61,6 @@ static bool call_value(LitVm* vm, LitValue callee, int arg_count, bool static_in
 	runtime_error(vm, "Can only call functions and classes");
 	return false;
 }
-
-static void close_upvalues(LitVm* vm, const LitValue* last) {
-	while (vm->open_upvalues != NULL && vm->open_upvalues->value >= last) {
-		LitUpvalue* upvalue = vm->open_upvalues;
-
-		upvalue->closed = *upvalue->value;
-		upvalue->value = &upvalue->closed;
-		vm->open_upvalues = upvalue->next;
-	}
-}
-
-static LitUpvalue* capture_upvalue(LitVm* vm, LitValue* local) {
-	if (vm->open_upvalues == NULL) {
-		vm->open_upvalues = lit_new_upvalue(MM(vm), local);
-		return vm->open_upvalues;
-	}
-
-	LitUpvalue* prev_upvalue = NULL;
-	LitUpvalue* upvalue = vm->open_upvalues;
-
-	while (upvalue != NULL && upvalue->value > local) {
-		prev_upvalue = upvalue;
-		upvalue = upvalue->next;
-	}
-
-	if (upvalue != NULL && upvalue->value == local) {
-		return upvalue;
-	}
-
-	LitUpvalue* created_upvalue = lit_new_upvalue(MM(vm), local);
-	created_upvalue->next = upvalue;
-
-	if (prev_upvalue == NULL) {
-		vm->open_upvalues = created_upvalue;
-	} else {
-		prev_upvalue->next = created_upvalue;
-	}
-
-	return created_upvalue;
-}
-
-static void create_class(LitVm* vm, LitString* name, LitClass* super) {
-	LitClass* class = lit_new_class(MM(vm), name, super);
-	lit_push(vm, MAKE_OBJECT_VALUE(class));
-
-	if (super != NULL) {
-		lit_table_add_all(MM(vm), &class->static_methods, &super->static_methods);
-		lit_table_add_all(MM(vm), &class->methods, &super->methods);
-		lit_table_add_all(MM(vm), &class->static_fields, &super->static_fields);
-		lit_table_add_all(MM(vm), &class->fields, &super->fields);
-	}
-}
-
-static void define_method(LitVm* vm, LitString* name) {
-	LitValue method = lit_peek(vm, 0);
-	LitClass* class = AS_CLASS(lit_peek(vm, 1));
-
-	lit_table_set(MM(vm), &class->methods, name, method);
-	lit_pop(vm);
-}
-
 
 static bool interpret(LitVm* vm) {
 	static void* dispatch_table[] = {
@@ -289,15 +72,12 @@ static bool interpret(LitVm* vm) {
 	vm->abort = false;
 
 	register LitFrame* frame = &vm->frames[vm->frame_count - 1];
-	register LitValue* stack = vm->stack;
 
 #define READ_BYTE() (*frame->ip++)
 #define READ_CONSTANT() (frame->closure->function->chunk.constants.values[READ_BYTE()])
+#define READ_CONSTANT_LONG() (frame->closure->function->chunk.constants.values[READ_SHORT()])
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 #define READ_SHORT() (frame->ip += 2, (uint16_t) ((frame->ip[-2] << 8) | frame->ip[-1]))
-#define PUSH(value) { *vm->stack_top = value; vm->stack_top++; }
-#define POP() ({if (vm->stack_top == stack) { runtime_error(vm, "Attempt to pop below zero"); assert(false); } vm->stack_top--; *vm->stack_top; })
-#define PEEK(depth) (vm->stack_top[-1 - depth])
 #define CASE_CODE(name) CODE_##name:
 
 	while (true) {
@@ -306,40 +86,31 @@ static bool interpret(LitVm* vm) {
 		}
 
 		if (DEBUG_TRACE_EXECUTION) {
-			trace_stack(vm);
 			lit_disassemble_instruction(MM(vm), &frame->closure->function->chunk, (uint64_t) (frame->ip - frame->closure->function->chunk.code));
 		}
 
 		goto *dispatch_table[*frame->ip++];
 
 		CASE_CODE(CONSTANT) {
-			PUSH(READ_CONSTANT());
+			vm->registers[READ_BYTE()] = READ_CONSTANT();
 			continue;
 		};
 
-		CASE_CODE(RETURN) {
-			if (last_init) {
-				last_init = false;
-				close_upvalues(vm, frame->slots);
-				vm->frame_count--;
+		CASE_CODE(CONSTANT_LONG) {
+			vm->registers[READ_BYTE()] = READ_CONSTANT_LONG();
+			continue;
+		};
 
-				if (vm->frame_count == 0) {
-					return false;
-				}
+		CASE_CODE(ADD) {
+			vm->registers[READ_BYTE()] = MAKE_NUMBER_VALUE(AS_NUMBER(vm->registers[READ_BYTE()]) + AS_NUMBER(vm->registers[READ_BYTE()]));
+			continue;
+		};
 
-				vm->stack_top = frame->slots;
-			} else {
-				LitValue result = POP();
-				close_upvalues(vm, frame->slots);
+		CASE_CODE(EXIT) {
+			vm->frame_count--;
 
-				vm->frame_count--;
-
-				if (vm->frame_count == 0) {
-					return false;
-				}
-
-				vm->stack_top = frame->slots - 1;
-				PUSH(result);
+			if (vm->frame_count == 0) {
+				return false;
 			}
 
 			frame = &vm->frames[vm->frame_count - 1];
@@ -351,7 +122,21 @@ static bool interpret(LitVm* vm) {
 			continue;
 		};
 
-		CASE_CODE(STATIC_INIT) {
+		CASE_CODE(RETURN) {
+			vm->frame_count--;
+
+			if (vm->frame_count == 0) {
+				return false;
+			}
+
+			frame = &vm->frames[vm->frame_count - 1];
+
+			if (DEBUG_TRACE_EXECUTION) {
+				printf("== %s ==\n", frame->closure->function->name == NULL ? "top-level" : frame->closure->function->name->chars);
+			}
+		};
+
+		/*CASE_CODE(STATIC_INIT) {
 			if (!call_value(vm, PEEK(0), 0, true)) {
 				return false;
 			}
@@ -362,11 +147,6 @@ static bool interpret(LitVm* vm) {
 
 		CASE_CODE(NEGATE) {
 			vm->stack_top[-1] = MAKE_NUMBER_VALUE(-AS_NUMBER(vm->stack_top[-1]));
-			continue;
-		};
-
-		CASE_CODE(ADD) {
-			PUSH(MAKE_NUMBER_VALUE(AS_NUMBER(POP()) + AS_NUMBER(POP())));
 			continue;
 		};
 
@@ -799,7 +579,7 @@ static bool interpret(LitVm* vm) {
 			}
 
 			continue;
-		};
+		};*/
 
 		runtime_error(vm, "Unknown opcode!");
 	}
@@ -824,10 +604,10 @@ void lit_init_vm(LitVm* vm) {
 	manager->objects = NULL;
 
 	lit_init_table(&manager->strings);
-
-	reset_stack(vm);
-
 	lit_init_table(&vm->globals);
+
+	vm->open_upvalues = NULL;
+	vm->frame_count = 0;
 
 	vm->next_gc = 1024 * 1024;
 	vm->gray_capacity = 0;

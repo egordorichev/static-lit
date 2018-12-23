@@ -16,8 +16,7 @@
 #include <compiler/lit_resolver.h>
 
 #define FRAMES_MAX 64
-#define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
-#define VM_STACK_MAX 256
+#define REGISTER_COUNT 256
 
 typedef struct {
 	LitClosure* closure;
@@ -28,8 +27,7 @@ typedef struct {
 typedef struct sLitVm {
 	LitMemManager mem_manager;
 
-	LitValue stack[VM_STACK_MAX];
-	LitValue* stack_top;
+	LitValue registers[REGISTER_COUNT];
 	LitTable globals;
 	LitString *init_string;
 
@@ -89,8 +87,6 @@ bool lit_eval(const char* source_code);
 bool lit_execute(LitVm* vm, LitFunction* function);
 
 void lit_push(LitVm* vm, LitValue value);
-LitValue lit_pop(LitVm* vm);
-LitValue lit_peek(LitVm* vm, int depth);
 
 char *lit_to_string(LitVm* vm, LitValue value);
 

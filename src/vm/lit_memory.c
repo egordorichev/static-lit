@@ -194,8 +194,8 @@ void lit_collect_garbage(LitVm* vm) {
 		printf("-- gc begin\n");
 	}
 
-	for (LitValue* slot = vm->stack; slot < vm->stack_top; slot++) {
-		lit_gray_value(vm, *slot);
+	for (int i = 0; i < REGISTER_COUNT; i++) {
+		lit_gray_value(vm, vm->registers[i]);
 	}
 
 	for (int i = 0; i < vm->frame_count; i++) {
