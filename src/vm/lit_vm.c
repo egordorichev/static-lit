@@ -166,6 +166,22 @@ static bool interpret(LitVm* vm) {
 			continue;
 		};
 
+		CASE_CODE(DEFINE_FUNCTION) {
+			uint16_t where = READ_BYTE();
+			LitFunction* function = AS_FUNCTION(READ_CONSTANT());
+			registers[where] = MAKE_OBJECT_VALUE(lit_new_closure(MM(vm), function));
+
+			continue;
+		}
+
+		CASE_CODE(DEFINE_FUNCTION_LONG) {
+			uint16_t where = READ_BYTE();
+			LitFunction* function = AS_FUNCTION(READ_CONSTANT_LONG());
+			registers[where] = MAKE_OBJECT_VALUE(lit_new_closure(MM(vm), function));
+
+			continue;
+		}
+
 		/*CASE_CODE(STATIC_INIT) {
 			if (!call_value(vm, PEEK(0), 0, true)) {
 				return false;

@@ -43,7 +43,7 @@ uint64_t lit_disassemble_instruction(LitMemManager* manager, LitChunk* chunk, ui
 
 	switch (instruction) {
 		CASE_CODE(EXIT) return simple_instruction("OP_EXIT", offset);
-		CASE_CODE(RETURN) return simple_instruction("OP_RETURN", offset);
+		CASE_CODE(RETURN) return simple_instruction("OP_RETURN", offset) + 1;
 		CASE_CODE(CONSTANT) return constant_instruction(manager, "OP_CONSTANT", offset, chunk);
 		CASE_CODE(CONSTANT_LONG) return long_constant_instruction(manager, "OP_CONSTANT", offset, chunk);
 		CASE_CODE(ADD) return binary_instruction(manager, "OP_ADD", offset, chunk, "+");
@@ -53,7 +53,10 @@ uint64_t lit_disassemble_instruction(LitMemManager* manager, LitChunk* chunk, ui
 		CASE_CODE(MODULO) return binary_instruction(manager, "OP_MODULO", offset, chunk, "%");
 		CASE_CODE(POWER) return binary_instruction(manager, "OP_POWER", offset, chunk, "^");
 		CASE_CODE(ROOT) return binary_instruction(manager, "OP_ROOT", offset, chunk, "#");
-
+		CASE_CODE(DEFINE_FUNCTION) {
+			printf("%-16s %i = %s\n", "OP_DEFINE_FUNCTION", chunk->code[offset + 1], lit_to_string(manager, chunk->constants.values[chunk->code[offset + 2]]));
+			return offset + 2;
+		}
 		default: printf("Unknown code %i\n", instruction); return offset + 1;
 	}
 

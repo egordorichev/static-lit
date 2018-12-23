@@ -25,6 +25,8 @@ typedef struct LitClassCompiler {
 typedef struct LitEmitterFunction {
 	LitFunction* function;
 	struct LitEmitterFunction* enclosing;
+	int depth;
+	int local_count;
 } LitEmitterFunction;
 
 DECLARE_ARRAY(LitInts, uint64_t, ints)

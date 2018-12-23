@@ -41,6 +41,14 @@ OPCODE(POWER)
 // root(res_reg, a_reg, b_reg)
 // Calculates root from register a in stage b into result register
 OPCODE(ROOT)
+// function(res_reg, function_reg)
+// Defines a function from closure_reg (constant) and puts it into res_reg
+// Uses 1 byte as constant id
+OPCODE(DEFINE_FUNCTION)
+// function(res_reg, function_reg)
+// Defines a function from closure_reg (constant) and puts it into res_reg
+// Uses 2 bytes as constant id
+OPCODE(DEFINE_FUNCTION_LONG)
 
 /*
 OPCODE(STATIC_INIT)

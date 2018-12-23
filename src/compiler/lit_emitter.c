@@ -61,6 +61,17 @@ static void free_register(LitEmitter* emitter, uint16_t reg) {
 	lit_shorts_write(MM(emitter->compiler), &emitter->free_registers, reg);
 }
 
+static uint8_t make_constant(LitEmitter* emitter, LitValue value) {
+	int constant = lit_chunk_add_constant(MM(emitter->compiler), &emitter->function->function->chunk, value);
+
+	if (constant > UINT16_MAX) {
+		error(emitter, "Too many constants in one chunk");
+		return 0;
+	}
+
+	return (uint8_t) constant;
+}
+
 static uint16_t emit_constant(LitEmitter* emitter, LitValue constant, uint64_t line) {
 	int id = lit_chunk_add_constant(MM(emitter->compiler), &emitter->function->function->chunk, constant);
 
@@ -73,7 +84,7 @@ static uint16_t emit_constant(LitEmitter* emitter, LitValue constant, uint64_t l
 
 	if (id > UINT8_MAX) {
 		// Id wont fit into a single byte, put it into 2 bytes
-		emit_byte4(emitter, OP_CONSTANT, (uint8_t) reg, (uint8_t) ((id >> 8) & 0xff), (uint8_t) (id & 0xff), line);
+		emit_byte4(emitter, OP_CONSTANT_LONG, (uint8_t) reg, (uint8_t) ((id >> 8) & 0xff), (uint8_t) (id & 0xff), line);
 	} else {
 		emit_byte3(emitter, OP_CONSTANT, (uint8_t) reg, (uint8_t) id, line);
 	}
@@ -128,6 +139,79 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 	switch (statement->type) {
 		case EXPRESSION_STATEMENT: {
 			emit_expression(emitter, ((LitExpressionStatement*) statement)->expr);
+			break;
+		}
+		case FUNCTION_STATEMENT: {
+			LitFunctionStatement* stmt = (LitFunctionStatement*) statement;
+			LitEmitterFunction function;
+
+			function.function = lit_new_function(MM(emitter->compiler));
+			function.depth = emitter->function->depth + 1;
+			function.local_count = 0;
+			function.enclosing = emitter->function;
+			function.function = lit_new_function(MM(emitter->compiler));
+			function.function->name = lit_copy_string(MM(emitter->compiler), stmt->name, (int) strlen(stmt->name));
+			function.function->arity = stmt->parameters == NULL ? 0 : stmt->parameters->count;
+
+			emitter->function = &function;
+
+			/*if (stmt->parameters != NULL) {
+				for (int i = 0; i < stmt->parameters->count; i++) {
+					add_local(emitter, stmt->parameters->values[i].name);
+				}
+			}*/
+
+			emit_statement(emitter, stmt->body);
+
+			if (DEBUG_TRACE_CODE) {
+				lit_trace_chunk(MM(emitter->compiler), &function.function->chunk, stmt->name);
+			}
+
+			emitter->function = function.enclosing;
+			uint16_t id = make_constant(emitter, MAKE_OBJECT_VALUE(function.function));
+			uint16_t reg = reserve_register(emitter);
+
+			if (id > UINT8_MAX) {
+				// Id wont fit into a single byte, put it into 2 bytes
+				emit_byte4(emitter, OP_DEFINE_FUNCTION_LONG, (uint8_t) reg, (uint8_t) ((id >> 8) & 0xff), (uint8_t) (id & 0xff), statement->line);
+			} else {
+				emit_byte3(emitter, OP_DEFINE_FUNCTION, (uint8_t) reg, (uint8_t) id, statement->line);
+			}
+
+			/*
+			for (int i = 0; i < function.function->upvalue_count; i++) {
+				emit_byte(emitter, (uint8_t) (function.upvalues[i].local ? 1 : 0), statement->line);
+				emit_byte(emitter, function.upvalues[i].index, statement->line);
+			}*/
+
+			/*
+			if (emitter->function->depth == 0) {
+				emit_bytes(emitter, OP_DEFINE_GLOBAL, make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(MM(emitter->compiler), stmt->name, strlen(stmt->name)))), statement->line);
+			} else {
+				emit_bytes(emitter, OP_SET_LOCAL, (uint8_t) add_local(emitter, stmt->name), statement->line);
+			}*/
+
+			break;
+		}
+		case BLOCK_STATEMENT: {
+			LitBlockStatement* stmt = ((LitBlockStatement*) statement);
+
+			if (stmt->statements != NULL) {
+				emit_statements(emitter, stmt->statements);
+			}
+
+			break;
+		}
+		case RETURN_STATEMENT: {
+			LitReturnStatement* stmt = (LitReturnStatement*) statement;
+
+			if (stmt->value == NULL) {
+				emit_byte(emitter, OP_EXIT, statement->line);
+			} else {
+				uint16_t reg = emit_expression(emitter, stmt->value);
+				emit_byte2(emitter, OP_RETURN, (uint8_t) reg, statement->line);
+			}
+
 			break;
 		}
 		default: {
