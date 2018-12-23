@@ -1,0 +1,97 @@
+[
+{
+  "directory": "/home/egor/lit/build",
+  "command": "/usr/bin/c99-gcc   -I../include  -Wall -Wextra -O3 -flto -std=c99 -Wno-switch -Wno-unused-parameter -Wno-unused-function -Wno-sequence-point -g   -o CMakeFiles/lit.dir/src/compiler/lit_lexer.c.o   -c /home/egor/lit/src/compiler/lit_lexer.c",
+  "file": "/home/egor/lit/src/compiler/lit_lexer.c"
+},
+
+{
+  "directory": "/home/egor/lit/build",
+  "command": "/usr/bin/c99-gcc   -I../include  -Wall -Wextra -O3 -flto -std=c99 -Wno-switch -Wno-unused-parameter -Wno-unused-function -Wno-sequence-point -g   -o CMakeFiles/lit.dir/src/compiler/lit_emitter.c.o   -c /home/egor/lit/src/compiler/lit_emitter.c",
+  "file": "/home/egor/lit/src/compiler/lit_emitter.c"
+},
+
+{
+  "directory": "/home/egor/lit/build",
+  "command": "/usr/bin/c99-gcc   -I../include  -Wall -Wextra -O3 -flto -std=c99 -Wno-switch -Wno-unused-parameter -Wno-unused-function -Wno-sequence-point -g   -o CMakeFiles/lit.dir/src/compiler/lit_resolver.c.o   -c /home/egor/lit/src/compiler/lit_resolver.c",
+  "file": "/home/egor/lit/src/compiler/lit_resolver.c"
+},
+
+{
+  "directory": "/home/egor/lit/build",
+  "command": "/usr/bin/c99-gcc   -I../include  -Wall -Wextra -O3 -flto -std=c99 -Wno-switch -Wno-unused-parameter -Wno-unused-function -Wno-sequence-point -g   -o CMakeFiles/lit.dir/src/compiler/lit_ast.c.o   -c /home/egor/lit/src/compiler/lit_ast.c",
+  "file": "/home/egor/lit/src/compiler/lit_ast.c"
+},
+
+{
+  "directory": "/home/egor/lit/build",
+  "command": "/usr/bin/c99-gcc   -I../include  -Wall -Wextra -O3 -flto -std=c99 -Wno-switch -Wno-unused-parameter -Wno-unused-function -Wno-sequence-point -g   -o CMakeFiles/lit.dir/src/compiler/lit_parser.c.o   -c /home/egor/lit/src/compiler/lit_parser.c",
+  "file": "/home/egor/lit/src/compiler/lit_parser.c"
+},
+
+{
+  "directory": "/home/egor/lit/build",
+  "command": "/usr/bin/c99-gcc   -I../include  -Wall -Wextra -O3 -flto -std=c99 -Wno-switch -Wno-unused-parameter -Wno-unused-function -Wno-sequence-point -g   -o CMakeFiles/lit.dir/src/compiler/lit_compiler.c.o   -c /home/egor/lit/src/compiler/lit_compiler.c",
+  "file": "/home/egor/lit/src/compiler/lit_compiler.c"
+},
+
+{
+  "directory": "/home/egor/lit/build",
+  "command": "/usr/bin/c99-gcc   -I../include  -Wall -Wextra -O3 -flto -std=c99 -Wno-switch -Wno-unused-parameter -Wno-unused-function -Wno-sequence-point -g   -o CMakeFiles/lit.dir/src/util/lit_array.c.o   -c /home/egor/lit/src/util/lit_array.c",
+  "file": "/home/egor/lit/src/util/lit_array.c"
+},
+
+{
+  "directory": "/home/egor/lit/build",
+  "command": "/usr/bin/c99-gcc   -I../include  -Wall -Wextra -O3 -flto -std=c99 -Wno-switch -Wno-unused-parameter -Wno-unused-function -Wno-sequence-point -g   -o CMakeFiles/lit.dir/src/util/lit_table.c.o   -c /home/egor/lit/src/util/lit_table.c",
+  "file": "/home/egor/lit/src/util/lit_table.c"
+},
+
+{
+  "directory": "/home/egor/lit/build",
+  "command": "/usr/bin/c99-gcc   -I../include  -Wall -Wextra -O3 -flto -std=c99 -Wno-switch -Wno-unused-parameter -Wno-unused-function -Wno-sequence-point -g   -o CMakeFiles/lit.dir/src/cli/main.c.o   -c /home/egor/lit/src/cli/main.c",
+  "file": "/home/egor/lit/src/cli/main.c"
+},
+
+{
+  "directory": "/home/egor/lit/build",
+  "command": "/usr/bin/c99-gcc   -I../include  -Wall -Wextra -O3 -flto -std=c99 -Wno-switch -Wno-unused-parameter -Wno-unused-function -Wno-sequence-point -g   -o CMakeFiles/lit.dir/src/cli/lit_core.c.o   -c /home/egor/lit/src/cli/lit_core.c",
+  "file": "/home/egor/lit/src/cli/lit_core.c"
+},
+
+{
+  "directory": "/home/egor/lit/build",
+  "command": "/usr/bin/c99-gcc   -I../include  -Wall -Wextra -O3 -flto -std=c99 -Wno-switch -Wno-unused-parameter -Wno-unused-function -Wno-sequence-point -g   -o CMakeFiles/lit.dir/src/lit_debug.c.o   -c /home/egor/lit/src/lit_debug.c",
+  "file": "/home/egor/lit/src/lit_debug.c"
+},
+
+{
+  "directory": "/home/egor/lit/build",
+  "command": "/usr/bin/c99-gcc   -I../include  -Wall -Wextra -O3 -flto -std=c99 -Wno-switch -Wno-unused-parameter -Wno-unused-function -Wno-sequence-point -g   -o CMakeFiles/lit.dir/src/vm/lit_value.c.o   -c /home/egor/lit/src/vm/lit_value.c",
+  "file": "/home/egor/lit/src/vm/lit_value.c"
+},
+
+{
+  "directory": "/home/egor/lit/build",
+  "command": "/usr/bin/c99-gcc   -I../include  -Wall -Wextra -O3 -flto -std=c99 -Wno-switch -Wno-unused-parameter -Wno-unused-function -Wno-sequence-point -g   -o CMakeFiles/lit.dir/src/vm/lit_chunk.c.o   -c /home/egor/lit/src/vm/lit_chunk.c",
+  "file": "/home/egor/lit/src/vm/lit_chunk.c"
+},
+
+{
+  "directory": "/home/egor/lit/build",
+  "command": "/usr/bin/c99-gcc   -I../include  -Wall -Wextra -O3 -flto -std=c99 -Wno-switch -Wno-unused-parameter -Wno-unused-function -Wno-sequence-point -g   -o CMakeFiles/lit.dir/src/vm/lit_vm.c.o   -c /home/egor/lit/src/vm/lit_vm.c",
+  "file": "/home/egor/lit/src/vm/lit_vm.c"
+},
+
+{
+  "directory": "/home/egor/lit/build",
+  "command": "/usr/bin/c99-gcc   -I../include  -Wall -Wextra -O3 -flto -std=c99 -Wno-switch -Wno-unused-parameter -Wno-unused-function -Wno-sequence-point -g   -o CMakeFiles/lit.dir/src/vm/lit_memory.c.o   -c /home/egor/lit/src/vm/lit_memory.c",
+  "file": "/home/egor/lit/src/vm/lit_memory.c"
+},
+
+{
+  "directory": "/home/egor/lit/build",
+  "command": "/usr/bin/c99-gcc   -I../include  -Wall -Wextra -O3 -flto -std=c99 -Wno-switch -Wno-unused-parameter -Wno-unused-function -Wno-sequence-point -g   -o CMakeFiles/lit.dir/src/vm/lit_object.c.o   -c /home/egor/lit/src/vm/lit_object.c",
+  "file": "/home/egor/lit/src/vm/lit_object.c"
+}
+]

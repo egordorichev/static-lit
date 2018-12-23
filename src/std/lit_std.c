@@ -1,4 +1,6 @@
+#include <lit_bindings.h>
 #include <std/lit_std.h>
+
 #include <time.h>
 #include <ctype.h>
 #include <string.h>
@@ -29,6 +31,18 @@ END_METHODS
  * Object class
  */
 METHOD(object_getClass) {
+	if (IS_NUMBER(instance)) {
+		double temp;
+
+		if (modf(AS_NUMBER(instance), &temp) == 0) {
+			RETURN_OBJECT(vm->int_class) // Fixme: 10.0 will be still int
+		} else {
+			RETURN_OBJECT(vm->double_class)
+		}
+	} else if (IS_STRING(instance)) {
+		RETURN_OBJECT(vm->string_class)
+	}
+
 	RETURN_OBJECT(AS_INSTANCE(instance)->type)
 }
 
@@ -46,18 +60,28 @@ END_METHODS
  * Int class
  */
 
-METHOD(int_log) {
-	RETURN_NUMBER(log(AS_NUMBER(instance)))
-}
-
 START_METHODS(int)
-	ADD("log", "Function<double>", int_log, false)
 END_METHODS
 
 /*
  * Double class
  */
+METHOD(double_floor) {
+	RETURN_NUMBER(floor(AS_NUMBER(instance)))
+}
+
+METHOD(double_ceil) {
+	RETURN_NUMBER(ceil(AS_NUMBER(instance)))
+}
+
+METHOD(double_round) {
+	RETURN_NUMBER(round(AS_NUMBER(instance)))
+}
+
 START_METHODS(double)
+	ADD("floor", "Function<double>", double_floor, false)
+	ADD("ceil", "Function<double>", double_ceil, false)
+	ADD("round", "Function<double>", double_round, false)
 END_METHODS
 
 /*
@@ -71,7 +95,7 @@ END_METHODS
  */
 METHOD(string_toLowerCase) {
 	LitString* old = AS_STRING(instance);
-	LitString* string = lit_new_string(vm, old->length);
+	LitString* string = lit_new_string(MM(vm), old->length);
 
 	for (int i = 0; i < old->length; i++) {
 		string->chars[i] = (char) tolower(old->chars[i]);
@@ -83,7 +107,7 @@ METHOD(string_toLowerCase) {
 
 METHOD(string_toUpperCase) {
 	LitString* old = AS_STRING(instance);
-	LitString* string = lit_new_string(vm, old->length);
+	LitString* string = lit_new_string(MM(vm), old->length);
 
 	for (int i = 0; i < old->length; i++) {
 		string->chars[i] = (char) toupper(old->chars[i]);
@@ -187,7 +211,6 @@ FUNCTION(print) {
 LitLibRegistry* lit_create_std(LitCompiler* compiler) {
 	START_LIB
 
-	// FIXME: segfault because of the super
 	START_CLASSES(8)
 		DEFINE_CLASS("Class", class, NULL)
 		DEFINE_CLASS("Object", object, NULL)

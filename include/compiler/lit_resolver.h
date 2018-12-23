@@ -29,6 +29,7 @@ typedef struct LitResolverField {
 	bool is_final;
 	LitAccessType access;
 	const char* type;
+	struct sLitType* original;
 } LitResolverField;
 
 void lit_free_resolver_field(LitCompiler* compiler, LitResolverField* resource);
@@ -42,6 +43,7 @@ typedef struct LitResolverMethod {
 	LitAccessType access;
 	char* signature;
 	LitString* name;
+	struct sLitType* original;
 } LitResolverMethod;
 
 void lit_free_resolver_method(LitCompiler* compiler, LitResolverMethod* method);
@@ -70,7 +72,7 @@ typedef struct sLitType {
 void lit_init_type(LitType* type);
 void lit_free_type(LitMemManager* manager, LitType* type);
 
-DECLARE_TABLE(LitResolverLocals, LitResolverLocal*, letals, LitResolverLocal*)
+DECLARE_TABLE(LitResolverLocals, LitResolverLocal*, resolver_locals, LitResolverLocal*)
 DECLARE_TABLE(LitTypes, bool, types, bool)
 DECLARE_TABLE(LitClasses, LitType*, classes, LitType*)
 DECLARE_ARRAY(LitScopes, LitResolverLocals*, scopes)

@@ -1,4 +1,5 @@
-print("test".toUpperCase())
-print(32.log())
-print(32.getClass())
-print(32.0.getClass())
+var a = 32
+
+if (true) {
+	print(a)
+}

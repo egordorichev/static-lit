@@ -1,12 +1,20 @@
 class Base {
 	public var testStr = "test"
 
-	public sayTest() {
+	void sayTest() {
 		this.testStr = "Oops"
 	}
 }
 
 class Test < Base {
+	override void sayTest() {
+		this.testStr = "NONO"
+	}
+
+	void init() {
+		super.sayTest()
+		print(this.testStr)
+	}
 }
 
 var test = Test() // Expected: Oops

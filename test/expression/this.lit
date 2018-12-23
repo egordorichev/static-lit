@@ -1,11 +1,11 @@
 class Test {
 	public var testStr = "test"
 
-	public sayTest() {
+	void sayTest() {
 		print(this.testStr)
 	}
 
-	public init() {
+	void init() {
 		this.sayTest()
 	}
 }

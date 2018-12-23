@@ -21,7 +21,7 @@ static const char* copy_string(LitLexer* lexer, LitToken* name) {
 	return str;
 }
 
-static const char* copy_string_native(LitLexer* lexer, const char* name, int length) {
+static const char* copy_string_native(LitLexer* lexer, const char* name, uint64_t length) {
 	char* str = (char*) reallocate(lexer->compiler, NULL, 0, (size_t) length + (size_t) 1);
 	strncpy(str, name, (size_t) length);
 	str[length] = '\0';
@@ -71,6 +71,7 @@ static void synchronize(LitLexer* lexer) {
 			case TOKEN_SWITCH:
 			case TOKEN_RETURN:
 				return;
+			default: continue;
 		}
 	}
 
@@ -96,6 +97,8 @@ static void error(LitLexer* lexer, LitToken *token, const char* message) {
 
 	fprintf(stderr, ": %s\n", message);
 	fflush(stderr);
+
+	synchronize(lexer);
 }
 
 static LitToken consume(LitLexer* lexer, LitTokenType type, const char* message) {
@@ -110,8 +113,8 @@ static LitToken consume(LitLexer* lexer, LitTokenType type, const char* message)
 static LitExpression* parse_if_expression(LitLexer* lexer) {
 	uint64_t line = lexer->line;
 	LitExpression* condition = parse_expression(lexer);
-
 	LitExpression* if_branch = parse_expression(lexer);
+
 	LitExpression* else_branch = NULL;
 	LitExpressions* else_if_branches = NULL;
 	LitExpressions* else_if_conditions = NULL;
@@ -120,6 +123,7 @@ static LitExpression* parse_if_expression(LitLexer* lexer) {
 		if (match(lexer, TOKEN_IF)) {
 			if (else_branch != NULL) {
 				error(lexer, &lexer->current, "Else branch is already defined for this if");
+				return NULL;
 			}
 
 			if (else_if_branches == NULL) {
@@ -130,8 +134,8 @@ static LitExpression* parse_if_expression(LitLexer* lexer) {
 				lit_init_expressions(else_if_branches);
 			}
 
-			lit_expressions_write(lexer->compiler, else_if_conditions, parse_expression(lexer));
-			lit_expressions_write(lexer->compiler, else_if_branches, parse_expression(lexer));
+			lit_expressions_write(MM(lexer->compiler), else_if_conditions, parse_expression(lexer));
+			lit_expressions_write(MM(lexer->compiler), else_if_conditions, parse_expression(lexer));
 		} else {
 			else_branch = parse_expression(lexer);
 		}
@@ -139,6 +143,7 @@ static LitExpression* parse_if_expression(LitLexer* lexer) {
 
 	if (else_branch == NULL) {
 		error(lexer, &lexer->previous, "If expression must have else branch");
+		return NULL;
 	}
 
 	return (LitExpression*) lit_make_if_expression(lexer->compiler, line, condition, if_branch, else_branch, else_if_branches, else_if_conditions);
@@ -182,11 +187,11 @@ static LitExpression* parse_primary(LitLexer* lexer) {
 
 	if (match(lexer, TOKEN_STRING)) {
 		return (LitExpression*) lit_make_literal_expression(lexer->compiler, lexer->last_line,
-			MAKE_OBJECT_VALUE(lit_copy_string(lexer->compiler, lexer->previous.start + 1, lexer->previous.length - 2)));
+			MAKE_OBJECT_VALUE(lit_copy_string(MM(lexer->compiler), lexer->previous.start + 1, lexer->previous.length - 2)));
 	}
 
 	if (match(lexer, TOKEN_CHAR)) {
-		return (LitExpression*) lit_make_literal_expression(lexer->compiler, lexer->last_line, MAKE_CHAR_VALUE(lexer->previous.start[1]));
+		return (LitExpression*) lit_make_literal_expression(lexer->compiler, lexer->last_line, MAKE_CHAR_VALUE((unsigned char) lexer->previous.start[1]));
 	}
 
 	if (match(lexer, TOKEN_LEFT_PAREN)) {
@@ -205,9 +210,7 @@ static LitExpression* parse_primary(LitLexer* lexer) {
 	}*/ // fixme: lambdas
 
 	error(lexer, &lexer->current, "Unexpected token");
-	advance(lexer);
-
-	return parse_primary(lexer);
+	return NULL;
 }
 
 static LitExpression* finish_call(LitLexer* lexer, LitExpression* callee) {
@@ -217,7 +220,7 @@ static LitExpression* finish_call(LitLexer* lexer, LitExpression* callee) {
 
 	if (lexer->current.type != TOKEN_RIGHT_PAREN) {
 		do {
-			lit_expressions_write(lexer->compiler, args, parse_expression(lexer));
+			lit_expressions_write(MM(lexer->compiler), args, parse_expression(lexer));
 		} while (match(lexer, TOKEN_COMMA));
 	}
 
@@ -284,7 +287,7 @@ static LitExpression* parse_compound_power(LitLexer* lexer) {
 static LitExpression* parse_compound_multiplication(LitLexer* lexer) {
 	LitExpression* expression = parse_compound_power(lexer);
 
-	if (match(lexer, TOKEN_STAR_EQUAL) || match(lexer, TOKEN_SLASH_EQUAL)) {
+	if (match(lexer, TOKEN_STAR_EQUAL) || match(lexer, TOKEN_SLASH_EQUAL) || match(lexer, TOKEN_PERCENT_EQUAL)) {
 		/*
 		 * Desugar this:
 		 * a *= 10
@@ -300,8 +303,12 @@ static LitExpression* parse_compound_multiplication(LitLexer* lexer) {
 			LitBinaryExpression* bin = lit_make_binary_expression(lexer->compiler, line, expression, parse_compound_power(lexer), TOKEN_STAR);
 			bin->ignore_left = true; // Because its already freed from another expression
 			operator = (LitExpression *) bin;
-		} else {
+		} else if (type == TOKEN_SLASH_EQUAL) {
 			LitBinaryExpression* bin = lit_make_binary_expression(lexer->compiler, line, expression, parse_compound_power(lexer), TOKEN_SLASH);
+			bin->ignore_left = true; // Because its already freed from another expression
+			operator = (LitExpression *) bin;
+		} else {
+			LitBinaryExpression* bin = lit_make_binary_expression(lexer->compiler, line, expression, parse_compound_power(lexer), TOKEN_PERCENT);
 			bin->ignore_left = true; // Because its already freed from another expression
 			operator = (LitExpression *) bin;
 		}
@@ -388,7 +395,7 @@ static LitExpression* parse_power(LitLexer* lexer) {
 static LitExpression* parse_multiplication(LitLexer* lexer) {
 	LitExpression* expression = parse_power(lexer);
 
-	while (match(lexer, TOKEN_STAR) || match(lexer, TOKEN_SLASH)) {
+	while (match(lexer, TOKEN_STAR) || match(lexer, TOKEN_SLASH) || match(lexer, TOKEN_PERCENT)) {
 		uint64_t line = lexer->last_line;
 		LitTokenType operator = lexer->previous.type;
 		expression = (LitExpression*) lit_make_binary_expression(lexer->compiler, line, expression, parse_power(lexer), operator);
@@ -457,27 +464,9 @@ static LitExpression* parse_or(LitLexer* lexer) {
 	return expression;
 }
 
-static LitExpression* parse_assigment(LitLexer* lexer) {
-	LitExpression* expression = parse_or(lexer);
-
-	if (match(lexer, TOKEN_EQUAL)) {
-		uint64_t line = lexer->last_line;
-		LitToken equal = lexer->previous;
-		LitExpression* value = parse_assigment(lexer);
-
-		if (expression->type == VAR_EXPRESSION) {
-			return (LitExpression*) lit_make_assign_expression(lexer->compiler, line, expression, value);
-		}
-
-		error(lexer, &equal, "Invalid assignment target");
-	}
-
-	return expression;
-}
-
 static LitExpression* parse_short_if(LitLexer* lexer) {
 	uint64_t line = lexer->line;
-	LitExpression* expression = parse_assigment(lexer);
+	LitExpression* expression = parse_or(lexer);
 
 	if (match(lexer, TOKEN_QUESTION)) {
 		LitExpression* if_branch = parse_expression(lexer);
@@ -490,12 +479,35 @@ static LitExpression* parse_short_if(LitLexer* lexer) {
 	return expression;
 }
 
-static LitExpression* parse_expression(LitLexer* lexer) {
+static LitExpression* parse_if_expr(LitLexer* lexer) {
 	if (match(lexer, TOKEN_IF)) {
 		return parse_if_expression(lexer);
 	}
 
 	return parse_short_if(lexer);
+}
+
+static LitExpression* parse_assigment(LitLexer* lexer) {
+	LitExpression* expression = parse_if_expr(lexer);
+
+	if (match(lexer, TOKEN_EQUAL)) {
+		uint64_t line = lexer->last_line;
+		LitToken equal = lexer->previous;
+		LitExpression* value = parse_assigment(lexer);
+
+		if (expression->type == VAR_EXPRESSION) {
+			return (LitExpression*) lit_make_assign_expression(lexer->compiler, line, expression, value);
+		}
+
+		error(lexer, &equal, "Invalid assignment target");
+		return NULL;
+	}
+
+	return expression;
+}
+
+static LitExpression* parse_expression(LitLexer* lexer) {
+	return parse_assigment(lexer);
 }
 
 static LitStatement* parse_expression_statement(LitLexer* lexer) {
@@ -516,6 +528,7 @@ static LitStatement* parse_if_statement(LitLexer* lexer) {
 		if (match(lexer, TOKEN_IF)) {
 			if (else_branch != NULL) {
 				error(lexer, &lexer->current, "Else branch is already defined for this if");
+				return NULL;
 			}
 
 			if (else_if_branches == NULL) {
@@ -526,8 +539,8 @@ static LitStatement* parse_if_statement(LitLexer* lexer) {
 				lit_init_statements(else_if_branches);
 			}
 
-			lit_expressions_write(lexer->compiler, else_if_conditions, parse_expression(lexer));
-			lit_statements_write(lexer->compiler, else_if_branches, parse_statement(lexer));
+			lit_expressions_write(MM(lexer->compiler), else_if_conditions, parse_expression(lexer));
+			lit_statements_write(MM(lexer->compiler), else_if_branches, parse_statement(lexer));
 		} else {
 			else_branch = parse_statement(lexer);
 		}
@@ -578,8 +591,8 @@ static LitStatement* parse_for(LitLexer* lexer) {
 		LitStatements* statements = (LitStatements*) reallocate(lexer->compiler, NULL, 0, sizeof(LitStatements));
 		lit_init_statements(statements);
 
-		lit_statements_write(lexer->compiler, statements, body);
-		lit_statements_write(lexer->compiler, statements, (LitStatement*) lit_make_expression_statement(lexer->compiler, line, increment));
+		lit_statements_write(MM(lexer->compiler), statements, body);
+		lit_statements_write(MM(lexer->compiler), statements, (LitStatement*) lit_make_expression_statement(lexer->compiler, line, increment));
 
 		body = (LitStatement*) lit_make_block_statement(lexer->compiler, line, statements);
 	}
@@ -594,8 +607,8 @@ static LitStatement* parse_for(LitLexer* lexer) {
 		LitStatements* statements = (LitStatements*) reallocate(lexer->compiler, NULL, 0, sizeof(LitStatements));
 		lit_init_statements(statements);
 
-		lit_statements_write(lexer->compiler, statements, init);
-		lit_statements_write(lexer->compiler, statements, body);
+		lit_statements_write(MM(lexer->compiler), statements, init);
+		lit_statements_write(MM(lexer->compiler), statements, body);
 
 		body = (LitStatement*) lit_make_block_statement(lexer->compiler, line, statements);
 	}
@@ -608,7 +621,6 @@ static LitStatement* parse_block_statement(LitLexer* lexer) {
 	uint64_t line = lexer->last_line;
 
 	while (!match(lexer, TOKEN_RIGHT_BRACE)) {
-
 		if (statements == NULL) {
 			statements = (LitStatements*) reallocate(lexer->compiler, NULL, 0, sizeof(LitStatements));
 			lit_init_statements(statements);
@@ -616,10 +628,10 @@ static LitStatement* parse_block_statement(LitLexer* lexer) {
 
 		if (lexer->current.type == TOKEN_EOF) {
 			error(lexer, &lexer->current, "Expected '}' to close the block");
-			break;
+			return NULL;
 		}
 
-		lit_statements_write(lexer->compiler, statements, parse_declaration(lexer));
+		lit_statements_write(MM(lexer->compiler), statements, parse_declaration(lexer));
 	}
 
 	return (LitStatement*) lit_make_block_statement(lexer->compiler, line, statements);
@@ -641,7 +653,7 @@ static char* parse_argument_type(LitLexer* lexer) {
 		}
 	}
 
-	return (char*) copy_string_native(lexer, start, (int) (lexer->current.start - start - 1));
+	return (char*) copy_string_native(lexer, start, (uint64_t) (lexer->current.start - start - 1));
 }
 
 static LitExpression* parse_lambda(LitLexer* lexer) {
@@ -657,7 +669,7 @@ static LitExpression* parse_lambda(LitLexer* lexer) {
 			char* type = parse_argument_type(lexer);
 			LitToken name = consume(lexer, TOKEN_IDENTIFIER, "Expected argument name");
 
-			lit_parameters_write(lexer->compiler, parameters, (LitParameter) {copy_string_native(lexer, name.start, name.length), type});
+			lit_parameters_write(MM(lexer->compiler), parameters, (LitParameter) {copy_string_native(lexer, name.start, name.length), type});
 		} while (match(lexer, TOKEN_COMMA));
 	}
 
@@ -675,7 +687,7 @@ static LitExpression* parse_lambda(LitLexer* lexer) {
 	return (LitExpression*) lit_make_lambda_expression(lexer->compiler, line, parameters, parse_block_statement(lexer), (LitParameter) {NULL, return_type.type});
 }
 
-static LitStatement* parse_function_statement(LitLexer* lexer, char* return_type, char* name) {
+static LitStatement* parse_function_statement(LitLexer* lexer, const char* return_type, char* name) {
 	uint64_t line = lexer->last_line;
 	consume(lexer, TOKEN_LEFT_PAREN, "Expected '(' after function name");
 
@@ -687,9 +699,9 @@ static LitStatement* parse_function_statement(LitLexer* lexer, char* return_type
 
 		do {
 			char* type = parse_argument_type(lexer);
-			LitToken name = consume(lexer, TOKEN_IDENTIFIER, "Expected argument name");
+			LitToken argName = consume(lexer, TOKEN_IDENTIFIER, "Expected argument name");
 
-			lit_parameters_write(lexer->compiler, parameters, (LitParameter) {copy_string_native(lexer, name.start, name.length), type});
+			lit_parameters_write(MM(lexer->compiler), parameters, (LitParameter) {copy_string_native(lexer, argName.start, argName.length), type});
 		} while (match(lexer, TOKEN_COMMA));
 	}
 
@@ -698,8 +710,8 @@ static LitStatement* parse_function_statement(LitLexer* lexer, char* return_type
 	LitStatement* body;
 
 	if (match(lexer, TOKEN_ARROW)) {
-		uint64_t line = lexer->last_line;
-		body = (LitStatement *) lit_make_return_statement(lexer->compiler, line, parse_expression(lexer));
+		uint64_t bodyLine = lexer->last_line;
+		body = (LitStatement *) lit_make_return_statement(lexer->compiler, bodyLine, parse_expression(lexer));
 	} else {
 		consume(lexer, TOKEN_LEFT_BRACE, "Expected '{' before function body");
 		body = parse_block_statement(lexer);
@@ -708,15 +720,17 @@ static LitStatement* parse_function_statement(LitLexer* lexer, char* return_type
 	return (LitStatement*) lit_make_function_statement(lexer->compiler, line, name, parameters, body, (LitParameter) {NULL, return_type});
 }
 
-static LitStatement* parse_method_statement(LitLexer* lexer, bool final, bool abstract, bool override, bool is_static, LitAccessType access, char* return_type, char *name) {
+static LitStatement* parse_method_statement(LitLexer* lexer, bool final, bool abstract, bool override, bool is_static, LitAccessType access, const char* return_type, char *name) {
 	uint64_t line = lexer->last_line;
 
 	if (final) {
 		error(lexer, &lexer->previous, "Can't declare a final method");
+		return NULL;
 	}
 
 	if (is_static && override) {
 		error(lexer, &lexer->previous, "Can't override a static class");
+		return NULL;
 	}
 
 	consume(lexer, TOKEN_LEFT_PAREN, "Expected '(' after method name");
@@ -729,9 +743,9 @@ static LitStatement* parse_method_statement(LitLexer* lexer, bool final, bool ab
 
 		do {
 			char* type = parse_argument_type(lexer);
-			LitToken name = consume(lexer, TOKEN_IDENTIFIER, "Expected argument name");
+			LitToken argName = consume(lexer, TOKEN_IDENTIFIER, "Expected argument name");
 
-			lit_parameters_write(lexer->compiler, parameters, (LitParameter) {copy_string_native(lexer, name.start, name.length), type});
+			lit_parameters_write(MM(lexer->compiler), parameters, (LitParameter) {copy_string_native(lexer, argName.start, argName.length), type});
 		} while (match(lexer, TOKEN_COMMA));
 	}
 
@@ -742,19 +756,22 @@ static LitStatement* parse_method_statement(LitLexer* lexer, bool final, bool ab
 	if (match(lexer, TOKEN_LEFT_BRACE)) {
 		if (abstract) {
 			error(lexer, &lexer->previous, "Abstract method can't have body");
+			return NULL;
 		} else {
 			body = parse_block_statement(lexer);
 		}
 	} else if (match(lexer, TOKEN_ARROW)) {
-		uint64_t line = lexer->last_line;
+		uint64_t bodyLine = lexer->last_line;
 
 		if (abstract) {
 			error(lexer, &lexer->previous, "Abstract method can't have body");
+			return NULL;
 		} else {
-			body = lit_make_return_statement(lexer->compiler, line, parse_expression(lexer));
+			body = (LitStatement *) lit_make_return_statement(lexer->compiler, bodyLine, parse_expression(lexer));
 		}
 	} else if (!abstract) {
 		error(lexer, &lexer->previous, "Only abstract methods can have no body");
+		return NULL;
 	}
 
 	return (LitStatement*) lit_make_method_statement(lexer->compiler, line, name, parameters, body, (LitParameter) {NULL, return_type}, override, is_static, abstract, access);
@@ -830,10 +847,12 @@ static LitStatement* parse_field_declaration(LitLexer* lexer, bool final, bool a
 
 	if (abstract) {
 		error(lexer, &lexer->previous, "Can't declare abstract field");
+		return NULL;
 	}
 
 	if (override) {
 		error(lexer, &lexer->previous, "Can't override a field");
+		return NULL;
 	}
 
 	if (match(lexer, TOKEN_EQUAL)) {
@@ -842,10 +861,12 @@ static LitStatement* parse_field_declaration(LitLexer* lexer, bool final, bool a
 
 	if (final && init == NULL) {
 		error(lexer, &lexer->previous, "Can't declare a final variable without value");
+		return NULL;
 	}
 
 	if (type == NULL && init == NULL) {
 		error(lexer, &lexer->previous, "Can't declare a field without type");
+		return NULL;
 	}
 
 	return (LitStatement*) lit_make_field_statement(lexer->compiler, line, name, init, type, NULL, NULL, access, is_static, final);
@@ -865,6 +886,7 @@ static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, boo
 	if (match(lexer, TOKEN_LESS)) {
 		if (is_static) {
 			error(lexer, &lexer->previous, "Static classes can't inherit other classes");
+			return NULL;
 		}
 
 		consume(lexer, TOKEN_IDENTIFIER, "Expected superclass name");
@@ -887,6 +909,7 @@ static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, boo
 					case TOKEN_FINAL: {
 						if (final) {
 							error(lexer, &lexer->previous, "Final modifier used twice or more per field");
+							return NULL;
 						} else {
 							final = true;
 						}
@@ -896,6 +919,7 @@ static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, boo
 					case TOKEN_STATIC: {
 						if (field_is_static) {
 							error(lexer, &lexer->previous, is_static ? "No need to use static field modifier in a static class" : "Static keyword used twice or more per field");
+							return NULL;
 						}
 
 						field_is_static = true;
@@ -904,6 +928,7 @@ static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, boo
 					case TOKEN_PRIVATE: {
 						if (access != UNDEFINED_ACCESS) {
 							error(lexer, &lexer->previous, "Access modifier used twice or more per field");
+							return NULL;
 						}
 	
 						access = PRIVATE_ACCESS;
@@ -912,6 +937,7 @@ static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, boo
 					case TOKEN_PROTECTED: {
 						if (access != UNDEFINED_ACCESS) {
 							error(lexer, &lexer->previous, "Access modifier used twice or more per field");
+							return NULL;
 						}
 	
 						access = PROTECTED_ACCESS;
@@ -920,6 +946,7 @@ static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, boo
 					case TOKEN_PUBLIC: {
 						if (access != UNDEFINED_ACCESS) {
 							error(lexer, &lexer->previous, "Access modifier used twice or more per field");
+							return NULL;
 						}
 	
 						access = PUBLIC_ACCESS;
@@ -928,6 +955,7 @@ static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, boo
 					case TOKEN_OVERRIDE: {
 						if (override) {
 							error(lexer, &lexer->previous, "Override keyword used twice or more per field");
+							return NULL;
 						}
 
 						override = true;
@@ -936,11 +964,13 @@ static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, boo
 					case TOKEN_ABSTRACT: {
 						if (is_abstract) {
 							error(lexer, &lexer->previous, "Abstract keyword used twice or more per field");
+							return NULL;
 						}
 
 						is_abstract = true;
 						break;
 					}
+					default: UNREACHABLE();
 				}
 			}
 
@@ -956,7 +986,7 @@ static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, boo
 
 				char* name = (char *) copy_string(lexer, &lexer->current);
 				advance(lexer);
-				lit_statements_write(lexer->compiler, fields, parse_field_declaration(lexer, final, is_abstract, override, field_is_static, access, NULL, name));
+				lit_statements_write(MM(lexer->compiler), fields, parse_field_declaration(lexer, final, is_abstract, override, field_is_static, access, NULL, name));
 			} else {
 				if (access == UNDEFINED_ACCESS) {
 					access = PUBLIC_ACCESS;
@@ -976,7 +1006,7 @@ static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, boo
 						lit_init_methods(methods);
 					}
 
-					lit_methods_write(lexer->compiler, methods, (LitMethodStatement*) parse_method_statement(lexer, final, is_abstract, override, field_is_static, access, type, name));
+					lit_methods_write(MM(lexer->compiler), methods, (LitMethodStatement*) parse_method_statement(lexer, final, is_abstract, override, field_is_static, access, type, name));
 				} else {
 					LitToken token = lexer->previous;
 
@@ -991,7 +1021,7 @@ static LitStatement* parse_class_declaration(LitLexer* lexer, bool abstract, boo
 					}
 
 					advance(lexer);
-					lit_statements_write(lexer->compiler, fields, parse_field_declaration(lexer, final, is_abstract, override, field_is_static, access, type, name));
+					lit_statements_write(MM(lexer->compiler), fields, parse_field_declaration(lexer, final, is_abstract, override, field_is_static, access, type, name));
 				}
 			}
 		}
@@ -1048,16 +1078,20 @@ static LitStatement* parse_declaration(LitLexer* lexer) {
 	if (match(lexer, TOKEN_ABSTRACT)) {
 		if (lexer->current.type == TOKEN_STATIC) {
 			error(lexer, &lexer->current, "Abstract class can not be declared static");
+			return NULL;
 		} else if (lexer->current.type == TOKEN_FINAL) {
 			error(lexer, &lexer->current, "Abstract class can not be declared final");
+			return NULL;
 		} else {
 			return parse_class_declaration(lexer, true, false, false, false);
 		}
 	} else if (match(lexer, TOKEN_STATIC)) {
 		if (lexer->current.type == TOKEN_ABSTRACT) {
 			error(lexer, &lexer->current, "Static class can not be declared abstract");
+			return NULL;
 		} else if (lexer->current.type == TOKEN_FINAL) {
 			error(lexer, &lexer->current, "Static class can not be inherited, so can it be final");
+			return NULL;
 		} else {
 			return parse_class_declaration(lexer, false, true, false, false);
 		}
@@ -1076,12 +1110,14 @@ static LitStatement* parse_declaration(LitLexer* lexer) {
 			return parse_var_declaration(lexer, true);
 		} else if (match(lexer, TOKEN_VAL)) {
 			error(lexer, &lexer->previous, "Val can't be declared final, because it is already final by definition");
-			return parse_var_declaration(lexer, true);
+			return NULL;
 		} else {
 			if (lexer->current.type == TOKEN_ABSTRACT) {
 				error(lexer, &lexer->current, "Abstract class can not be declared abstract");
+				return NULL;
 			} else if (lexer->current.type == TOKEN_STATIC) {
 				error(lexer, &lexer->current, "Final class can not be declared static");
+				return NULL;
 			} else {
 				return parse_class_declaration(lexer, false, false, true, false);
 			}
@@ -1098,7 +1134,11 @@ bool lit_parse(LitCompiler* compiler, LitLexer* lexer, LitStatements* statements
 		error(lexer, &lexer->current, "Expected statement but got end of file");
 	} else {
 		while (!is_at_end(lexer)) {
-			lit_statements_write(compiler, statements, parse_declaration(lexer));
+			LitStatement* statement = parse_declaration(lexer);
+
+			if (statement != NULL) {
+				lit_statements_write(MM(compiler), statements, statement);
+			}
 		}
 	}
 
