@@ -200,6 +200,21 @@ static bool interpret(LitVm* vm) {
 			continue;
 		}
 
+		CASE_CODE(POWER2) {
+			uint8_t w = READ_BYTE();
+			double n = AS_NUMBER(registers[READ_BYTE()]);
+			registers[w] = MAKE_NUMBER_VALUE(n * n);
+
+			continue;
+		}
+
+		CASE_CODE(SQUARE) {
+			uint8_t w = READ_BYTE();
+			registers[w] = MAKE_NUMBER_VALUE(pow(AS_NUMBER(registers[READ_BYTE()]), 0.5));
+
+			continue;
+		}
+
 		/*CASE_CODE(STATIC_INIT) {
 			if (!call_value(vm, PEEK(0), 0, true)) {
 				return false;

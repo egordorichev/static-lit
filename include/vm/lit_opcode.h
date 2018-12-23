@@ -61,6 +61,12 @@ OPCODE(NIL)
 // not(res_reg, a_reg)
 // Performs not operation on a_reg into res_reg
 OPCODE(NOT)
+// power2(res_reg, a_reg)
+// Finds power 2 from a_reg into res_reg
+OPCODE(POWER2)
+// square(res_reg, a_reg)
+// Finds squre root from a_reg into res_reg
+OPCODE(SQUARE)
 
 /*
 OPCODE(STATIC_INIT)

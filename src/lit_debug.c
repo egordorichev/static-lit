@@ -73,6 +73,14 @@ uint64_t lit_disassemble_instruction(LitMemManager* manager, LitChunk* chunk, ui
 			printf("%-16s %i = !%i\n", "OP_NOT", chunk->code[offset + 1], chunk->code[offset + 2]);
 			return offset + 3;
 		}
+		CASE_CODE(POWER2) {
+			printf("%-16s %i = ^%i\n", "OP_POWER2", chunk->code[offset + 1], chunk->code[offset + 2]);
+			return offset + 3;
+		}
+		CASE_CODE(SQUARE) {
+			printf("%-16s %i = #%i\n", "OP_SQUARE", chunk->code[offset + 1], chunk->code[offset + 2]);
+			return offset + 3;
+		}
 		default: printf("Unknown code %i\n", instruction); return offset + 1;
 	}
 

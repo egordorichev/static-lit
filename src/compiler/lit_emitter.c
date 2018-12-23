@@ -133,6 +133,8 @@ static uint16_t emit_expression(LitEmitter* emitter, LitExpression* expression) 
 
 			switch (expr->operator) {
 				case TOKEN_BANG: emit_byte3(emitter, OP_NOT, (uint8_t) b, (uint8_t) a, expression->line); break;
+				case TOKEN_CARET: emit_byte3(emitter, OP_POWER2, (uint8_t) b, (uint8_t) a, expression->line); break;
+				case TOKEN_CELL: emit_byte3(emitter, OP_SQUARE, (uint8_t) b, (uint8_t) a, expression->line); break;
 				default: UNREACHABLE();
 			}
 

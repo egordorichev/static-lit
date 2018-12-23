@@ -381,15 +381,13 @@ static LitExpression* parse_unary(LitLexer* lexer) {
 }
 
 static LitExpression* parse_power(LitLexer* lexer) {
-	LitExpression* expression = parse_unary(lexer);
-
 	while (match(lexer, TOKEN_CARET) || match(lexer, TOKEN_CELL)) {
 		uint64_t line = lexer->last_line;
 		LitTokenType operator = lexer->previous.type;
-		expression = (LitExpression*) lit_make_binary_expression(lexer->compiler, line, expression, parse_unary(lexer), operator);
+		return (LitExpression*) lit_make_unary_expression(lexer->compiler, line, parse_power(lexer), operator);
 	}
 
-	return expression;
+	return parse_unary(lexer);
 }
 
 static LitExpression* parse_multiplication(LitLexer* lexer) {
