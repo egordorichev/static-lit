@@ -5,8 +5,13 @@
 #include <lit_predefines.h>
 #include <vm/lit_value.h>
 #include <vm/lit_memory.h>
-#include <vm/lit_opcode.h>
 #include <util/lit_array.h>
+
+typedef enum {
+	#define OPCODE(name) OP_##name,
+	#include <vm/lit_opcode.h>
+	#undef OPCODE
+} LitOpCode;
 
 DECLARE_ARRAY(LitArray, LitValue, array)
 

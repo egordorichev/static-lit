@@ -278,69 +278,16 @@ static void define_method(LitVm* vm, LitString* name) {
 	lit_pop(vm);
 }
 
-static void *functions[OP_TOTAL + 1]; // 1 for unknown
-static bool inited_functions;
 
 static bool interpret(LitVm* vm) {
-	if (!inited_functions) {
-		// FIXME: shorten (take example of macros from wren)
-		inited_functions = true;
-
-		functions[OP_RETURN] = &&op_return;
-		functions[OP_CONSTANT] = &&op_constant;
-		functions[OP_STATIC_INIT] = &&op_static_init;
-		functions[OP_NEGATE] = &&op_negate;
-		functions[OP_ADD] = &&op_add;
-		functions[OP_SUBTRACT] = &&op_subtract;
-		functions[OP_MULTIPLY] = &&op_multiply;
-		functions[OP_DIVIDE] = &&op_divide;
-		functions[OP_POP] = &&op_pop;
-		functions[OP_NOT] = &&op_not;
-		functions[OP_NIL] = &&op_nil;
-		functions[OP_TRUE] = &&op_true;
-		functions[OP_FALSE] = &&op_false;
-		functions[OP_EQUAL] = &&op_equal;
-		functions[OP_GREATER] = &&op_greater;
-		functions[OP_LESS] = &&op_less;
-		functions[OP_GREATER_EQUAL] = &&op_greater_equal;
-		functions[OP_LESS_EQUAL] = &&op_less_equal;
-		functions[OP_NOT_EQUAL] = &&op_not_equal;
-		functions[OP_CLOSE_UPVALUE] = &&op_close_upvalue;
-		functions[OP_DEFINE_GLOBAL] = &&op_define_global;
-		functions[OP_GET_GLOBAL] = &&op_get_global;
-		functions[OP_SET_GLOBAL] = &&op_set_global;
-		functions[OP_GET_LOCAL] = &&op_get_local;
-		functions[OP_SET_LOCAL] = &&op_set_local;
-		functions[OP_GET_UPVALUE] = &&op_get_upvalue;
-		functions[OP_SET_UPVALUE] = &&op_set_upvalue;
-		functions[OP_JUMP] = &&op_jump;
-		functions[OP_JUMP_IF_FALSE] = &&op_jump_if_false;
-		functions[OP_LOOP] = &&op_loop;
-		functions[OP_CLOSURE] = &&op_closure;
-		functions[OP_CALL] = &&op_call;
-		functions[OP_SUBCLASS] = &&op_subclass;
-		functions[OP_CLASS] = &&op_class;
-		functions[OP_METHOD] = &&op_method;
-		functions[OP_GET_FIELD] = &&op_get_field;
-		functions[OP_SET_FIELD] = &&op_set_field;
-		functions[OP_INVOKE] = &&op_invoke;
-		functions[OP_DEFINE_FIELD] = &&op_define_field;
-		functions[OP_DEFINE_METHOD] = &&op_define_method;
-		functions[OP_SUPER] = &&op_super;
-		functions[OP_DEFINE_STATIC_FIELD] = &&op_define_static_field;
-		functions[OP_DEFINE_STATIC_METHOD] = &&op_define_static_method;
-		functions[OP_POWER] = &&op_power;
-		functions[OP_SQUARE] = &&op_square;
-		functions[OP_ROOT] = &&op_root;
-		functions[OP_IS] = &&op_is;
-		functions[OP_MODULO] = &&op_modulo;
-		functions[OP_FLOOR] = &&op_floor;
-		functions[OP_TOTAL] = &&op_unknown;
-	}
+	static void* dispatch_table[] = {
+#define OPCODE(name) &&CODE_##name,
+#include <vm/lit_opcode.h>
+#undef OPCODE
+	};
 
 	vm->abort = false;
 
-	// TODO: optimize the dispatch
 	register LitFrame* frame = &vm->frames[vm->frame_count - 1];
 	register LitValue* stack = vm->stack;
 
@@ -351,6 +298,7 @@ static bool interpret(LitVm* vm) {
 #define PUSH(value) { *vm->stack_top = value; vm->stack_top++; }
 #define POP() ({if (vm->stack_top == stack) { runtime_error(vm, "Attempt to pop below zero"); assert(false); } vm->stack_top--; *vm->stack_top; })
 #define PEEK(depth) (vm->stack_top[-1 - depth])
+#define CASE_CODE(name) CODE_##name:
 
 	while (true) {
 		if (vm->abort) {
@@ -362,19 +310,14 @@ static bool interpret(LitVm* vm) {
 			lit_disassemble_instruction(MM(vm), &frame->closure->function->chunk, (uint64_t) (frame->ip - frame->closure->function->chunk.code));
 		}
 
-		goto *functions[*frame->ip++];
+		goto *dispatch_table[*frame->ip++];
 
-		op_unknown: {
-			runtime_error(vm, "Unknown opcode %i!", *(frame->ip - 1));
-			return false;
-		};
-
-		op_constant: {
+		CASE_CODE(CONSTANT) {
 			PUSH(READ_CONSTANT());
 			continue;
 		};
 
-		op_return: {
+		CASE_CODE(RETURN) {
 			if (last_init) {
 				last_init = false;
 				close_upvalues(vm, frame->slots);
@@ -408,7 +351,7 @@ static bool interpret(LitVm* vm) {
 			continue;
 		};
 
-		op_static_init: {
+		CASE_CODE(STATIC_INIT) {
 			if (!call_value(vm, PEEK(0), 0, true)) {
 				return false;
 			}
@@ -417,142 +360,142 @@ static bool interpret(LitVm* vm) {
 			continue;
 		};
 
-		op_negate: {
+		CASE_CODE(NEGATE) {
 			vm->stack_top[-1] = MAKE_NUMBER_VALUE(-AS_NUMBER(vm->stack_top[-1]));
 			continue;
 		};
 
-		op_add: {
+		CASE_CODE(ADD) {
 			PUSH(MAKE_NUMBER_VALUE(AS_NUMBER(POP()) + AS_NUMBER(POP())));
 			continue;
 		};
 
-		op_subtract: {
+		CASE_CODE(SUBTRACT) {
 			LitValue b = POP();
 			PUSH(MAKE_NUMBER_VALUE(AS_NUMBER(POP()) - AS_NUMBER(b)));
 
 			continue;
 		};
 
-		op_multiply: {
+		CASE_CODE(MULTIPLY) {
 			LitValue b = POP();
 			PUSH(MAKE_NUMBER_VALUE(AS_NUMBER(POP()) * AS_NUMBER(b)));
 
 			continue;
 		};
 
-		op_divide: {
+		CASE_CODE(DIVIDE) {
 			LitValue b = POP();
 			PUSH(MAKE_NUMBER_VALUE(AS_NUMBER(POP()) / AS_NUMBER(b)));
 
 			continue;
 		};
 
-		op_modulo: {
+		CASE_CODE(MODULO) {
 			PUSH(MAKE_NUMBER_VALUE(fmod(AS_NUMBER(POP()), AS_NUMBER(POP()))));
 			continue;
 		};
 
-		op_floor: {
+		CASE_CODE(FLOOR) {
 			vm->stack_top[-1] = MAKE_NUMBER_VALUE(floor(AS_NUMBER(vm->stack_top[-1])));
 			continue;
 		};
 
-		op_power: {
+		CASE_CODE(POWER) {
 			PUSH(MAKE_NUMBER_VALUE(pow(AS_NUMBER(POP()), AS_NUMBER(POP()))));
 			continue;
 		};
 
-		op_root: {
+		CASE_CODE(ROOT) {
 			PUSH(MAKE_NUMBER_VALUE(pow(AS_NUMBER(POP()), 1.0 / AS_NUMBER(POP()))));
 			continue;
 		};
 
-		op_square: {
+		CASE_CODE(SQUARE) {
 			PUSH(MAKE_NUMBER_VALUE(sqrt(AS_NUMBER(POP()))));
 			continue;
 		};
 
-		op_not: {
+		CASE_CODE(NOT) {
 			vm->stack_top[-1] = MAKE_BOOL_VALUE(lit_is_false(vm->stack_top[-1]));
 			continue;
 		};
 
-		op_nil: {
+		CASE_CODE(NIL) {
 			PUSH(NIL_VALUE);
 			continue;
 		};
 
-		op_true: {
+		CASE_CODE(TRUE) {
 			PUSH(TRUE_VALUE);
 			continue;
 		};
 
-		op_false: {
+		CASE_CODE(FALSE) {
 			PUSH(FALSE_VALUE);
 			continue;
 		};
 
-		op_equal: {
+		CASE_CODE(EQUAL) {
 			LitValue a = POP();
 			vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) == AS_NUMBER(vm->stack_top[-1]));
 
 			continue;
 		};
 
-		op_greater: {
+		CASE_CODE(GREATER) {
 			LitValue a = POP();
 			vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) < AS_NUMBER(vm->stack_top[-1]));
 
 			continue;
 		};
 
-		op_less: {
+		CASE_CODE(LESS) {
 			LitValue a = POP();
 			vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) > AS_NUMBER(vm->stack_top[-1]));
 
 			continue;
 		};
 
-		op_greater_equal: {
+		CASE_CODE(GREATER_EQUAL) {
 			LitValue a = POP();
 			vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) <= AS_NUMBER(vm->stack_top[-1]));
 
 			continue;
 		};
 
-		op_less_equal: {
+		CASE_CODE(LESS_EQUAL) {
 			LitValue a = POP();
 			vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) >= AS_NUMBER(vm->stack_top[-1]));
 
 			continue;
 		};
 
-		op_not_equal: {
+		CASE_CODE(NOT_EQUAL) {
 			LitValue a = POP();
 			vm->stack_top[-1] = MAKE_BOOL_VALUE(AS_NUMBER(a) != AS_NUMBER(vm->stack_top[-1]));
 
 			continue;
 		};
 
-		op_pop: {
+		CASE_CODE(POP) {
 			POP();
 			continue;
 		};
 
-		op_close_upvalue: {
+		CASE_CODE(CLOSE_UPVALUE) {
 			close_upvalues(vm, vm->stack_top - 1);
 			continue;
 		};
 
-		op_define_global: {
+		CASE_CODE(DEFINE_GLOBAL) {
 			lit_table_set(MM(vm), &vm->globals, READ_STRING(), vm->stack_top[-1]);
 			POP();
 
 			continue;
 		};
 
-		op_get_global: {
+		CASE_CODE(GET_GLOBAL) {
 			LitString* name = READ_STRING();
 			LitValue *value = lit_table_get(&vm->globals, name);
 			PUSH(*value);
@@ -560,38 +503,38 @@ static bool interpret(LitVm* vm) {
 			continue;
 		};
 
-		op_set_global: {
+		CASE_CODE(SET_GLOBAL) {
 			lit_table_set(MM(vm), &vm->globals, READ_STRING(), PEEK(0));
 			continue;
 		};
 
-		op_get_local: {
+		CASE_CODE(GET_LOCAL) {
 			PUSH(frame->slots[READ_BYTE()]);
 
 			continue;
 		};
 
-		op_set_local: {
+		CASE_CODE(SET_LOCAL) {
 			frame->slots[READ_BYTE()] = vm->stack_top[-1];
 			continue;
 		};
 
-		op_get_upvalue: {
+		CASE_CODE(GET_UPVALUE) {
 			PUSH(*frame->closure->upvalues[READ_BYTE()]->value);
 			continue;
 		};
 
-		op_set_upvalue: {
+		CASE_CODE(SET_UPVALUE) {
 			*frame->closure->upvalues[READ_BYTE()]->value = vm->stack_top[-1];
 			continue;
 		};
 
-		op_jump: {
+		CASE_CODE(JUMP) {
 			frame->ip += READ_SHORT();
 			continue;
 		};
 
-		op_jump_if_false: {
+		CASE_CODE(JUMP_IF_FALSE) {
 			uint16_t offset = READ_SHORT();
 
 			if (lit_is_false(PEEK(0))) {
@@ -601,12 +544,12 @@ static bool interpret(LitVm* vm) {
 			continue;
 		};
 
-		op_loop: {
+		CASE_CODE(LOOP) {
 			frame->ip -= READ_SHORT();
 			continue;
 		};
 
-		op_closure: {
+		CASE_CODE(CLOSURE) {
 			LitFunction* function = AS_FUNCTION(READ_CONSTANT());
 
 			LitClosure* closure = lit_new_closure(MM(vm), function);
@@ -626,7 +569,7 @@ static bool interpret(LitVm* vm) {
 			continue;
 		};
 
-		op_call: {
+		CASE_CODE(CALL) {
 			int arg_count = READ_BYTE();
 
 			if (!call_value(vm, PEEK(arg_count), arg_count, false)) {
@@ -640,12 +583,12 @@ static bool interpret(LitVm* vm) {
 			continue;
 		};
 
-		op_class: {
+		CASE_CODE(CLASS) {
 			create_class(vm, READ_STRING(), NULL);
 			continue;
 		};
 
-		op_subclass: {
+		CASE_CODE(SUBCLASS) {
 			LitValue super = POP();
 
 			if (!IS_CLASS(super)) {
@@ -657,12 +600,12 @@ static bool interpret(LitVm* vm) {
 			continue;
 		};
 
-		op_method: {
+		CASE_CODE(METHOD) {
 			define_method(vm, READ_STRING());
 			continue;
 		};
 
-		op_get_field: {
+		CASE_CODE(GET_FIELD) {
 			LitValue from = PEEK(0);
 
 			if (IS_CLASS(from)) {
@@ -738,7 +681,7 @@ static bool interpret(LitVm* vm) {
 			continue;
 		};
 
-		op_set_field: {
+		CASE_CODE(SET_FIELD) {
 			LitValue from = PEEK(1);
 
 			if (IS_CLASS(from)) {
@@ -764,7 +707,7 @@ static bool interpret(LitVm* vm) {
 			continue;
 		};
 
-		op_invoke: {
+		CASE_CODE(INVOKE) {
 			int arg_count = READ_BYTE();
 
 			if (!invoke(vm, arg_count)) {
@@ -775,7 +718,7 @@ static bool interpret(LitVm* vm) {
 			continue;
 		};
 
-		op_define_field: {
+		CASE_CODE(DEFINE_FIELD) {
 			if (!IS_CLASS(PEEK(1))) {
 				runtime_error(vm, "Can't define a field in non-class");
 				return false;
@@ -787,7 +730,7 @@ static bool interpret(LitVm* vm) {
 			continue;
 		};
 
-		op_define_method: {
+		CASE_CODE(DEFINE_METHOD) {
 			LitString* name = READ_STRING();
 			LitValue method = POP();
 			LitClass* class = AS_CLASS(PEEK(0));
@@ -796,7 +739,7 @@ static bool interpret(LitVm* vm) {
 			continue;
 		};
 
-		op_super: {
+		CASE_CODE(SUPER) {
 			LitString* name = READ_STRING();
 			LitInstance* instance = AS_INSTANCE(PEEK(0));
 			LitValue *method = lit_table_get(&instance->type->super->methods, name);
@@ -814,7 +757,7 @@ static bool interpret(LitVm* vm) {
 			continue;
 		};
 
-		op_define_static_field: {
+		CASE_CODE(DEFINE_STATIC_FIELD) {
 			if (!IS_CLASS(PEEK(1))) {
 				runtime_error(vm, "Can't define a field in non-class");
 				return false;
@@ -826,7 +769,7 @@ static bool interpret(LitVm* vm) {
 			continue;
 		};
 
-		op_define_static_method: {
+		CASE_CODE(DEFINE_STATIC_METHOD) {
 			LitString* name = READ_STRING();
 			LitValue method = POP();
 			LitClass* class = AS_CLASS(PEEK(0));
@@ -835,7 +778,7 @@ static bool interpret(LitVm* vm) {
 			continue;
 		};
 
-		op_is: {
+		CASE_CODE(IS) {
 			LitClass* class = AS_CLASS(POP());
 			LitInstance* instance = AS_INSTANCE(POP());
 			LitClass* type = instance->type;
@@ -857,6 +800,8 @@ static bool interpret(LitVm* vm) {
 
 			continue;
 		};
+
+		runtime_error(vm, "Unknown opcode!");
 	}
 
 #undef READ_BYTE
@@ -866,6 +811,7 @@ static bool interpret(LitVm* vm) {
 #undef PUSH
 #undef POP
 #undef PEEK
+#undef CASE_CODE
 
 	return true;
 }
@@ -920,12 +866,6 @@ bool lit_execute(LitVm* vm, LitFunction* function) {
 	}
 
 	return true;
-}
-
-int test_method(LitVm* vm, LitInstance* instance, LitValue* args, int count) {
-	printf("Hallo, C world! '%s' arg '%s'\n", lit_to_string(vm, MAKE_OBJECT_VALUE(instance)), lit_to_string(vm, args[0]));
-	lit_push(vm, MAKE_NUMBER_VALUE(10));
-	return 1;
 }
 
 bool lit_eval(const char* source_code) {
