@@ -73,7 +73,7 @@ static bool interpret(LitVm* vm) {
 	register LitFrame* frame = NULL;
 	register uint8_t* ip;
 	register LitChunk* chunk = NULL;
-	register LitValue* registers = vm->registers;
+	register LitValue* registers = NULL;
 
 #define READ_BYTE() (*ip++)
 #define READ_CONSTANT() (chunk->constants.values[READ_BYTE()])
@@ -85,19 +85,26 @@ static bool interpret(LitVm* vm) {
 #define LOAD_FRAME() \
 	frame = &vm->frames[vm->frame_count - 1]; \
 	ip = frame->ip; \
-	chunk = &frame->closure->function->chunk;
+	chunk = &frame->closure->function->chunk; \
+	registers = frame->closure->function->registers;
 
-#define NUMBER_OPERATOR(code, op) \
+#define CASE_NUMBER_OPERATOR(code, op) \
 	CASE_CODE(code) { \
 		uint16_t f = READ_BYTE(); \
 		registers[f] = MAKE_NUMBER_VALUE(AS_NUMBER(registers[READ_BYTE()]) op AS_NUMBER(registers[READ_BYTE()])); \
 		continue; \
 	};
 
-#define FUNCTION_OPERATOR(code, op) \
+#define CASE_FUNCTION_OPERATOR(code, op) \
 	CASE_CODE(code) { \
 		uint16_t f = READ_BYTE(); \
 		registers[f] = MAKE_NUMBER_VALUE(op(AS_NUMBER(registers[READ_BYTE()]), AS_NUMBER(registers[READ_BYTE()]))); \
+		continue; \
+	};
+
+#define CASE_LITERAL_OP(code, literal) \
+	CASE_CODE(code) { \
+		registers[READ_BYTE()] = literal; \
 		continue; \
 	};
 
@@ -116,7 +123,8 @@ static bool interpret(LitVm* vm) {
 
 		CASE_CODE(EXIT) {
 			vm->frame_count--;
-			printf("%s\n", lit_to_string(vm, registers[0]));
+			printf("Result: %s\n", lit_to_string(vm, registers[1]));
+
 			if (vm->frame_count == 0) {
 				return false;
 			}
@@ -154,12 +162,12 @@ static bool interpret(LitVm* vm) {
 			continue;
 		};
 
-		NUMBER_OPERATOR(ADD, +)
-		NUMBER_OPERATOR(SUBTRACT, -)
-		NUMBER_OPERATOR(MULTIPLY, *)
-		NUMBER_OPERATOR(DIVIDE, /)
-		FUNCTION_OPERATOR(MODULO, fmod)
-		FUNCTION_OPERATOR(POWER, pow)
+		CASE_NUMBER_OPERATOR(ADD, +)
+		CASE_NUMBER_OPERATOR(SUBTRACT, -)
+		CASE_NUMBER_OPERATOR(MULTIPLY, *)
+		CASE_NUMBER_OPERATOR(DIVIDE, /)
+		CASE_FUNCTION_OPERATOR(MODULO, fmod)
+		CASE_FUNCTION_OPERATOR(POWER, pow)
 
 		CASE_CODE(ROOT) {
 			registers[READ_BYTE()] = MAKE_NUMBER_VALUE(pow(AS_NUMBER(registers[READ_BYTE()]), 1.0 / AS_NUMBER(registers[READ_BYTE()])));
@@ -179,6 +187,16 @@ static bool interpret(LitVm* vm) {
 			LitFunction* function = AS_FUNCTION(READ_CONSTANT_LONG());
 			registers[where] = MAKE_OBJECT_VALUE(lit_new_closure(MM(vm), function));
 
+			continue;
+		}
+
+		CASE_LITERAL_OP(TRUE, TRUE_VALUE)
+		CASE_LITERAL_OP(FALSE, FALSE_VALUE)
+		CASE_LITERAL_OP(NIL, NIL_VALUE)
+
+		CASE_CODE(NOT) {
+			uint8_t w = READ_BYTE();
+			registers[w] = MAKE_BOOL_VALUE(!AS_BOOL(registers[READ_BYTE()]));
 			continue;
 		}
 

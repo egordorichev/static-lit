@@ -80,6 +80,7 @@ typedef struct {
 	int upvalue_count;
 
 	LitChunk chunk;
+	LitValue registers[256];
 	LitString* name;
 } LitFunction;
 

@@ -54,8 +54,24 @@ uint64_t lit_disassemble_instruction(LitMemManager* manager, LitChunk* chunk, ui
 		CASE_CODE(POWER) return binary_instruction(manager, "OP_POWER", offset, chunk, "^");
 		CASE_CODE(ROOT) return binary_instruction(manager, "OP_ROOT", offset, chunk, "#");
 		CASE_CODE(DEFINE_FUNCTION) {
-			printf("%-16s %i = %s\n", "OP_DEFINE_FUNCTION", chunk->code[offset + 1], lit_to_string(manager, chunk->constants.values[chunk->code[offset + 2]]));
+			printf("%-16s %i = %s\n", "OP_DEFINE_FUNCTION", chunk->code[offset + 1], lit_to_string((LitVm*) manager, chunk->constants.values[chunk->code[offset + 2]]));
 			return offset + 2;
+		}
+		CASE_CODE(TRUE) {
+			printf("%-16s\n", "OP_TRUE");
+			return offset + 1;
+		}
+		CASE_CODE(FALSE) {
+			printf("%-16s\n", "OP_FALSE");
+			return offset + 1;
+		}
+		CASE_CODE(NIL) {
+			printf("%-16s\n", "OP_NIL");
+			return offset + 1;
+		}
+		CASE_CODE(NOT) {
+			printf("%-16s %i = !%i\n", "OP_NOT", chunk->code[offset + 1], chunk->code[offset + 2]);
+			return offset + 3;
 		}
 		default: printf("Unknown code %i\n", instruction); return offset + 1;
 	}

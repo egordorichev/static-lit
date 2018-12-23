@@ -22,23 +22,24 @@ typedef struct LitClassCompiler {
 	bool has_super;
 } LitClassCompiler;
 
+DECLARE_ARRAY(LitShorts, uint16_t, shorts)
+
 typedef struct LitEmitterFunction {
 	LitFunction* function;
 	struct LitEmitterFunction* enclosing;
 	int depth;
 	int local_count;
+	LitShorts free_registers;
+	uint16_t register_count;
 } LitEmitterFunction;
 
 DECLARE_ARRAY(LitInts, uint64_t, ints)
-DECLARE_ARRAY(LitShorts, uint16_t, shorts)
 
 typedef struct LitEmitter {
 	LitEmitterFunction* function;
 	LitClassCompiler* class;
 	LitCompiler* compiler;
 	LitInts breaks;
-	uint16_t register_count;
-	LitShorts free_registers;
 
 	uint64_t loop_start;
 	bool had_error;

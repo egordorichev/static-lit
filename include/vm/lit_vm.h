@@ -16,7 +16,6 @@
 #include <compiler/lit_resolver.h>
 
 #define FRAMES_MAX 64
-#define REGISTER_COUNT 256
 
 typedef struct {
 	LitClosure* closure;
@@ -27,7 +26,6 @@ typedef struct {
 typedef struct sLitVm {
 	LitMemManager mem_manager;
 
-	LitValue registers[REGISTER_COUNT];
 	LitTable globals;
 	LitString *init_string;
 

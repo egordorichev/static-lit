@@ -49,16 +49,16 @@ static void error(LitEmitter* emitter, const char* format, ...) {
 }
 
 static uint16_t reserve_register(LitEmitter* emitter) {
-	if (emitter->free_registers.count == 0) {
-		return emitter->register_count++;
+	if (emitter->function->free_registers.count == 0) {
+		return emitter->function->register_count++;
 	}
 
-	emitter->free_registers.count--;
-	return emitter->free_registers.values[emitter->free_registers.count];
+	emitter->function->free_registers.count--;
+	return emitter->function->free_registers.values[emitter->function->free_registers.count];
 }
 
 static void free_register(LitEmitter* emitter, uint16_t reg) {
-	lit_shorts_write(MM(emitter->compiler), &emitter->free_registers, reg);
+	lit_shorts_write(MM(emitter->compiler), &emitter->function->free_registers, reg);
 }
 
 static uint8_t make_constant(LitEmitter* emitter, LitValue value) {
@@ -89,7 +89,7 @@ static uint16_t emit_constant(LitEmitter* emitter, LitValue constant, uint64_t l
 		emit_byte3(emitter, OP_CONSTANT, (uint8_t) reg, (uint8_t) id, line);
 	}
 
-	return (uint16_t) reg;
+	return (uint16_t) (reg);
 }
 
 static void emit_statement(LitEmitter* emitter, LitStatement* statement);
@@ -101,21 +101,46 @@ static uint16_t emit_expression(LitEmitter* emitter, LitExpression* expression) 
 
 			uint16_t a = emit_expression(emitter, expr->left);
 			uint16_t b = emit_expression(emitter, expr->right);
+			uint16_t c = reserve_register(emitter);
 
 			switch (expr->operator) {
 				// FIXME: support OP_ADD_LONG, etc
-				case TOKEN_PLUS: emit_byte4(emitter, OP_ADD, (uint8_t) a, (uint8_t) a, (uint8_t) b, expression->line); break;
-				case TOKEN_MINUS: emit_byte4(emitter, OP_SUBTRACT, (uint8_t) a, (uint8_t) a, (uint8_t) b, expression->line); break;
-				case TOKEN_STAR: emit_byte4(emitter, OP_MULTIPLY, (uint8_t) a, (uint8_t) a, (uint8_t) b, expression->line); break;
-				case TOKEN_SLASH: emit_byte4(emitter, OP_DIVIDE, (uint8_t) a, (uint8_t) a, (uint8_t) b, expression->line); break;
-				case TOKEN_PERCENT: emit_byte4(emitter, OP_MODULO, (uint8_t) a, (uint8_t) a, (uint8_t) b, expression->line); break;
-				case TOKEN_CARET: emit_byte4(emitter, OP_POWER, (uint8_t) a, (uint8_t) a, (uint8_t) b, expression->line); break;
-				case TOKEN_CELL: emit_byte4(emitter, OP_ROOT, (uint8_t) a, (uint8_t) a, (uint8_t) b, expression->line); break;
+				case TOKEN_PLUS: emit_byte4(emitter, OP_ADD, (uint8_t) c, (uint8_t) a, (uint8_t) b, expression->line); break;
+				case TOKEN_MINUS: emit_byte4(emitter, OP_SUBTRACT, (uint8_t) c, (uint8_t) a, (uint8_t) b, expression->line); break;
+				case TOKEN_STAR: emit_byte4(emitter, OP_MULTIPLY, (uint8_t) c, (uint8_t) a, (uint8_t) b, expression->line); break;
+				case TOKEN_SLASH: emit_byte4(emitter, OP_DIVIDE, (uint8_t) c, (uint8_t) a, (uint8_t) b, expression->line); break;
+				case TOKEN_PERCENT: emit_byte4(emitter, OP_MODULO, (uint8_t) c, (uint8_t) a, (uint8_t) b, expression->line); break;
+				case TOKEN_CARET: emit_byte4(emitter, OP_POWER, (uint8_t) c, (uint8_t) a, (uint8_t) b, expression->line); break;
+				case TOKEN_CELL: emit_byte4(emitter, OP_ROOT, (uint8_t) c, (uint8_t) a, (uint8_t) b, expression->line); break;
 				default: UNREACHABLE();
 			}
 
-			free_register(emitter, b);
-			return a;
+			if (expr->left->type == LITERAL_EXPRESSION) {
+				free_register(emitter, a);
+			}
+
+			if (expr->right->type == LITERAL_EXPRESSION) {
+				free_register(emitter, b);
+			}
+
+			return c;
+		}
+		case UNARY_EXPRESSION: {
+			LitUnaryExpression* expr = (LitUnaryExpression*) expression;
+
+			uint16_t a = emit_expression(emitter, expr->right);
+			uint16_t b = reserve_register(emitter);
+
+			switch (expr->operator) {
+				case TOKEN_BANG: emit_byte3(emitter, OP_NOT, (uint8_t) b, (uint8_t) a, expression->line); break;
+				default: UNREACHABLE();
+			}
+
+			if (expr->right->type == LITERAL_EXPRESSION) {
+				free_register(emitter, a);
+			}
+
+			return b;
 		}
 		case LITERAL_EXPRESSION: {
 			return emit_constant(emitter, ((LitLiteralExpression*) expression)->value, expression->line);
@@ -146,12 +171,14 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 			LitEmitterFunction function;
 
 			function.function = lit_new_function(MM(emitter->compiler));
+			function.register_count = 0;
 			function.depth = emitter->function->depth + 1;
 			function.local_count = 0;
 			function.enclosing = emitter->function;
 			function.function = lit_new_function(MM(emitter->compiler));
 			function.function->name = lit_copy_string(MM(emitter->compiler), stmt->name, (int) strlen(stmt->name));
 			function.function->arity = stmt->parameters == NULL ? 0 : stmt->parameters->count;
+			lit_init_shorts(&function.free_registers);
 
 			emitter->function = &function;
 
@@ -190,6 +217,9 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 			} else {
 				emit_bytes(emitter, OP_SET_LOCAL, (uint8_t) add_local(emitter, stmt->name), statement->line);
 			}*/
+
+			emitter->function = function.enclosing;
+			lit_free_shorts(MM(emitter->compiler), &function.free_registers);
 
 			break;
 		}
@@ -232,21 +262,22 @@ void lit_init_emitter(LitCompiler* compiler, LitEmitter* emitter) {
 	emitter->function = NULL;
 	emitter->class = NULL;
 
-	lit_init_shorts(&emitter->free_registers);
 	lit_init_ints(&emitter->breaks);
 }
 
 void lit_free_emitter(LitEmitter* emitter) {
 	lit_free_ints(MM(emitter->compiler), &emitter->breaks);
-	lit_free_shorts(MM(emitter->compiler), &emitter->free_registers);
 }
 
 LitFunction* lit_emit(LitEmitter* emitter, LitStatements* statements) {
 	emitter->had_error = false;
 
 	LitEmitterFunction function;
-	LitFunction* fn = lit_new_function(MM(emitter->compiler));
 
+	function.register_count = 0;
+	lit_init_shorts(&function.free_registers);
+
+	LitFunction* fn = lit_new_function(MM(emitter->compiler));
 	fn->name = lit_copy_string(MM(emitter->compiler), "$main", 5);
 
 	function.function = fn;
@@ -257,5 +288,6 @@ LitFunction* lit_emit(LitEmitter* emitter, LitStatements* statements) {
 	emit_statements(emitter, statements);
 	emit_byte(emitter, OP_EXIT, 0);
 
+	lit_free_shorts(MM(emitter->compiler), &function.free_registers);
 	return emitter->had_error ? NULL : function.function;
 }
