@@ -70,15 +70,38 @@ static bool interpret(LitVm* vm) {
 	};
 
 	vm->abort = false;
+	register LitFrame* frame = NULL;
+	register uint8_t* ip;
+	register LitChunk* chunk = NULL;
+	register LitValue* registers = vm->registers;
 
-	register LitFrame* frame = &vm->frames[vm->frame_count - 1];
-
-#define READ_BYTE() (*frame->ip++)
-#define READ_CONSTANT() (frame->closure->function->chunk.constants.values[READ_BYTE()])
-#define READ_CONSTANT_LONG() (frame->closure->function->chunk.constants.values[READ_SHORT()])
+#define READ_BYTE() (*ip++)
+#define READ_CONSTANT() (chunk->constants.values[READ_BYTE()])
+#define READ_CONSTANT_LONG() (chunk->constants.values[READ_SHORT()])
 #define READ_STRING() AS_STRING(READ_CONSTANT())
-#define READ_SHORT() (frame->ip += 2, (uint16_t) ((frame->ip[-2] << 8) | frame->ip[-1]))
+#define READ_SHORT() (ip += 2, (uint16_t) ((ip[-2] << 8) | ip[-1]))
 #define CASE_CODE(name) CODE_##name:
+#define STORE_FRAME() frame->ip = ip
+#define LOAD_FRAME() \
+	frame = &vm->frames[vm->frame_count - 1]; \
+	ip = frame->ip; \
+	chunk = &frame->closure->function->chunk;
+
+#define NUMBER_OPERATOR(code, op) \
+	CASE_CODE(code) { \
+		uint16_t f = READ_BYTE(); \
+		registers[f] = MAKE_NUMBER_VALUE(AS_NUMBER(registers[READ_BYTE()]) op AS_NUMBER(registers[READ_BYTE()])); \
+		continue; \
+	};
+
+#define FUNCTION_OPERATOR(code, op) \
+	CASE_CODE(code) { \
+		uint16_t f = READ_BYTE(); \
+		registers[f] = MAKE_NUMBER_VALUE(op(AS_NUMBER(registers[READ_BYTE()]), AS_NUMBER(registers[READ_BYTE()]))); \
+		continue; \
+	};
+
+	LOAD_FRAME()
 
 	while (true) {
 		if (vm->abort) {
@@ -86,34 +109,19 @@ static bool interpret(LitVm* vm) {
 		}
 
 		if (DEBUG_TRACE_EXECUTION) {
-			lit_disassemble_instruction(MM(vm), &frame->closure->function->chunk, (uint64_t) (frame->ip - frame->closure->function->chunk.code));
+			lit_disassemble_instruction(MM(vm), &frame->closure->function->chunk, (uint64_t) (ip - chunk->code));
 		}
 
-		goto *dispatch_table[*frame->ip++];
-
-		CASE_CODE(CONSTANT) {
-			vm->registers[READ_BYTE()] = READ_CONSTANT();
-			continue;
-		};
-
-		CASE_CODE(CONSTANT_LONG) {
-			vm->registers[READ_BYTE()] = READ_CONSTANT_LONG();
-			continue;
-		};
-
-		CASE_CODE(ADD) {
-			vm->registers[READ_BYTE()] = MAKE_NUMBER_VALUE(AS_NUMBER(vm->registers[READ_BYTE()]) + AS_NUMBER(vm->registers[READ_BYTE()]));
-			continue;
-		};
+		goto *dispatch_table[*ip++];
 
 		CASE_CODE(EXIT) {
 			vm->frame_count--;
-
+			printf("%s\n", lit_to_string(vm, registers[0]));
 			if (vm->frame_count == 0) {
 				return false;
 			}
 
-			frame = &vm->frames[vm->frame_count - 1];
+			LOAD_FRAME()
 
 			if (DEBUG_TRACE_EXECUTION) {
 				printf("== %s ==\n", frame->closure->function->name == NULL ? "top-level" : frame->closure->function->name->chars);
@@ -129,11 +137,33 @@ static bool interpret(LitVm* vm) {
 				return false;
 			}
 
-			frame = &vm->frames[vm->frame_count - 1];
+			LOAD_FRAME()
 
 			if (DEBUG_TRACE_EXECUTION) {
 				printf("== %s ==\n", frame->closure->function->name == NULL ? "top-level" : frame->closure->function->name->chars);
 			}
+		};
+
+		CASE_CODE(CONSTANT) {
+			registers[READ_BYTE()] = READ_CONSTANT();
+			continue;
+		};
+
+		CASE_CODE(CONSTANT_LONG) {
+			registers[READ_BYTE()] = READ_CONSTANT_LONG();
+			continue;
+		};
+
+		NUMBER_OPERATOR(ADD, +)
+		NUMBER_OPERATOR(SUBTRACT, -)
+		NUMBER_OPERATOR(MULTIPLY, *)
+		NUMBER_OPERATOR(DIVIDE, /)
+		FUNCTION_OPERATOR(MODULO, fmod)
+		FUNCTION_OPERATOR(POWER, pow)
+
+		CASE_CODE(ROOT) {
+			registers[READ_BYTE()] = MAKE_NUMBER_VALUE(pow(AS_NUMBER(registers[READ_BYTE()]), 1.0 / AS_NUMBER(registers[READ_BYTE()])));
+			continue;
 		};
 
 		/*CASE_CODE(STATIC_INIT) {

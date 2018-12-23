@@ -23,6 +23,24 @@ OPCODE(CONSTANT_LONG)
 // add(res_reg, a_reg, b_reg)
 // Adds values from register a and b into result register
 OPCODE(ADD)
+// subtract(res_reg, a_reg, b_reg)
+// Subtracts values from register a and b into result register
+OPCODE(SUBTRACT)
+// multiply(res_reg, a_reg, b_reg)
+// Multiplies values from register a and b into result register
+OPCODE(MULTIPLY)
+// divide(res_reg, a_reg, b_reg)
+// Divides values from register a and b into result register
+OPCODE(DIVIDE)
+// modulo(res_reg, a_reg, b_reg)
+// Dives by modulo values from register a and b into result register
+OPCODE(MODULO)
+// power(res_reg, a_reg, b_reg)
+// Calculates power of register a in stage b into result register
+OPCODE(POWER)
+// root(res_reg, a_reg, b_reg)
+// Calculates root from register a in stage b into result register
+OPCODE(ROOT)
 
 /*
 OPCODE(STATIC_INIT)

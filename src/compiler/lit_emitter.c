@@ -10,6 +10,7 @@
 #include <compiler/lit_ast.h>
 
 DEFINE_ARRAY(LitInts, uint64_t, ints)
+DEFINE_ARRAY(LitShorts, uint16_t, shorts)
 
 static void emit_byte(LitEmitter* emitter, uint8_t byte, uint64_t line) {
 	lit_chunk_write(MM(emitter->compiler), &emitter->function->function->chunk, byte, line);
@@ -48,7 +49,16 @@ static void error(LitEmitter* emitter, const char* format, ...) {
 }
 
 static uint16_t reserve_register(LitEmitter* emitter) {
-	return emitter->register_count++;
+	if (emitter->free_registers.count == 0) {
+		return emitter->register_count++;
+	}
+
+	emitter->free_registers.count--;
+	return emitter->free_registers.values[emitter->free_registers.count];
+}
+
+static void free_register(LitEmitter* emitter, uint16_t reg) {
+	lit_shorts_write(MM(emitter->compiler), &emitter->free_registers, reg);
 }
 
 static uint16_t emit_constant(LitEmitter* emitter, LitValue constant, uint64_t line) {
@@ -59,7 +69,7 @@ static uint16_t emit_constant(LitEmitter* emitter, LitValue constant, uint64_t l
 		return 0;
 	}
 
-	uint16_t reg = reserve_register(emitter); // For the result
+	uint16_t reg = reserve_register(emitter);
 
 	if (id > UINT8_MAX) {
 		// Id wont fit into a single byte, put it into 2 bytes
@@ -68,7 +78,7 @@ static uint16_t emit_constant(LitEmitter* emitter, LitValue constant, uint64_t l
 		emit_byte3(emitter, OP_CONSTANT, (uint8_t) reg, (uint8_t) id, line);
 	}
 
-	return (uint16_t) id;
+	return (uint16_t) reg;
 }
 
 static void emit_statement(LitEmitter* emitter, LitStatement* statement);
@@ -82,11 +92,18 @@ static uint16_t emit_expression(LitEmitter* emitter, LitExpression* expression) 
 			uint16_t b = emit_expression(emitter, expr->right);
 
 			switch (expr->operator) {
-				// FIXME: support OP_ADD_LONG
+				// FIXME: support OP_ADD_LONG, etc
 				case TOKEN_PLUS: emit_byte4(emitter, OP_ADD, (uint8_t) a, (uint8_t) a, (uint8_t) b, expression->line); break;
+				case TOKEN_MINUS: emit_byte4(emitter, OP_SUBTRACT, (uint8_t) a, (uint8_t) a, (uint8_t) b, expression->line); break;
+				case TOKEN_STAR: emit_byte4(emitter, OP_MULTIPLY, (uint8_t) a, (uint8_t) a, (uint8_t) b, expression->line); break;
+				case TOKEN_SLASH: emit_byte4(emitter, OP_DIVIDE, (uint8_t) a, (uint8_t) a, (uint8_t) b, expression->line); break;
+				case TOKEN_PERCENT: emit_byte4(emitter, OP_MODULO, (uint8_t) a, (uint8_t) a, (uint8_t) b, expression->line); break;
+				case TOKEN_CARET: emit_byte4(emitter, OP_POWER, (uint8_t) a, (uint8_t) a, (uint8_t) b, expression->line); break;
+				case TOKEN_CELL: emit_byte4(emitter, OP_ROOT, (uint8_t) a, (uint8_t) a, (uint8_t) b, expression->line); break;
 				default: UNREACHABLE();
 			}
 
+			free_register(emitter, b);
 			return a;
 		}
 		case LITERAL_EXPRESSION: {
@@ -131,11 +148,13 @@ void lit_init_emitter(LitCompiler* compiler, LitEmitter* emitter) {
 	emitter->function = NULL;
 	emitter->class = NULL;
 
+	lit_init_shorts(&emitter->free_registers);
 	lit_init_ints(&emitter->breaks);
 }
 
 void lit_free_emitter(LitEmitter* emitter) {
 	lit_free_ints(MM(emitter->compiler), &emitter->breaks);
+	lit_free_shorts(MM(emitter->compiler), &emitter->free_registers);
 }
 
 LitFunction* lit_emit(LitEmitter* emitter, LitStatements* statements) {

@@ -25,7 +25,7 @@ void lit_init_compiler(LitCompiler* compiler) {
 
 void lit_free_compiler(LitCompiler* compiler) {
 	if (DEBUG_TRACE_MEMORY_LEAKS) {
-		printf("Bytes allocated after before freeing compiler: %ld\n", ((LitMemManager*) compiler)->bytes_allocated);
+		printf("Bytes allocated after before freeing compiler: %ld\n", compiler->mem_manager.bytes_allocated);
 	}
 
 	lit_free_emitter(&compiler->emitter);
@@ -37,7 +37,7 @@ void lit_free_bytecode_objects(LitCompiler* compiler) {
 	lit_free_objects(MM(compiler));
 
 	if (DEBUG_TRACE_MEMORY_LEAKS) {
-		printf("Bytes allocated after freeing compiler and bytecode: %ld\n", ((LitMemManager*) &compiler)->bytes_allocated);
+		printf("Bytes allocated after freeing compiler and bytecode: %ld\n", compiler->mem_manager.bytes_allocated);
 	}
 }
 
@@ -60,20 +60,6 @@ LitFunction* lit_compile(LitCompiler* compiler, const char* source_code) {
 
 		lit_free_statements((LitMemManager *) compiler, &statements);
 		return NULL; // Parsing error
-	}
-
-	if (DEBUG_TRACE_AST) {
-		printf("[\n");
-
-		for (int i = 0; i < statements.count; i++) {
-			lit_trace_statement(MM(compiler), statements.values[i], 1);
-
-			if (i < statements.count - 1) {
-				printf(",\n");
-			}
-		}
-
-		printf("\n]\n");
 	}
 
 	if (lit_resolve(compiler, &statements)) {

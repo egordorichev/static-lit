@@ -28,6 +28,7 @@ typedef struct LitEmitterFunction {
 } LitEmitterFunction;
 
 DECLARE_ARRAY(LitInts, uint64_t, ints)
+DECLARE_ARRAY(LitShorts, uint16_t, shorts)
 
 typedef struct LitEmitter {
 	LitEmitterFunction* function;
@@ -35,6 +36,7 @@ typedef struct LitEmitter {
 	LitCompiler* compiler;
 	LitInts breaks;
 	uint16_t register_count;
+	LitShorts free_registers;
 
 	uint64_t loop_start;
 	bool had_error;
