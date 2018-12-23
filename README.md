@@ -6,8 +6,8 @@ Here is how it looks:
 
 ```js
 int do_thing(String a) {
-    print(a)
-    return 3
+	print(a)
+	return 3
 }
 
 var x = 10
