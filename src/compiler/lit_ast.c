@@ -391,9 +391,7 @@ void lit_free_statement(LitCompiler* compiler, LitStatement* statement) {
 			LitFunctionStatement* stmt = (LitFunctionStatement*) statement;
 			reallocate(compiler, (void*) stmt->name, strlen(stmt->name) + 1, 0);
 
-			if (strcmp(stmt->return_type.type, "void") != 0) {
-				reallocate(compiler, (void*) stmt->return_type.type, strlen(stmt->return_type.type) + 1, 0);
-			}
+			reallocate(compiler, (void*) stmt->return_type.type, strlen(stmt->return_type.type) + 1, 0);
 
 			lit_free_statement(compiler, stmt->body);
 

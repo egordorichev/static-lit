@@ -56,18 +56,22 @@ typedef struct LitMethodRegistry {
 typedef struct LitClassRegistry {
 	LitType* class;
 	LitMethodRegistry* methods;
+	int num_methods;
 	LitResolverNativeMethod* natives;
 } LitClassRegistry;
 
 typedef struct LitLibRegistry {
 	LitClassRegistry** classes;
+	int num_classes;
 	LitNativeRegistry** functions;
+	int num_functions;
 } LitLibRegistry;
 
 LitClassRegistry* lit_declare_class(LitCompiler* compiler, LitType* type, LitMethodRegistry* methods);
 void lit_define_class(LitVm* vm, LitClassRegistry* class);
 LitNativeRegistry* lit_declare_native(LitCompiler* compiler, LitNativeFn fn, const char* name, const char* signature);
 void lit_define_lib(LitVm* vm, LitLibRegistry* lib);
+void lit_free_lib(LitCompiler* compiler, LitLibRegistry* lib);
 
 void lit_free_vm(LitVm* vm);
 

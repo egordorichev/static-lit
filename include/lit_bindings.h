@@ -11,7 +11,8 @@
 
 #define START_CLASSES(size) ({\
 	int i = 0; \
-	lib->classes = reallocate(compiler, NULL, 0, sizeof(LitClassRegistry) * ((size) + 1)); \
+	lib->num_classes = size; \
+	lib->classes = reallocate(compiler, NULL, 0, sizeof(LitClassRegistry) * (size)); \
 
 #define END_CLASSES lib->classes[i] = NULL; \
 	});
@@ -24,14 +25,14 @@
 #define METHOD(name) int name(LitVm* vm, LitValue instance, const LitValue* args, int count)
 #define START_METHODS(name) static LitMethodRegistry name##_methods[] = {
 #define ADD(name, signature, fn, stat) { name, signature, fn, stat },
-#define END_METHODS { NULL, NULL, NULL, NULL } };
+#define END_METHODS };
 
 #define START_FUNCTIONS(size) ({\
 	int i = 0; \
-	lib->functions = reallocate(compiler, NULL, 0, sizeof(LitNativeRegistry) * ((size) + 1)); \
+	lib->num_functions = size; \
+	lib->functions = reallocate(compiler, NULL, 0, sizeof(LitNativeRegistry) * (size)); \
 
-#define END_FUNCTIONS lib->functions[i] = NULL; \
-	});
+#define END_FUNCTIONS });
 
 #define DEFINE_FUNCTION(function, name, signature)\
 	lib->functions[i] = lit_declare_native(compiler, function, name, signature);\

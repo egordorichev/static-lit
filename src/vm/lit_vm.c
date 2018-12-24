@@ -115,7 +115,7 @@ static bool interpret(LitVm* vm, LitFiber* fiber) {
 
 	while (true) {
 		if (*abort) {
-			return false;
+			return true;
 		}
 
 		if (DEBUG_TRACE_EXECUTION) {
@@ -129,7 +129,15 @@ static bool interpret(LitVm* vm, LitFiber* fiber) {
 			printf("Result: %s\n", lit_to_string(vm, registers[1]));
 
 			if (fiber->frame_count == 0) {
-				return false;
+				if (fiber->caller == NULL) {
+					return false;
+				}
+
+				LitFiber* new = fiber->caller;
+
+				fiber->caller = NULL;
+				vm->fiber = new;
+				fiber = new;
 			}
 
 			LOAD_FRAME()
@@ -753,6 +761,7 @@ bool lit_eval(const char* source_code) {
 	vm.init_string = lit_copy_string(MM(&vm), "init", 4);
 
 	lit_define_lib(&vm, std);
+	lit_free_lib(&compiler, std);
 
 	bool had_error = lit_execute(&vm, function);
 
@@ -836,6 +845,7 @@ LitClassRegistry* lit_declare_class(LitCompiler* compiler, LitType* type, LitMet
 
 	if (i > 0) {
 		registry->natives = reallocate(compiler, NULL, 0, sizeof(LitResolverNativeMethod) * i);
+		registry->num_methods = i;
 
 		for (int j = 0; j < i; j++) {
 			registry->natives[j] = *mt[j];
@@ -851,7 +861,14 @@ void lit_define_class(LitVm* vm, LitClassRegistry* class) {
 	LitClass* super = NULL;
 
 	if (class->class->super != NULL) {
-		// super = AS_CLASS(*lit_table_get(&vm->globals, class->class->super->name));
+		for (int i = 0; i < vm->globals.count; i++) {
+			LitValue value = vm->globals.values[i];
+
+			if (IS_CLASS(value) && AS_CLASS(value)->name == class->class->super->name) {
+				super = AS_CLASS(value);
+				break;
+			}
+		}
 
 		if (super == NULL) {
 			printf("Creating class error: super %s was not found\n", class->class->super->name->chars);
@@ -860,6 +877,7 @@ void lit_define_class(LitVm* vm, LitClassRegistry* class) {
 	}
 
 	LitClass* object_class = lit_vm_define_class(vm, class->class, super);
+	lit_array_write(MM(vm), &vm->globals, MAKE_OBJECT_VALUE(object_class));
 
 	if (class->natives == NULL) {
 		return;
@@ -888,20 +906,42 @@ LitNativeRegistry* lit_declare_native(LitCompiler* compiler, LitNativeFn fn, con
 
 void lit_define_lib(LitVm* vm, LitLibRegistry* lib) {
 	if (lib->classes != NULL) {
-		int i = 0;
-
-		while (lib->classes[i] != NULL) {
+		for (int i = 0; i < lib->num_classes; i++) {
 			lit_define_class(vm, lib->classes[i]);
-			i++;
 		}
 	}
 
 	if (lib->functions != NULL) {
-		int i = 0;
-
-		while (lib->functions[i] != NULL) {
+		for (int i = 0; i < lib->num_functions; i++) {
 			lit_vm_define_native(vm, lib->functions[i]);
-			i++;
 		}
 	}
+}
+
+void lit_free_lib(LitCompiler* compiler, LitLibRegistry* lib) {
+	if (lib->classes != NULL) {
+		for (int i = 0; i < lib->num_classes; i++) {
+			LitClassRegistry* cl = lib->classes[i];
+
+			for (int j = 0; j < cl->num_methods; j++) {
+				reallocate(compiler, &cl->natives[j], sizeof(LitResolverNativeMethod), 0);
+			}
+
+			reallocate(compiler, cl->natives, sizeof(LitResolverNativeMethod) * cl->num_methods, 0);
+			reallocate(compiler, cl->class, sizeof(LitType), 0);
+			reallocate(compiler, cl, sizeof(LitClassRegistry), 0);
+		}
+
+		reallocate(compiler, lib->classes, sizeof(LitClassRegistry) * lib->num_classes, 0);
+	}
+
+	if (lib->functions != NULL) {
+		for (int i = 0; i < lib->num_functions; i++) {
+			reallocate(compiler, lib->functions[i], sizeof(LitNativeRegistry), 0);
+		}
+
+		reallocate(compiler, lib->functions, sizeof(LitNativeRegistry) * lib->num_functions, 0);
+	}
+
+	reallocate(compiler, lib, sizeof(LitLibRegistry), 0);
 }

@@ -172,11 +172,11 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 			LitFunctionStatement* stmt = (LitFunctionStatement*) statement;
 			LitEmitterFunction function;
 
-			function.function = lit_new_function(MM(emitter->compiler));
 			function.register_count = 0;
 			function.depth = emitter->function->depth + 1;
 			function.local_count = 0;
 			function.enclosing = emitter->function;
+
 			function.function = lit_new_function(MM(emitter->compiler));
 			function.function->name = lit_copy_string(MM(emitter->compiler), stmt->name, (int) strlen(stmt->name));
 			function.function->arity = stmt->parameters == NULL ? 0 : stmt->parameters->count;
