@@ -1,6 +1,14 @@
 #ifndef LIT_COMPILER_H
 #define LIT_COMPILER_H
 
+/*
+ * Compiler is part of lit that converts source code
+ * into bytecode, that can be executed by vm
+ *
+ * It not only converts it, but also optimizes and
+ * validates it
+ */
+
 #include <lit_mem_manager.h>
 
 #include <compiler/lit_resolver.h>

@@ -10,6 +10,8 @@
 #define ALLOCATE_OBJECT(manager, type, object_type) \
     (type*) allocate_object(manager, sizeof(type), object_type)
 
+#define INITIAL_CALL_FRAMES 4
+
 static LitObject* allocate_object(LitMemManager* manager, size_t size, LitObjectType type) {
 	LitObject* object = (LitObject*) reallocate(manager, NULL, 0, size);
 
@@ -46,6 +48,29 @@ LitClosure* lit_new_closure(LitMemManager* manager, LitFunction* function) {
 	closure->upvalue_count = function->upvalue_count;
 
 	return closure;
+}
+
+LitFiber* lit_new_fiber(LitMemManager* manager, LitClosure* closure) {
+	LitFiber* fiber = ALLOCATE_OBJECT(manager, LitFiber, OBJECT_FIBER);
+
+	fiber->abort = false;
+	fiber->caller = NULL;
+	fiber->frame_count = 0;
+	fiber->frame_capacity = INITIAL_CALL_FRAMES;
+	fiber->frames = GROW_ARRAY(manager, NULL, LitFrame, 0, INITIAL_CALL_FRAMES);
+
+	if (closure != NULL) {
+		lit_append_frame(manager, fiber, closure);
+	}
+
+	return fiber;
+}
+
+void lit_append_frame(LitMemManager* manager, LitFiber* fiber, LitClosure* closure) {
+	LitFrame* frame = &fiber->frames[fiber->frame_count++];
+
+	frame->closure = closure;
+	frame->ip = closure->function->chunk.code;
 }
 
 LitFunction* lit_new_function(LitMemManager* manager) {

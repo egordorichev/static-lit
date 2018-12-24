@@ -15,23 +15,13 @@
 #include <vm/lit_memory.h>
 #include <compiler/lit_resolver.h>
 
-#define FRAMES_MAX 64
-
-typedef struct {
-	LitClosure* closure;
-	uint8_t* ip;
-	LitValue* slots;
-} LitFrame;
-
 typedef struct sLitVm {
 	LitMemManager mem_manager;
 
-	LitTable globals;
+	LitArray globals;
 	LitString *init_string;
 
-	LitFrame frames[FRAMES_MAX];
-	int frame_count;
-	bool abort;
+	LitFiber* fiber;
 
 	LitUpvalue* open_upvalues;
 	size_t next_gc;

@@ -11,6 +11,8 @@
 #include <lit_debug.h>
 #include <vm/lit_object.h>
 
+#define FRAMES_MAX 64
+
 static void runtime_error(LitVm* vm, const char* format, ...) {
 	va_list args;
 	va_start(args, format);
@@ -19,24 +21,22 @@ static void runtime_error(LitVm* vm, const char* format, ...) {
 	fprintf(stderr, "\n");
 	va_end(args);
 
-	for (int i = vm->frame_count - 1; i >= 0; i--) {
-		LitFrame* frame = &vm->frames[i];
+	for (int i = vm->fiber->frame_count - 1; i >= 0; i--) {
+		LitFrame* frame = &vm->fiber->frames[i];
 		LitFunction* function = frame->closure->function;
 		fprintf(stderr, "\tat %s():%ld\n", function->name->chars, lit_chunk_get_line(&function->chunk, frame->ip - function->chunk.code - 1));
 	}
 
-	vm->abort = true;
-	// Causes issues with error() function
-	// reset_stack(vm);
+	vm->fiber->abort = true;
 }
 
-static bool call(LitVm* vm, LitClosure* closure, int arg_count) {
-	if (vm->frame_count == FRAMES_MAX) {
+static bool call(LitVm* vm, LitClosure* closure) {
+	if (vm->fiber->frame_count == FRAMES_MAX) {
 		runtime_error(vm, "Stack overflow");
 		return false;
 	}
 
-	LitFrame* frame = &vm->frames[vm->frame_count++];
+	LitFrame* frame = &vm->fiber->frames[vm->fiber->frame_count++];
 
 	frame->closure = closure;
 	frame->ip = closure->function->chunk.code;
@@ -48,11 +48,11 @@ static bool call(LitVm* vm, LitClosure* closure, int arg_count) {
 	return true;
 }
 
-static bool call_value(LitVm* vm, LitValue callee, int arg_count, bool static_init) {
+static bool call_value(LitVm* vm, LitValue callee, int arg_count) {
 	if (IS_OBJECT(callee)) {
 		switch (OBJECT_TYPE(callee)) {
 			case OBJECT_CLOSURE: {
-				return call(vm, AS_CLOSURE(callee), arg_count);
+				return call(vm, AS_CLOSURE(callee));
 			}
 			default: UNREACHABLE();
 		}
@@ -62,18 +62,21 @@ static bool call_value(LitVm* vm, LitValue callee, int arg_count, bool static_in
 	return false;
 }
 
-static bool interpret(LitVm* vm) {
+static bool interpret(LitVm* vm, LitFiber* fiber) {
+	vm->fiber = fiber;
+	fiber->abort = false;
+
 	static void* dispatch_table[] = {
 #define OPCODE(name) &&CODE_##name,
 #include <vm/lit_opcode.h>
 #undef OPCODE
 	};
 
-	vm->abort = false;
 	register LitFrame* frame = NULL;
 	register uint8_t* ip;
 	register LitChunk* chunk = NULL;
 	register LitValue* registers = NULL;
+	register bool* abort = &fiber->abort;
 
 #define READ_BYTE() (*ip++)
 #define READ_CONSTANT() (chunk->constants.values[READ_BYTE()])
@@ -83,7 +86,7 @@ static bool interpret(LitVm* vm) {
 #define CASE_CODE(name) CODE_##name:
 #define STORE_FRAME() frame->ip = ip
 #define LOAD_FRAME() \
-	frame = &vm->frames[vm->frame_count - 1]; \
+	frame = &fiber->frames[fiber->frame_count - 1]; \
 	ip = frame->ip; \
 	chunk = &frame->closure->function->chunk; \
 	registers = frame->closure->function->registers;
@@ -111,7 +114,7 @@ static bool interpret(LitVm* vm) {
 	LOAD_FRAME()
 
 	while (true) {
-		if (vm->abort) {
+		if (*abort) {
 			return false;
 		}
 
@@ -122,10 +125,10 @@ static bool interpret(LitVm* vm) {
 		goto *dispatch_table[*ip++];
 
 		CASE_CODE(EXIT) {
-			vm->frame_count--;
+			fiber->frame_count--;
 			printf("Result: %s\n", lit_to_string(vm, registers[1]));
 
-			if (vm->frame_count == 0) {
+			if (fiber->frame_count == 0) {
 				return false;
 			}
 
@@ -139,9 +142,9 @@ static bool interpret(LitVm* vm) {
 		};
 
 		CASE_CODE(RETURN) {
-			vm->frame_count--;
+			fiber->frame_count--;
 
-			if (vm->frame_count == 0) {
+			if (fiber->frame_count == 0) {
 				return false;
 			}
 
@@ -683,10 +686,10 @@ void lit_init_vm(LitVm* vm) {
 	manager->objects = NULL;
 
 	lit_init_table(&manager->strings);
-	lit_init_table(&vm->globals);
+	lit_init_array(&vm->globals);
 
 	vm->open_upvalues = NULL;
-	vm->frame_count = 0;
+	vm->fiber = NULL;
 
 	vm->next_gc = 1024 * 1024;
 	vm->gray_capacity = 0;
@@ -708,7 +711,7 @@ void lit_free_vm(LitVm* vm) {
 	}
 
 	lit_free_table(MM(vm), &manager->strings);
-	lit_free_table(MM(vm), &vm->globals);
+	lit_free_array(MM(vm), &vm->globals);
 	lit_free_objects(MM(vm));
 
 	vm->init_string = NULL;
@@ -720,8 +723,12 @@ void lit_free_vm(LitVm* vm) {
 
 bool lit_execute(LitVm* vm, LitFunction* function) {
 	if (!DEBUG_NO_EXECUTE) {
-		call_value(vm, MAKE_OBJECT_VALUE(lit_new_closure(MM(vm), function)), 0, false);
-		return interpret(vm);
+		LitFiber* fiber = lit_new_fiber(MM(vm), NULL);
+
+		vm->fiber = fiber;
+		call_value(vm, MAKE_OBJECT_VALUE(lit_new_closure(MM(vm), function)), 0);
+
+		return interpret(vm, fiber);
 	}
 
 	return true;
@@ -756,8 +763,7 @@ bool lit_eval(const char* source_code) {
 }
 
 void lit_vm_define_native(LitVm* vm, LitNativeRegistry* native) {
-	LitString* str = lit_copy_string(MM(vm), native->name, (int) strlen(native->name));
-	lit_table_set(MM(vm), &vm->globals, AS_STRING(MAKE_OBJECT_VALUE(str)), MAKE_OBJECT_VALUE(lit_new_native(MM(vm), native->function)));
+	// lit_array_write(MM(vm), &vm->globals, MAKE_OBJECT_VALUE(lit_new_native(MM(vm), native->function)));
 }
 
 void lit_vm_define_natives(LitVm* vm, LitNativeRegistry* natives) {
@@ -775,7 +781,7 @@ void lit_vm_define_natives(LitVm* vm, LitNativeRegistry* natives) {
 
 LitClass* lit_vm_define_class(LitVm* vm, LitType* type, LitClass* super) {
 	LitClass* class = lit_new_class(MM(vm), type->name, super);
-	lit_table_set(MM(vm), &vm->globals, type->name, MAKE_OBJECT_VALUE(class));
+	// lit_array_write(MM(vm), &vm->globals, MAKE_OBJECT_VALUE(class));
 
 	if (vm->string_class == NULL && strcmp(type->name->chars, "String") == 0) {
 		vm->string_class = class;
@@ -845,7 +851,7 @@ void lit_define_class(LitVm* vm, LitClassRegistry* class) {
 	LitClass* super = NULL;
 
 	if (class->class->super != NULL) {
-		super = AS_CLASS(*lit_table_get(&vm->globals, class->class->super->name));
+		// super = AS_CLASS(*lit_table_get(&vm->globals, class->class->super->name));
 
 		if (super == NULL) {
 			printf("Creating class error: super %s was not found\n", class->class->super->name->chars);

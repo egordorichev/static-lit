@@ -14,6 +14,7 @@ typedef enum {
 } LitOpCode;
 
 DECLARE_ARRAY(LitArray, LitValue, array)
+void lit_gray_array(LitVm* vm, LitArray* array);
 
 typedef struct {
 	uint64_t count;

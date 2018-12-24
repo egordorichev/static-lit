@@ -4,6 +4,11 @@
 #include <lit_common.h>
 #include <lit_predefines.h>
 
+/*
+ * Lexer converts source code string into
+ * separate tokens
+ */
+
 typedef enum {
 	TOKEN_LEFT_PAREN, TOKEN_RIGHT_PAREN,
 	TOKEN_LEFT_BRACE, TOKEN_RIGHT_BRACE,

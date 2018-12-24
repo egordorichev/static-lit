@@ -114,6 +114,12 @@ static void blacken_object(LitVm* vm, LitObject* object) {
 
 			break;
 		}
+		case OBJECT_FIBER: {
+			LitFiber* fiber = (LitFiber*) object;
+			lit_gray_object(vm, (LitObject*) fiber->caller);
+
+			break;
+		}
 		default: UNREACHABLE();
 	}
 }
@@ -183,6 +189,14 @@ void lit_free_object(LitMemManager* manager, LitObject* object) {
 
 			break;
 		}
+		case OBJECT_FIBER: {
+			LitFiber* fiber = (LitFiber*) object;
+
+			FREE_ARRAY(manager, LitFrame, fiber->frames, fiber->frame_capacity);
+			FREE(manager, LitFiber, object);
+
+			break;
+		}
 		default: UNREACHABLE();
 	}
 }
@@ -199,15 +213,15 @@ void lit_collect_garbage(LitVm* vm) {
 		lit_gray_value(vm, vm->registers[i]);
 	}*/
 
-	for (int i = 0; i < vm->frame_count; i++) {
-		lit_gray_object(vm, (LitObject*) vm->frames[i].closure);
+	for (int i = 0; i < vm->fiber->frame_count; i++) {
+		lit_gray_object(vm, (LitObject*) vm->fiber->frames[i].closure);
 	}
 
 	for (LitUpvalue* upvalue = vm->open_upvalues; upvalue != NULL; upvalue = upvalue->next) {
 		lit_gray_object(vm, (LitObject*) upvalue);
 	}
 
-	lit_table_gray(vm, &vm->globals);
+	lit_gray_array(vm, &vm->globals);
 	lit_gray_object(vm, (LitObject*) vm->init_string);
 
 	while (vm->gray_count > 0) {

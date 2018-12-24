@@ -1,6 +1,8 @@
 #ifndef LIT_ARRAY_H
 #define LIT_ARRAY_H
 
+#include <lit_predefines.h>
+
 #define DECLARE_ARRAY(name, type, shr) \
 	typedef struct { \
 		int capacity; \

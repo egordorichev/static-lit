@@ -1,6 +1,16 @@
 #ifndef LIT_AST_H
 #define LIT_AST_H
 
+/*
+ * AST (abstract syntax tree) is a way to represent code
+ * as a set of nodes
+ *
+ * Each node has 1 parent and can have a few child-nodes
+ * AST is used for resolving, optimizing and emitting code
+ *
+ * Created by parser
+ */
+
 #include <lit_predefines.h>
 
 #include <compiler/lit_lexer.h>

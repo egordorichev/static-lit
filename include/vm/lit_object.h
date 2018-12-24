@@ -18,6 +18,7 @@
 #define IS_NATIVE_METHOD(value) lit_is_object_type(value, OBJECT_NATIVE_METHOD)
 #define IS_CLASS(value) lit_is_object_type(value, OBJECT_CLASS)
 #define IS_INSTANCE(value) lit_is_object_type(value, OBJECT_INSTANCE)
+#define IS_FIBER(value) lit_is_object_type(value, OBJECT_FIBER)
 
 #define AS_CLOSURE(value) ((LitClosure*) AS_OBJECT(value))
 #define AS_FUNCTION(value) ((LitFunction*) AS_OBJECT(value))
@@ -29,6 +30,7 @@
 #define AS_STRING(value) ((LitString*) AS_OBJECT(value))
 #define AS_CSTRING(value) (((LitString*) AS_OBJECT(value))->chars)
 #define AS_UPVALUE(value) ((LitUpvalue*) AS_OBJECT(value))
+#define AS_FIBER(value) ((LitFiber*) AS_OBJECT(value))
 
 typedef enum {
 	OBJECT_STRING,
@@ -39,7 +41,8 @@ typedef enum {
 	OBJECT_BOUND_METHOD,
 	OBJECT_CLASS,
 	OBJECT_INSTANCE,
-	OBJECT_NATIVE_METHOD
+	OBJECT_NATIVE_METHOD,
+	OBJECT_FIBER
 } LitObjectType;
 
 struct sLitObject {
@@ -110,6 +113,26 @@ typedef struct {
 } LitClosure;
 
 LitClosure* lit_new_closure(LitMemManager* manager, LitFunction* function);
+
+typedef struct {
+	LitClosure* closure;
+	uint8_t* ip;
+	LitValue* slots;
+} LitFrame;
+
+typedef struct sLitFiber {
+	LitObject object;
+
+	LitFrame* frames;
+	struct sLitFiber* caller;
+
+	int frame_capacity;
+	int frame_count;
+	bool abort;
+} LitFiber;
+
+LitFiber* lit_new_fiber(LitMemManager* manager, LitClosure* closure);
+void lit_append_frame(LitMemManager* manager, LitFiber* fiber, LitClosure* closure);
 
 typedef struct sLitClass {
 	LitObject object;

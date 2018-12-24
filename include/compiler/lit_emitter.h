@@ -1,6 +1,10 @@
 #ifndef LIT_EMITTER_H
 #define LIT_EMITTER_H
 
+/*
+ * Emitter converts AST to bytecode
+ */
+
 #include <vm/lit_object.h>
 #include <compiler/lit_ast.h>
 
