@@ -226,6 +226,13 @@ static bool interpret(LitVm* vm, LitFiber* fiber) {
 			continue;
 		}
 
+		CASE_CODE(SET_GLOBAL) {
+			uint16_t w = READ_SHORT();
+			/*vm->globals[w] = */registers[READ_SHORT()];
+
+			continue;
+		}
+
 		/*CASE_CODE(STATIC_INIT) {
 			if (!call_value(vm, PEEK(0), 0, true)) {
 				return false;

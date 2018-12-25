@@ -246,6 +246,22 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 
 			break;
 		}
+		case VAR_STATEMENT: {
+			LitVarStatement* stmt = (LitVarStatement*) statement;
+			uint16_t id = emitter->global_count++;
+			uint16_t reg = 0;
+
+			if (stmt->init != NULL) {
+				reg = emit_expression(emitter, stmt->init);
+			} else {
+				// todo
+			}
+
+			emit_byte(emitter, OP_SET_GLOBAL, statement->line);
+			emit_byte4(emitter, (uint8_t) ((id >> 8) & 0xff), (uint8_t) (id & 0xff), (uint8_t) ((reg >> 8) & 0xff), (uint8_t) (reg & 0xff), statement->line);
+
+			break;
+		}
 		default: {
 			printf("Unknown statement with id %i!\n", statement->type);
 			UNREACHABLE();
@@ -263,6 +279,7 @@ void lit_init_emitter(LitCompiler* compiler, LitEmitter* emitter) {
 	emitter->compiler = compiler;
 	emitter->function = NULL;
 	emitter->class = NULL;
+	emitter->global_count = 0;
 
 	lit_init_ints(&emitter->breaks);
 }

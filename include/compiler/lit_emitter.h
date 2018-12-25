@@ -46,6 +46,7 @@ typedef struct LitEmitter {
 	LitInts breaks;
 
 	uint64_t loop_start;
+	uint16_t global_count;
 	bool had_error;
 } LitEmitter;
 

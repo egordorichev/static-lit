@@ -12,7 +12,7 @@ uint64_t lit_disassemble_instruction(LitMemManager* manager, LitChunk* chunk, ui
 #define DEBUG_TRACE_EXECUTION true
 #define DEBUG_TRACE_CODE false
 #define DEBUG_TRACE_GC false
-#define DEBUG_TRACE_MEMORY_LEAKS true
+#define DEBUG_TRACE_MEMORY_LEAKS false
 #define DEBUG_NO_EXECUTE false
 
 #endif

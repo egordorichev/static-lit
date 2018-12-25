@@ -69,7 +69,7 @@ OPCODE(POWER2)
 OPCODE(SQUARE)
 // set_global(global_reg, value_reg)
 // Puts value_reg (in function) value into global_reg (in vm)
-// OPCODE(SET_GLOBAL)
+OPCODE(SET_GLOBAL)
 
 /*
 OPCODE(STATIC_INIT)
