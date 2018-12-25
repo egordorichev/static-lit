@@ -82,6 +82,7 @@ static bool interpret(LitVm* vm, LitFiber* fiber) {
 #define READ_CONSTANT() (chunk->constants.values[READ_BYTE()])
 #define READ_CONSTANT_LONG() (chunk->constants.values[READ_SHORT()])
 #define READ_STRING() AS_STRING(READ_CONSTANT())
+#define READ_STRING_LONG() AS_STRING(READ_CONSTANT_LONG())
 #define READ_SHORT() (ip += 2, (uint16_t) ((ip[-2] << 8) | ip[-1]))
 #define CASE_CODE(name) CODE_##name:
 #define STORE_FRAME() frame->ip = ip
@@ -196,7 +197,9 @@ static bool interpret(LitVm* vm, LitFiber* fiber) {
 		CASE_CODE(DEFINE_FUNCTION_LONG) {
 			uint16_t where = READ_BYTE();
 			LitFunction* function = AS_FUNCTION(READ_CONSTANT_LONG());
-			registers[where] = MAKE_OBJECT_VALUE(lit_new_closure(MM(vm), function));
+			LitValue closure = MAKE_OBJECT_VALUE(lit_new_closure(MM(vm), function));
+			registers[where] = closure;
+			lit_table_set(MM(vm), &vm->globals, function->name, closure);
 
 			continue;
 		}
@@ -227,8 +230,8 @@ static bool interpret(LitVm* vm, LitFiber* fiber) {
 		}
 
 		CASE_CODE(SET_GLOBAL) {
-			uint16_t w = READ_SHORT();
-			/*vm->globals[w] = */registers[READ_SHORT()];
+			LitString* where = READ_STRING_LONG();
+			lit_table_set(MM(vm), &vm->globals, where, registers[READ_SHORT()]);
 
 			continue;
 		}
@@ -701,7 +704,7 @@ void lit_init_vm(LitVm* vm) {
 	manager->objects = NULL;
 
 	lit_init_table(&manager->strings);
-	lit_init_array(&vm->globals);
+	lit_init_table(&vm->globals);
 
 	vm->open_upvalues = NULL;
 	vm->fiber = NULL;
@@ -726,7 +729,7 @@ void lit_free_vm(LitVm* vm) {
 	}
 
 	lit_free_table(MM(vm), &manager->strings);
-	lit_free_array(MM(vm), &vm->globals);
+	lit_free_table(MM(vm), &vm->globals);
 	lit_free_objects(MM(vm));
 
 	vm->init_string = NULL;
@@ -868,14 +871,7 @@ void lit_define_class(LitVm* vm, LitClassRegistry* class) {
 	LitClass* super = NULL;
 
 	if (class->class->super != NULL) {
-		for (int i = 0; i < vm->globals.count; i++) {
-			LitValue value = vm->globals.values[i];
-
-			if (IS_CLASS(value) && AS_CLASS(value)->name == class->class->super->name) {
-				super = AS_CLASS(value);
-				break;
-			}
-		}
+		super = AS_CLASS(*lit_table_get(&vm->globals, class->class->super->name));
 
 		if (super == NULL) {
 			printf("Creating class error: super %s was not found\n", class->class->super->name->chars);
@@ -884,7 +880,7 @@ void lit_define_class(LitVm* vm, LitClassRegistry* class) {
 	}
 
 	LitClass* object_class = lit_vm_define_class(vm, class->class, super);
-	lit_array_write(MM(vm), &vm->globals, MAKE_OBJECT_VALUE(object_class));
+	lit_table_set(MM(vm), &vm->globals, object_class->name, MAKE_OBJECT_VALUE(object_class));
 
 	if (class->natives == NULL) {
 		return;

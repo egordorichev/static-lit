@@ -18,7 +18,7 @@
 typedef struct sLitVm {
 	LitMemManager mem_manager;
 
-	LitArray globals;
+	LitTable globals;
 	LitString *init_string;
 
 	LitFiber* fiber;

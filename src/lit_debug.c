@@ -82,7 +82,11 @@ uint64_t lit_disassemble_instruction(LitMemManager* manager, LitChunk* chunk, ui
 			return offset + 3;
 		}
 		CASE_CODE(SET_GLOBAL) {
-			printf("%-16s g%i = %i\n", "OP_SET_GLOBAL", (chunk->code[offset + 1] << 8) | chunk->code[offset + 2], (chunk->code[offset + 3] << 8) | chunk->code[offset + 4]);
+			printf("%-16s %s = %i\n", "OP_SET_GLOBAL", lit_to_string((LitVm*) manager, chunk->constants.values[(chunk->code[offset + 1] << 8) | chunk->code[offset + 2]]), (chunk->code[offset + 3] << 8) | chunk->code[offset + 4]);
+			return offset + 5;
+		}
+		CASE_CODE(GET_GLOBAL) {
+			printf("%-16s %s = %i\n", "OP_GET_GLOBAL", lit_to_string((LitVm*) manager, chunk->constants.values[(chunk->code[offset + 1] << 8) | chunk->code[offset + 2]]), (chunk->code[offset + 3] << 8) | chunk->code[offset + 4]);
 			return offset + 5;
 		}
 		default: printf("Unknown code %i\n", instruction); return offset + 1;

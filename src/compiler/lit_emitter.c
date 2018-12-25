@@ -147,6 +147,15 @@ static uint16_t emit_expression(LitEmitter* emitter, LitExpression* expression) 
 		case LITERAL_EXPRESSION: {
 			return emit_constant(emitter, ((LitLiteralExpression*) expression)->value, expression->line);
 		}
+		case VAR_EXPRESSION: {
+			const char* name = ((LitVarExpression*) expression)->name;
+
+			uint16_t reg = reserve_register(emitter);
+			uint16_t id = make_constant(emitter, MAKE_OBJECT_VALUE());
+
+			emit_byte(emitter, OP_GET_GLOBAL, expression->line);
+			emit_byte4(emitter, (uint8_t) ((reg >> 8) & 0xff), (uint8_t) (reg & 0xff), expression->line);
+		}
 		default: {
 			printf("Unknown expression with id %i!\n", expression->type);
 			UNREACHABLE();
@@ -248,7 +257,6 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 		}
 		case VAR_STATEMENT: {
 			LitVarStatement* stmt = (LitVarStatement*) statement;
-			uint16_t id = emitter->global_count++;
 			uint16_t reg = 0;
 
 			if (stmt->init != NULL) {
@@ -258,6 +266,7 @@ static void emit_statement(LitEmitter* emitter, LitStatement* statement) {
 			}
 
 			emit_byte(emitter, OP_SET_GLOBAL, statement->line);
+			uint16_t id = make_constant(emitter, MAKE_OBJECT_VALUE(lit_copy_string(MM(emitter->compiler), stmt->name, strlen(stmt->name))));
 			emit_byte4(emitter, (uint8_t) ((id >> 8) & 0xff), (uint8_t) (id & 0xff), (uint8_t) ((reg >> 8) & 0xff), (uint8_t) (reg & 0xff), statement->line);
 
 			break;

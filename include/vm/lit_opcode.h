@@ -68,8 +68,11 @@ OPCODE(POWER2)
 // Finds squre root from a_reg into res_reg
 OPCODE(SQUARE)
 // set_global(global_reg, value_reg)
-// Puts value_reg (in function) value into global_reg (in vm)
+// Puts value_reg (in function) value into global_reg (string, in vm)
 OPCODE(SET_GLOBAL)
+// get_global(global_reg, res_reg)
+// Copies global from global_reg (string) to res_reg
+OPCODE(GET_GLOBAL)
 
 /*
 OPCODE(STATIC_INIT)
