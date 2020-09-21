@@ -1,5 +1,7 @@
 ### lit
 
+**This is an old version of lit, preserved for history. [See out this repo](https://github.com/egordorichev/lit) for the current version!**
+
 lit is a tiny and fast language, designed to be embeddable and used as a scripting language. It takes inspiration from JavaScript, Java, C# and Lua, and combines them all into a statically-typed stack-vm based language.
 
 Here is how it looks:
